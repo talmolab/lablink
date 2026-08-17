@@ -4627,7 +4627,7 @@ tmp_path with no app fixture.</p>
 
 
 <h4 id="lablink_allocator_service.utils.log_tail.LOG_DIR" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <code class="highlight language-python"><span class="n">LOG_DIR</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s1">&#39;/var/log/lablink&#39;</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <code class="highlight language-python"><span class="n">LOG_DIR</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s1">'/var/log/lablink'</span><span class="p">)</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
@@ -4693,11 +4693,11 @@ turns that into a user-facing explanation rather than an error.</p>
 <a id="__codelineno-0-71" name="__codelineno-0-71"></a>    <span class="n">log_dir</span><span class="p">:</span> <span class="n">Path</span> <span class="o">=</span> <span class="n">LOG_DIR</span><span class="p">,</span>
 <a id="__codelineno-0-72" name="__codelineno-0-72"></a>    <span class="n">max_lines</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">DEFAULT_MAX_LINES</span><span class="p">,</span>
 <a id="__codelineno-0-73" name="__codelineno-0-73"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-74" name="__codelineno-0-74"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Last `max_lines` lines across the rotation set, cleaned and redacted.</span>
+<a id="__codelineno-0-74" name="__codelineno-0-74"></a><span class="w">    </span><span class="sd">"""Last `max_lines` lines across the rotation set, cleaned and redacted.</span>
 <a id="__codelineno-0-75" name="__codelineno-0-75"></a>
 <a id="__codelineno-0-76" name="__codelineno-0-76"></a><span class="sd">    Returns None when there is no log file to read at all -- the caller</span>
 <a id="__codelineno-0-77" name="__codelineno-0-77"></a><span class="sd">    turns that into a user-facing explanation rather than an error.</span>
-<a id="__codelineno-0-78" name="__codelineno-0-78"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-78" name="__codelineno-0-78"></a><span class="sd">    """</span>
 <a id="__codelineno-0-79" name="__codelineno-0-79"></a>    <span class="n">chunks</span> <span class="o">=</span> <span class="p">[]</span>
 <a id="__codelineno-0-80" name="__codelineno-0-80"></a>    <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">_rotation_files</span><span class="p">(</span><span class="n">log_dir</span><span class="p">):</span>
 <a id="__codelineno-0-81" name="__codelineno-0-81"></a>        <span class="k">try</span><span class="p">:</span>
@@ -4710,12 +4710,12 @@ turns that into a user-facing explanation rather than an error.</p>
 <a id="__codelineno-0-88" name="__codelineno-0-88"></a>    <span class="c1"># The byte window can slice mid-line, leaving a fragmentary first</span>
 <a id="__codelineno-0-89" name="__codelineno-0-89"></a>    <span class="c1"># line. Harmless: _TAIL_WINDOW_BYTES holds far more than max_lines of</span>
 <a id="__codelineno-0-90" name="__codelineno-0-90"></a>    <span class="c1"># ordinary output, so the slice below almost always discards it.</span>
-<a id="__codelineno-0-91" name="__codelineno-0-91"></a>    <span class="n">lines</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">chunks</span><span class="p">)</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()[</span><span class="o">-</span><span class="n">max_lines</span><span class="p">:]</span>
+<a id="__codelineno-0-91" name="__codelineno-0-91"></a>    <span class="n">lines</span> <span class="o">=</span> <span class="s2">""</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">chunks</span><span class="p">)</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()[</span><span class="o">-</span><span class="n">max_lines</span><span class="p">:]</span>
 <a id="__codelineno-0-92" name="__codelineno-0-92"></a>    <span class="c1"># Werkzeug colorizes non-2xx request lines, so this stream carries ANSI</span>
 <a id="__codelineno-0-93" name="__codelineno-0-93"></a>    <span class="c1"># escapes that the log box would render as literal junk. Client VM logs</span>
 <a id="__codelineno-0-94" name="__codelineno-0-94"></a>    <span class="c1"># reach the same template already clean -- vm_telemetry strips them at</span>
 <a id="__codelineno-0-95" name="__codelineno-0-95"></a>    <span class="c1"># ingestion -- so strip here to match.</span>
-<a id="__codelineno-0-96" name="__codelineno-0-96"></a>    <span class="k">return</span> <span class="n">redact_secrets</span><span class="p">(</span><span class="n">strip_ansi</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)))</span> <span class="ow">or</span> <span class="kc">None</span>
+<a id="__codelineno-0-96" name="__codelineno-0-96"></a>    <span class="k">return</span> <span class="n">redact_secrets</span><span class="p">(</span><span class="n">strip_ansi</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)))</span> <span class="ow">or</span> <span class="kc">None</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -4741,8 +4741,8 @@ turns that into a user-facing explanation rather than an error.</p>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-43">43</a></span>
 <span class="normal"><a href="#__codelineno-0-44">44</a></span>
 <span class="normal"><a href="#__codelineno-0-45">45</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-43" name="__codelineno-0-43"></a><span class="k">def</span><span class="w"> </span><span class="nf">redact_secrets</span><span class="p">(</span><span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<a id="__codelineno-0-44" name="__codelineno-0-44"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Mask the values of secret-looking assignments, keeping the keys.&quot;&quot;&quot;</span>
-<a id="__codelineno-0-45" name="__codelineno-0-45"></a>    <span class="k">return</span> <span class="n">_SECRET_RE</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">rf</span><span class="s2">&quot;\1</span><span class="si">{</span><span class="n">_REDACTED</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>
+<a id="__codelineno-0-44" name="__codelineno-0-44"></a><span class="w">    </span><span class="sd">"""Mask the values of secret-looking assignments, keeping the keys."""</span>
+<a id="__codelineno-0-45" name="__codelineno-0-45"></a>    <span class="k">return</span> <span class="n">_SECRET_RE</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">rf</span><span class="s2">"\1</span><span class="si">{</span><span class="n">_REDACTED</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>

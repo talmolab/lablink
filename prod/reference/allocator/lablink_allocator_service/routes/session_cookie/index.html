@@ -4505,7 +4505,7 @@ across call sites.</p>
 
 
 <h4 id="lablink_allocator_service.routes.session_cookie.sign_session_cookie_and_redirect" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">sign_session_cookie_and_redirect</span><span class="p">(</span><span class="n">session_id</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">sign_session_cookie_and_redirect</span><span class="p">(</span><span class="n">session_id</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s1">''</span><span class="p">)</span></code>
 
 <a href="#lablink_allocator_service.routes.session_cookie.sign_session_cookie_and_redirect" class="headerlink" title="Permanent link">&para;</a></h4>
 
@@ -4596,16 +4596,16 @@ Omitted entirely for a bare student session.</p>
 <span class="normal"><a href="#__codelineno-0-44">44</a></span>
 <span class="normal"><a href="#__codelineno-0-45">45</a></span>
 <span class="normal"><a href="#__codelineno-0-46">46</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-16" name="__codelineno-0-16"></a><span class="k">def</span><span class="w"> </span><span class="nf">sign_session_cookie_and_redirect</span><span class="p">(</span>
-<a id="__codelineno-0-17" name="__codelineno-0-17"></a>    <span class="n">session_id</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">suffix</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+<a id="__codelineno-0-17" name="__codelineno-0-17"></a>    <span class="n">session_id</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">suffix</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">""</span>
 <a id="__codelineno-0-18" name="__codelineno-0-18"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
-<a id="__codelineno-0-19" name="__codelineno-0-19"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Sign ``session_id`` (optionally with a ``:suffix``) into the</span>
+<a id="__codelineno-0-19" name="__codelineno-0-19"></a><span class="w">    </span><span class="sd">"""Sign ``session_id`` (optionally with a ``:suffix``) into the</span>
 <a id="__codelineno-0-20" name="__codelineno-0-20"></a><span class="sd">    lablink_session cookie and redirect to /desktop.</span>
 <a id="__codelineno-0-21" name="__codelineno-0-21"></a>
 <a id="__codelineno-0-22" name="__codelineno-0-22"></a><span class="sd">    Args:</span>
 <a id="__codelineno-0-23" name="__codelineno-0-23"></a><span class="sd">        session_id: The session identifier to sign (str or UUID).</span>
-<a id="__codelineno-0-24" name="__codelineno-0-24"></a><span class="sd">        suffix: Optional payload suffix (e.g. &quot;view_only&quot;, &quot;admin_session&quot;).</span>
+<a id="__codelineno-0-24" name="__codelineno-0-24"></a><span class="sd">        suffix: Optional payload suffix (e.g. "view_only", "admin_session").</span>
 <a id="__codelineno-0-25" name="__codelineno-0-25"></a><span class="sd">            Omitted entirely for a bare student session.</span>
-<a id="__codelineno-0-26" name="__codelineno-0-26"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-26" name="__codelineno-0-26"></a><span class="sd">    """</span>
 <a id="__codelineno-0-27" name="__codelineno-0-27"></a>    <span class="kn">from</span><span class="w"> </span><span class="nn">lablink_allocator_service</span><span class="w"> </span><span class="kn">import</span> <span class="n">main</span>
 <a id="__codelineno-0-28" name="__codelineno-0-28"></a>
 <a id="__codelineno-0-29" name="__codelineno-0-29"></a>    <span class="n">conn</span> <span class="o">=</span> <span class="n">main</span><span class="o">.</span><span class="n">database</span><span class="o">.</span><span class="n">_pool</span><span class="o">.</span><span class="n">getconn</span><span class="p">()</span>
@@ -4614,16 +4614,16 @@ Omitted entirely for a bare student session.</p>
 <a id="__codelineno-0-32" name="__codelineno-0-32"></a>    <span class="k">finally</span><span class="p">:</span>
 <a id="__codelineno-0-33" name="__codelineno-0-33"></a>        <span class="n">main</span><span class="o">.</span><span class="n">database</span><span class="o">.</span><span class="n">_pool</span><span class="o">.</span><span class="n">putconn</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
 <a id="__codelineno-0-34" name="__codelineno-0-34"></a>
-<a id="__codelineno-0-35" name="__codelineno-0-35"></a>    <span class="n">payload</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">session_id</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">if</span> <span class="n">suffix</span> <span class="k">else</span> <span class="nb">str</span><span class="p">(</span><span class="n">session_id</span><span class="p">)</span>
+<a id="__codelineno-0-35" name="__codelineno-0-35"></a>    <span class="n">payload</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">session_id</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">"</span> <span class="k">if</span> <span class="n">suffix</span> <span class="k">else</span> <span class="nb">str</span><span class="p">(</span><span class="n">session_id</span><span class="p">)</span>
 <a id="__codelineno-0-36" name="__codelineno-0-36"></a>    <span class="n">signed</span> <span class="o">=</span> <span class="n">sign</span><span class="p">(</span><span class="n">payload</span><span class="p">,</span> <span class="n">secret</span><span class="o">=</span><span class="n">secret</span><span class="p">)</span>
-<a id="__codelineno-0-37" name="__codelineno-0-37"></a>    <span class="n">resp</span> <span class="o">=</span> <span class="n">redirect</span><span class="p">(</span><span class="s2">&quot;/desktop&quot;</span><span class="p">,</span> <span class="n">code</span><span class="o">=</span><span class="mi">303</span><span class="p">)</span>
+<a id="__codelineno-0-37" name="__codelineno-0-37"></a>    <span class="n">resp</span> <span class="o">=</span> <span class="n">redirect</span><span class="p">(</span><span class="s2">"/desktop"</span><span class="p">,</span> <span class="n">code</span><span class="o">=</span><span class="mi">303</span><span class="p">)</span>
 <a id="__codelineno-0-38" name="__codelineno-0-38"></a>    <span class="c1"># Secure flag is decided by whether the inbound request was https —</span>
 <a id="__codelineno-0-39" name="__codelineno-0-39"></a>    <span class="c1"># front door (ALB/Caddy/Cloudflare) sets X-Forwarded-Proto.</span>
-<a id="__codelineno-0-40" name="__codelineno-0-40"></a>    <span class="n">is_https</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;X-Forwarded-Proto&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;https&quot;</span>
+<a id="__codelineno-0-40" name="__codelineno-0-40"></a>    <span class="n">is_https</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"X-Forwarded-Proto"</span><span class="p">)</span> <span class="o">==</span> <span class="s2">"https"</span>
 <a id="__codelineno-0-41" name="__codelineno-0-41"></a>    <span class="n">resp</span><span class="o">.</span><span class="n">set_cookie</span><span class="p">(</span>
-<a id="__codelineno-0-42" name="__codelineno-0-42"></a>        <span class="s2">&quot;lablink_session&quot;</span><span class="p">,</span> <span class="n">signed</span><span class="p">,</span>
-<a id="__codelineno-0-43" name="__codelineno-0-43"></a>        <span class="n">httponly</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">samesite</span><span class="o">=</span><span class="s2">&quot;Strict&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-44" name="__codelineno-0-44"></a>        <span class="n">secure</span><span class="o">=</span><span class="n">is_https</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="s2">&quot;/&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-42" name="__codelineno-0-42"></a>        <span class="s2">"lablink_session"</span><span class="p">,</span> <span class="n">signed</span><span class="p">,</span>
+<a id="__codelineno-0-43" name="__codelineno-0-43"></a>        <span class="n">httponly</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">samesite</span><span class="o">=</span><span class="s2">"Strict"</span><span class="p">,</span>
+<a id="__codelineno-0-44" name="__codelineno-0-44"></a>        <span class="n">secure</span><span class="o">=</span><span class="n">is_https</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="s2">"/"</span><span class="p">,</span>
 <a id="__codelineno-0-45" name="__codelineno-0-45"></a>    <span class="p">)</span>
 <a id="__codelineno-0-46" name="__codelineno-0-46"></a>    <span class="k">return</span> <span class="n">resp</span>
 </code></pre></div></td></tr></table></div>

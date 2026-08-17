@@ -4559,7 +4559,7 @@ client log ingestion) and it holds no state.</p>
 
 
 <h4 id="lablink_allocator_service.utils.ansi.ANSI_ESCAPE" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <code class="highlight language-python"><span class="n">ANSI_ESCAPE</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">x1B(?:[@-Z</span><span class="se">\\\\</span><span class="s1">-_]|</span><span class="se">\\</span><span class="s1">[[0-?]*[ -/]*[@-~])&#39;</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <code class="highlight language-python"><span class="n">ANSI_ESCAPE</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s1">'</span><span class="se">\\</span><span class="s1">x1B(?:[@-Z</span><span class="se">\\\\</span><span class="s1">-_]|</span><span class="se">\\</span><span class="s1">[[0-?]*[ -/]*[@-~])'</span><span class="p">)</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
@@ -4596,8 +4596,8 @@ client log ingestion) and it holds no state.</p>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-14">14</a></span>
 <span class="normal"><a href="#__codelineno-0-15">15</a></span>
 <span class="normal"><a href="#__codelineno-0-16">16</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-14" name="__codelineno-0-14"></a><span class="k">def</span><span class="w"> </span><span class="nf">strip_ansi</span><span class="p">(</span><span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<a id="__codelineno-0-15" name="__codelineno-0-15"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Return *text* with ANSI escape sequences removed.&quot;&quot;&quot;</span>
-<a id="__codelineno-0-16" name="__codelineno-0-16"></a>    <span class="k">return</span> <span class="n">ANSI_ESCAPE</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15"></a><span class="w">    </span><span class="sd">"""Return *text* with ANSI escape sequences removed."""</span>
+<a id="__codelineno-0-16" name="__codelineno-0-16"></a>    <span class="k">return</span> <span class="n">ANSI_ESCAPE</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s2">""</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>

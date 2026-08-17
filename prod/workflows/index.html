@@ -6986,15 +6986,15 @@
 <h4 id="tag-usage-in-opentofu">Tag Usage in OpenTofu<a class="headerlink" href="#tag-usage-in-opentofu" title="Permanent link">&para;</a></h4>
 <p>For production deployments, always use version-specific tags in your OpenTofu configuration:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="c1"># terraform.tfvars or -var flags</span>
-<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="na">allocator_image_tag</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;0.2.0&quot;</span><span class="c1">  # Pin to specific version</span>
-<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="na">client_image_tag</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;0.2.0&quot;</span><span class="c1">  # Pin to specific version</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="na">allocator_image_tag</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"0.2.0"</span><span class="c1">  # Pin to specific version</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="na">client_image_tag</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="s2">"0.2.0"</span><span class="c1">  # Pin to specific version</span>
 </code></pre></div>
 <p>For development/testing, you can use environment-specific tags:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="c1"># Development</span>
-<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="na">allocator_image_tag</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;linux-amd64-test&quot;</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="na">allocator_image_tag</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"linux-amd64-test"</span>
 <a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>
 <a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="c1"># Latest main branch</span>
-<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="na">allocator_image_tag</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;latest&quot;</span>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="na">allocator_image_tag</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"latest"</span>
 </code></pre></div>
 <h4 id="summary-table">Summary Table<a class="headerlink" href="#summary-table" title="Permanent link">&para;</a></h4>
 <table>
@@ -7163,7 +7163,7 @@
 <a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="w">  </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">docker/build-push-action@v5</span>
 <a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a><span class="w">  </span><span class="nt">with</span><span class="p">:</span>
 <a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="w">    </span><span class="nt">platforms</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">linux/amd64,linux/arm64</span><span class="w"> </span><span class="c1"># Add ARM support</span>
-<a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a><span class="w">    </span><span class="nt">push</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ github.event_name != &#39;pull_request&#39; }}</span>
+<a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a><span class="w">    </span><span class="nt">push</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ github.event_name != 'pull_request' }}</span>
 <a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a><span class="w">    </span><span class="nt">tags</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ steps.meta.outputs.tags }}</span>
 </code></pre></div>
 <h2 id="opentofu-deployment-workflow">OpenTofu Deployment Workflow<a class="headerlink" href="#opentofu-deployment-workflow" title="Permanent link">&para;</a></h2>
@@ -7204,7 +7204,7 @@
 <p>All deployments use the <code>lablink-infrastructure/</code> directory structure with configuration at <code>lablink-infrastructure/config/config.yaml</code>.</p>
 <h3 id="workflow-steps_1">Workflow Steps<a class="headerlink" href="#workflow-steps_1" title="Permanent link">&para;</a></h3>
 <h4 id="1-environment-determination">1. Environment Determination<a class="headerlink" href="#1-environment-determination" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>Push to &#39;test&#39; branch → env=test
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>Push to 'test' branch → env=test
 <a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>Manual dispatch → env=&lt;user input&gt;
 <a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>Repository dispatch → env=&lt;payload&gt;
 </code></pre></div>
@@ -7230,13 +7230,13 @@
 </code></pre></div>
 <h4 id="5-planning">5. Planning<a class="headerlink" href="#5-planning" title="Permanent link">&para;</a></h4>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>tofu<span class="w"> </span>plan<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=&lt;env&gt;&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">&quot;allocator_image_tag=&lt;tag&gt;&quot;</span>
+<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">"resource_suffix=&lt;env&gt;"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">"allocator_image_tag=&lt;tag&gt;"</span>
 </code></pre></div>
 <h4 id="6-application">6. Application<a class="headerlink" href="#6-application" title="Permanent link">&para;</a></h4>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>tofu<span class="w"> </span>apply<span class="w"> </span>-auto-approve<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=&lt;env&gt;&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">&quot;allocator_image_tag=&lt;tag&gt;&quot;</span>
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">"resource_suffix=&lt;env&gt;"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">"allocator_image_tag=&lt;tag&gt;"</span>
 </code></pre></div>
 <h4 id="7-artifact-handling">7. Artifact Handling<a class="headerlink" href="#7-artifact-handling" title="Permanent link">&para;</a></h4>
 <ul>
@@ -7277,7 +7277,7 @@
 <a id="__codelineno-26-6" name="__codelineno-26-6" href="#__codelineno-26-6"></a><span class="w">    </span><span class="nt">webhook-url</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ secrets.SLACK_WEBHOOK }}</span>
 <a id="__codelineno-26-7" name="__codelineno-26-7" href="#__codelineno-26-7"></a><span class="w">    </span><span class="nt">payload</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
 <a id="__codelineno-26-8" name="__codelineno-26-8" href="#__codelineno-26-8"></a><span class="w">      </span><span class="no">{</span>
-<a id="__codelineno-26-9" name="__codelineno-26-9" href="#__codelineno-26-9"></a><span class="w">        </span><span class="no">&quot;text&quot;: &quot;LabLink deployed to ${{ steps.setenv.outputs.env }}!&quot;</span>
+<a id="__codelineno-26-9" name="__codelineno-26-9" href="#__codelineno-26-9"></a><span class="w">        </span><span class="no">"text": "LabLink deployed to ${{ steps.setenv.outputs.env }}!"</span>
 <a id="__codelineno-26-10" name="__codelineno-26-10" href="#__codelineno-26-10"></a><span class="w">      </span><span class="no">}</span>
 </code></pre></div>
 <h2 id="destroy-workflow">Destroy Workflow<a class="headerlink" href="#destroy-workflow" title="Permanent link">&para;</a></h2>
@@ -7322,7 +7322,7 @@
 </ol>
 <h3 id="example-usage">Example Usage<a class="headerlink" href="#example-usage" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a>1. Navigate to Actions → Allocator Master Destroy
-<a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a>2. Click &quot;Run workflow&quot;
+<a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a>2. Click "Run workflow"
 <a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a>3. Select environment: dev
 <a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a>4. Confirm
 <a id="__codelineno-27-5" name="__codelineno-27-5" href="#__codelineno-27-5"></a>5. Workflow destroys:
@@ -7427,17 +7427,17 @@
 <h3 id="adding-secrets">Adding Secrets<a class="headerlink" href="#adding-secrets" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a>1. Go to repository Settings
 <a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a>2. Navigate to Secrets and variables → Actions
-<a id="__codelineno-29-3" name="__codelineno-29-3" href="#__codelineno-29-3"></a>3. Click &quot;New repository secret&quot;
+<a id="__codelineno-29-3" name="__codelineno-29-3" href="#__codelineno-29-3"></a>3. Click "New repository secret"
 <a id="__codelineno-29-4" name="__codelineno-29-4" href="#__codelineno-29-4"></a>4. Name: ADMIN_PASSWORD
 <a id="__codelineno-29-5" name="__codelineno-29-5" href="#__codelineno-29-5"></a>5. Value: your-secure-password
-<a id="__codelineno-29-6" name="__codelineno-29-6" href="#__codelineno-29-6"></a>6. Click &quot;Add secret&quot;
+<a id="__codelineno-29-6" name="__codelineno-29-6" href="#__codelineno-29-6"></a>6. Click "Add secret"
 </code></pre></div>
 <p>Access in workflows:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Use secret</span>
 <a id="__codelineno-30-2" name="__codelineno-30-2" href="#__codelineno-30-2"></a><span class="w">  </span><span class="nt">env</span><span class="p">:</span>
 <a id="__codelineno-30-3" name="__codelineno-30-3" href="#__codelineno-30-3"></a><span class="w">    </span><span class="nt">ADMIN_PASSWORD</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ secrets.ADMIN_PASSWORD }}</span>
 <a id="__codelineno-30-4" name="__codelineno-30-4" href="#__codelineno-30-4"></a><span class="w">  </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
-<a id="__codelineno-30-5" name="__codelineno-30-5" href="#__codelineno-30-5"></a><span class="w">    </span><span class="no">echo &quot;Password is set&quot;</span>
+<a id="__codelineno-30-5" name="__codelineno-30-5" href="#__codelineno-30-5"></a><span class="w">    </span><span class="no">echo "Password is set"</span>
 </code></pre></div>
 <h2 id="troubleshooting-workflows">Troubleshooting Workflows<a class="headerlink" href="#troubleshooting-workflows" title="Permanent link">&para;</a></h2>
 <h3 id="workflow-wont-trigger">Workflow Won't Trigger<a class="headerlink" href="#workflow-wont-trigger" title="Permanent link">&para;</a></h3>

@@ -4731,7 +4731,7 @@
 
 <p>Commit your configuration and push to the <code>main</code> branch:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>git<span class="w"> </span>add<span class="w"> </span>lablink-infrastructure/config/config.yaml
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;Add deployment configuration&quot;</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">"Add deployment configuration"</span>
 <a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>git<span class="w"> </span>push
 </code></pre></div>
 <p>Monitor the deployment:</p>
@@ -4787,7 +4787,7 @@
 <a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>sudo<span class="w"> </span>docker<span class="w"> </span>ps
 <a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>
 <a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="c1"># Check VMs registered in database</span>
-<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span><span class="k">$(</span>sudo<span class="w"> </span>docker<span class="w"> </span>ps<span class="w"> </span>-q<span class="k">)</span><span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;SELECT hostname FROM vms;&quot;</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span><span class="k">$(</span>sudo<span class="w"> </span>docker<span class="w"> </span>ps<span class="w"> </span>-q<span class="k">)</span><span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="s2">"SELECT hostname FROM vms;"</span>
 </code></pre></div>
 <h2 id="step-6-cleanup">Step 6: Cleanup<a class="headerlink" href="#step-6-cleanup" title="Permanent link">&para;</a></h2>
 <div class="video-container">
@@ -4806,7 +4806,7 @@
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nb">cd</span><span class="w"> </span>lablink-infrastructure
 <a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>scripts/init-terraform.sh<span class="w"> </span><span class="nb">test</span>
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>tofu<span class="w"> </span>destroy<span class="w"> </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=test&quot;</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>tofu<span class="w"> </span>destroy<span class="w"> </span>-var<span class="o">=</span><span class="s2">"resource_suffix=test"</span>
 </code></pre></div>
 </div>
 <div class="tabbed-block">

@@ -4675,7 +4675,7 @@
 
 
 <h4 id="lablink_allocator_service.routes.admin_sessions.bp" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <code class="highlight language-python"><span class="n">bp</span> <span class="o">=</span> <span class="n">Blueprint</span><span class="p">(</span><span class="s1">&#39;admin_sessions&#39;</span><span class="p">,</span> <span class="vm">__name__</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <code class="highlight language-python"><span class="n">bp</span> <span class="o">=</span> <span class="n">Blueprint</span><span class="p">(</span><span class="s1">'admin_sessions'</span><span class="p">,</span> <span class="vm">__name__</span><span class="p">)</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
@@ -4755,25 +4755,25 @@ was the only way out (lablink#404).</p>
 <span class="normal"><a href="#__codelineno-0-147">147</a></span>
 <span class="normal"><a href="#__codelineno-0-148">148</a></span>
 <span class="normal"><a href="#__codelineno-0-149">149</a></span>
-<span class="normal"><a href="#__codelineno-0-150">150</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-132" name="__codelineno-0-132"></a><span class="nd">@bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">&quot;/admin/instances/&lt;hostname&gt;/clear-unhealthy&quot;</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;POST&quot;</span><span class="p">])</span>
+<span class="normal"><a href="#__codelineno-0-150">150</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-132" name="__codelineno-0-132"></a><span class="nd">@bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">"/admin/instances/&lt;hostname&gt;/clear-unhealthy"</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s2">"POST"</span><span class="p">])</span>
 <a id="__codelineno-0-133" name="__codelineno-0-133"></a><span class="nd">@auth</span><span class="o">.</span><span class="n">login_required</span>
 <a id="__codelineno-0-134" name="__codelineno-0-134"></a><span class="k">def</span><span class="w"> </span><span class="nf">admin_clear_unhealthy</span><span class="p">(</span><span class="n">hostname</span><span class="p">):</span>
-<a id="__codelineno-0-135" name="__codelineno-0-135"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Clear an allocator-set Unhealthy flag by hand.</span>
+<a id="__codelineno-0-135" name="__codelineno-0-135"></a><span class="w">    </span><span class="sd">"""Clear an allocator-set Unhealthy flag by hand.</span>
 <a id="__codelineno-0-136" name="__codelineno-0-136"></a>
 <a id="__codelineno-0-137" name="__codelineno-0-137"></a><span class="sd">    A rotation timeout marks a client Unhealthy and assign_vm skips those</span>
 <a id="__codelineno-0-138" name="__codelineno-0-138"></a><span class="sd">    rows, so the pool can read as empty while the client is perfectly fine.</span>
 <a id="__codelineno-0-139" name="__codelineno-0-139"></a><span class="sd">    The client cannot clear it itself: check_gpu only reports on *change*,</span>
-<a id="__codelineno-0-140" name="__codelineno-0-140"></a><span class="sd">    and on a GPU-less box it posts &#39;N/A&#39; once and then exits its loop</span>
+<a id="__codelineno-0-140" name="__codelineno-0-140"></a><span class="sd">    and on a GPU-less box it posts 'N/A' once and then exits its loop</span>
 <a id="__codelineno-0-141" name="__codelineno-0-141"></a><span class="sd">    entirely. A successful Admin Connect clears it automatically (see</span>
 <a id="__codelineno-0-142" name="__codelineno-0-142"></a><span class="sd">    admin_connect_vm); this is the escape hatch for when the box is known</span>
-<a id="__codelineno-0-143" name="__codelineno-0-143"></a><span class="sd">    good but connecting to it isn&#39;t wanted. Before either existed, raw SQL</span>
+<a id="__codelineno-0-143" name="__codelineno-0-143"></a><span class="sd">    good but connecting to it isn't wanted. Before either existed, raw SQL</span>
 <a id="__codelineno-0-144" name="__codelineno-0-144"></a><span class="sd">    was the only way out (lablink#404).</span>
-<a id="__codelineno-0-145" name="__codelineno-0-145"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-145" name="__codelineno-0-145"></a><span class="sd">    """</span>
 <a id="__codelineno-0-146" name="__codelineno-0-146"></a>    <span class="kn">from</span><span class="w"> </span><span class="nn">lablink_allocator_service</span><span class="w"> </span><span class="kn">import</span> <span class="n">main</span>
 <a id="__codelineno-0-147" name="__codelineno-0-147"></a>
 <a id="__codelineno-0-148" name="__codelineno-0-148"></a>    <span class="n">main</span><span class="o">.</span><span class="n">database</span><span class="o">.</span><span class="n">clear_unhealthy</span><span class="p">(</span><span class="n">hostname</span><span class="o">=</span><span class="n">hostname</span><span class="p">)</span>
-<a id="__codelineno-0-149" name="__codelineno-0-149"></a>    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Admin cleared the unhealthy flag for &#39;</span><span class="si">%s</span><span class="s2">&#39;&quot;</span><span class="p">,</span> <span class="n">hostname</span><span class="p">)</span>
-<a id="__codelineno-0-150" name="__codelineno-0-150"></a>    <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s2">&quot;/admin/instances&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-149" name="__codelineno-0-149"></a>    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"Admin cleared the unhealthy flag for '</span><span class="si">%s</span><span class="s2">'"</span><span class="p">,</span> <span class="n">hostname</span><span class="p">)</span>
+<a id="__codelineno-0-150" name="__codelineno-0-150"></a>    <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s2">"/admin/instances"</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -4872,25 +4872,25 @@ useremail.</p>
 <span class="normal"><a href="#__codelineno-0-114">114</a></span>
 <span class="normal"><a href="#__codelineno-0-115">115</a></span>
 <span class="normal"><a href="#__codelineno-0-116">116</a></span>
-<span class="normal"><a href="#__codelineno-0-117">117</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-45" name="__codelineno-0-45"></a><span class="nd">@bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">&quot;/admin/instances/&lt;hostname&gt;/connect&quot;</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;POST&quot;</span><span class="p">])</span>
+<span class="normal"><a href="#__codelineno-0-117">117</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-45" name="__codelineno-0-45"></a><span class="nd">@bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">"/admin/instances/&lt;hostname&gt;/connect"</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s2">"POST"</span><span class="p">])</span>
 <a id="__codelineno-0-46" name="__codelineno-0-46"></a><span class="nd">@auth</span><span class="o">.</span><span class="n">login_required</span>
 <a id="__codelineno-0-47" name="__codelineno-0-47"></a><span class="k">def</span><span class="w"> </span><span class="nf">admin_connect_vm</span><span class="p">(</span><span class="n">hostname</span><span class="p">):</span>
-<a id="__codelineno-0-48" name="__codelineno-0-48"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Connect (full control) to a VM not currently assigned to anyone,</span>
+<a id="__codelineno-0-48" name="__codelineno-0-48"></a><span class="w">    </span><span class="sd">"""Connect (full control) to a VM not currently assigned to anyone,</span>
 <a id="__codelineno-0-49" name="__codelineno-0-49"></a><span class="sd">    for admin troubleshooting. Reserves the VM out of the assignable</span>
 <a id="__codelineno-0-50" name="__codelineno-0-50"></a><span class="sd">    pool (AdminReservedAt) and mints a real session via the same</span>
 <a id="__codelineno-0-51" name="__codelineno-0-51"></a><span class="sd">    prepare_browser_session path /api/request_vm uses — but never sets</span>
-<a id="__codelineno-0-52" name="__codelineno-0-52"></a><span class="sd">    useremail.&quot;&quot;&quot;</span>
+<a id="__codelineno-0-52" name="__codelineno-0-52"></a><span class="sd">    useremail."""</span>
 <a id="__codelineno-0-53" name="__codelineno-0-53"></a>    <span class="kn">from</span><span class="w"> </span><span class="nn">lablink_allocator_service</span><span class="w"> </span><span class="kn">import</span> <span class="n">main</span>
 <a id="__codelineno-0-54" name="__codelineno-0-54"></a>
 <a id="__codelineno-0-55" name="__codelineno-0-55"></a>    <span class="kn">import</span><span class="w"> </span><span class="nn">uuid</span>
 <a id="__codelineno-0-56" name="__codelineno-0-56"></a>
 <a id="__codelineno-0-57" name="__codelineno-0-57"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="n">main</span><span class="o">.</span><span class="n">database</span><span class="o">.</span><span class="n">admin_reserve_vm</span><span class="p">(</span><span class="n">hostname</span><span class="p">):</span>
-<a id="__codelineno-0-58" name="__codelineno-0-58"></a>        <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s2">&quot;/admin/instances?vnc_error=connect_raced&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-58" name="__codelineno-0-58"></a>        <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s2">"/admin/instances?vnc_error=connect_raced"</span><span class="p">)</span>
 <a id="__codelineno-0-59" name="__codelineno-0-59"></a>
 <a id="__codelineno-0-60" name="__codelineno-0-60"></a>    <span class="k">try</span><span class="p">:</span>
 <a id="__codelineno-0-61" name="__codelineno-0-61"></a>        <span class="n">session_id</span> <span class="o">=</span> <span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span>
 <a id="__codelineno-0-62" name="__codelineno-0-62"></a>        <span class="n">browser_token</span> <span class="o">=</span> <span class="n">secrets</span><span class="o">.</span><span class="n">token_urlsafe</span><span class="p">(</span><span class="mi">16</span><span class="p">)</span>
-<a id="__codelineno-0-63" name="__codelineno-0-63"></a>        <span class="n">provider</span> <span class="o">=</span> <span class="n">current_app</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;LABLINK_PROVIDER&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">get_provider</span><span class="p">(</span>
+<a id="__codelineno-0-63" name="__codelineno-0-63"></a>        <span class="n">provider</span> <span class="o">=</span> <span class="n">current_app</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"LABLINK_PROVIDER"</span><span class="p">)</span> <span class="ow">or</span> <span class="n">get_provider</span><span class="p">(</span>
 <a id="__codelineno-0-64" name="__codelineno-0-64"></a>            <span class="n">main</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">provider</span><span class="p">,</span>
 <a id="__codelineno-0-65" name="__codelineno-0-65"></a>            <span class="n">region</span><span class="o">=</span><span class="n">main</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">region</span><span class="p">,</span>
 <a id="__codelineno-0-66" name="__codelineno-0-66"></a>            <span class="n">tofu_dir</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">main</span><span class="o">.</span><span class="n">TOFU_DIR</span><span class="p">),</span>
@@ -4906,16 +4906,16 @@ useremail.</p>
 <a id="__codelineno-0-76" name="__codelineno-0-76"></a>            <span class="p">)</span>
 <a id="__codelineno-0-77" name="__codelineno-0-77"></a>        <span class="k">except</span> <span class="n">RotationFailed</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
 <a id="__codelineno-0-78" name="__codelineno-0-78"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-<a id="__codelineno-0-79" name="__codelineno-0-79"></a>                <span class="s2">&quot;Admin connect rotation failed for &#39;</span><span class="si">%s</span><span class="s2">&#39;: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">hostname</span><span class="p">,</span> <span class="n">exc</span>
+<a id="__codelineno-0-79" name="__codelineno-0-79"></a>                <span class="s2">"Admin connect rotation failed for '</span><span class="si">%s</span><span class="s2">': </span><span class="si">%s</span><span class="s2">"</span><span class="p">,</span> <span class="n">hostname</span><span class="p">,</span> <span class="n">exc</span>
 <a id="__codelineno-0-80" name="__codelineno-0-80"></a>            <span class="p">)</span>
 <a id="__codelineno-0-81" name="__codelineno-0-81"></a>            <span class="k">try</span><span class="p">:</span>
-<a id="__codelineno-0-82" name="__codelineno-0-82"></a>                <span class="n">main</span><span class="o">.</span><span class="n">database</span><span class="o">.</span><span class="n">update_health</span><span class="p">(</span><span class="n">hostname</span><span class="o">=</span><span class="n">hostname</span><span class="p">,</span> <span class="n">healthy</span><span class="o">=</span><span class="s2">&quot;Unhealthy&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-82" name="__codelineno-0-82"></a>                <span class="n">main</span><span class="o">.</span><span class="n">database</span><span class="o">.</span><span class="n">update_health</span><span class="p">(</span><span class="n">hostname</span><span class="o">=</span><span class="n">hostname</span><span class="p">,</span> <span class="n">healthy</span><span class="o">=</span><span class="s2">"Unhealthy"</span><span class="p">)</span>
 <a id="__codelineno-0-83" name="__codelineno-0-83"></a>                <span class="n">main</span><span class="o">.</span><span class="n">database</span><span class="o">.</span><span class="n">release_seat</span><span class="p">(</span><span class="n">hostname</span><span class="o">=</span><span class="n">hostname</span><span class="p">)</span>
 <a id="__codelineno-0-84" name="__codelineno-0-84"></a>            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-<a id="__codelineno-0-85" name="__codelineno-0-85"></a>                <span class="n">logger</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Could not mark &#39;</span><span class="si">%s</span><span class="s2">&#39; unhealthy&quot;</span><span class="p">,</span> <span class="n">hostname</span><span class="p">)</span>
-<a id="__codelineno-0-86" name="__codelineno-0-86"></a>            <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s2">&quot;/admin/instances?vnc_error=rotation_failed&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-85" name="__codelineno-0-85"></a>                <span class="n">logger</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">"Could not mark '</span><span class="si">%s</span><span class="s2">' unhealthy"</span><span class="p">,</span> <span class="n">hostname</span><span class="p">)</span>
+<a id="__codelineno-0-86" name="__codelineno-0-86"></a>            <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s2">"/admin/instances?vnc_error=rotation_failed"</span><span class="p">)</span>
 <a id="__codelineno-0-87" name="__codelineno-0-87"></a>
-<a id="__codelineno-0-88" name="__codelineno-0-88"></a>        <span class="c1"># Reaching here means the rotation POST to the client&#39;s agent</span>
+<a id="__codelineno-0-88" name="__codelineno-0-88"></a>        <span class="c1"># Reaching here means the rotation POST to the client's agent</span>
 <a id="__codelineno-0-89" name="__codelineno-0-89"></a>        <span class="c1"># succeeded, which proves allocator -&gt; client reachability — the</span>
 <a id="__codelineno-0-90" name="__codelineno-0-90"></a>        <span class="c1"># very direction whose failure set Unhealthy above. Clearing it here</span>
 <a id="__codelineno-0-91" name="__codelineno-0-91"></a>        <span class="c1"># is what makes Admin Connect the recovery path for a client wedged</span>
@@ -4925,11 +4925,11 @@ useremail.</p>
 <a id="__codelineno-0-95" name="__codelineno-0-95"></a>            <span class="n">main</span><span class="o">.</span><span class="n">database</span><span class="o">.</span><span class="n">clear_unhealthy</span><span class="p">(</span><span class="n">hostname</span><span class="o">=</span><span class="n">hostname</span><span class="p">)</span>
 <a id="__codelineno-0-96" name="__codelineno-0-96"></a>        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
 <a id="__codelineno-0-97" name="__codelineno-0-97"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span>
-<a id="__codelineno-0-98" name="__codelineno-0-98"></a>                <span class="s2">&quot;Could not clear unhealthy flag for &#39;</span><span class="si">%s</span><span class="s2">&#39;&quot;</span><span class="p">,</span> <span class="n">hostname</span>
+<a id="__codelineno-0-98" name="__codelineno-0-98"></a>                <span class="s2">"Could not clear unhealthy flag for '</span><span class="si">%s</span><span class="s2">'"</span><span class="p">,</span> <span class="n">hostname</span>
 <a id="__codelineno-0-99" name="__codelineno-0-99"></a>            <span class="p">)</span>
 <a id="__codelineno-0-100" name="__codelineno-0-100"></a>
 <a id="__codelineno-0-101" name="__codelineno-0-101"></a>        <span class="k">return</span> <span class="n">sign_session_cookie_and_redirect</span><span class="p">(</span>
-<a id="__codelineno-0-102" name="__codelineno-0-102"></a>            <span class="n">session_id</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s2">&quot;admin_session&quot;</span>
+<a id="__codelineno-0-102" name="__codelineno-0-102"></a>            <span class="n">session_id</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s2">"admin_session"</span>
 <a id="__codelineno-0-103" name="__codelineno-0-103"></a>        <span class="p">)</span>
 <a id="__codelineno-0-104" name="__codelineno-0-104"></a>    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
 <a id="__codelineno-0-105" name="__codelineno-0-105"></a>        <span class="c1"># Anything unexpected here (provider lookup, cookie signing, etc.)</span>
@@ -4937,14 +4937,14 @@ useremail.</p>
 <a id="__codelineno-0-107" name="__codelineno-0-107"></a>        <span class="c1"># telling the admin to release it. Release now rather than rely</span>
 <a id="__codelineno-0-108" name="__codelineno-0-108"></a>        <span class="c1"># solely on the dashboard row / 30-minute sweep to recover it.</span>
 <a id="__codelineno-0-109" name="__codelineno-0-109"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span>
-<a id="__codelineno-0-110" name="__codelineno-0-110"></a>            <span class="s2">&quot;Unexpected error setting up admin connect session for &#39;</span><span class="si">%s</span><span class="s2">&#39;; &quot;</span>
-<a id="__codelineno-0-111" name="__codelineno-0-111"></a>            <span class="s2">&quot;releasing reservation&quot;</span><span class="p">,</span> <span class="n">hostname</span><span class="p">,</span>
+<a id="__codelineno-0-110" name="__codelineno-0-110"></a>            <span class="s2">"Unexpected error setting up admin connect session for '</span><span class="si">%s</span><span class="s2">'; "</span>
+<a id="__codelineno-0-111" name="__codelineno-0-111"></a>            <span class="s2">"releasing reservation"</span><span class="p">,</span> <span class="n">hostname</span><span class="p">,</span>
 <a id="__codelineno-0-112" name="__codelineno-0-112"></a>        <span class="p">)</span>
 <a id="__codelineno-0-113" name="__codelineno-0-113"></a>        <span class="k">try</span><span class="p">:</span>
 <a id="__codelineno-0-114" name="__codelineno-0-114"></a>            <span class="n">main</span><span class="o">.</span><span class="n">database</span><span class="o">.</span><span class="n">release_seat</span><span class="p">(</span><span class="n">hostname</span><span class="o">=</span><span class="n">hostname</span><span class="p">)</span>
 <a id="__codelineno-0-115" name="__codelineno-0-115"></a>        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-<a id="__codelineno-0-116" name="__codelineno-0-116"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Could not release seat for &#39;</span><span class="si">%s</span><span class="s2">&#39;&quot;</span><span class="p">,</span> <span class="n">hostname</span><span class="p">)</span>
-<a id="__codelineno-0-117" name="__codelineno-0-117"></a>        <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s2">&quot;/admin/instances?vnc_error=connect_failed&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-116" name="__codelineno-0-116"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">"Could not release seat for '</span><span class="si">%s</span><span class="s2">'"</span><span class="p">,</span> <span class="n">hostname</span><span class="p">)</span>
+<a id="__codelineno-0-117" name="__codelineno-0-117"></a>        <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s2">"/admin/instances?vnc_error=connect_failed"</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -4983,20 +4983,20 @@ viewer onto the same live KasmVNC session.</p>
 <span class="normal"><a href="#__codelineno-0-39">39</a></span>
 <span class="normal"><a href="#__codelineno-0-40">40</a></span>
 <span class="normal"><a href="#__codelineno-0-41">41</a></span>
-<span class="normal"><a href="#__codelineno-0-42">42</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-28" name="__codelineno-0-28"></a><span class="nd">@bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">&quot;/admin/instances/&lt;hostname&gt;/peek&quot;</span><span class="p">)</span>
+<span class="normal"><a href="#__codelineno-0-42">42</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-28" name="__codelineno-0-28"></a><span class="nd">@bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">"/admin/instances/&lt;hostname&gt;/peek"</span><span class="p">)</span>
 <a id="__codelineno-0-29" name="__codelineno-0-29"></a><span class="nd">@auth</span><span class="o">.</span><span class="n">login_required</span>
 <a id="__codelineno-0-30" name="__codelineno-0-30"></a><span class="k">def</span><span class="w"> </span><span class="nf">admin_peek_vm</span><span class="p">(</span><span class="n">hostname</span><span class="p">):</span>
-<a id="__codelineno-0-31" name="__codelineno-0-31"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;View (read-only) a VM already assigned to a participant, without</span>
+<a id="__codelineno-0-31" name="__codelineno-0-31"></a><span class="w">    </span><span class="sd">"""View (read-only) a VM already assigned to a participant, without</span>
 <a id="__codelineno-0-32" name="__codelineno-0-32"></a><span class="sd">    touching useremail or rotating credentials — opens a second WS</span>
-<a id="__codelineno-0-33" name="__codelineno-0-33"></a><span class="sd">    viewer onto the same live KasmVNC session.&quot;&quot;&quot;</span>
+<a id="__codelineno-0-33" name="__codelineno-0-33"></a><span class="sd">    viewer onto the same live KasmVNC session."""</span>
 <a id="__codelineno-0-34" name="__codelineno-0-34"></a>    <span class="kn">from</span><span class="w"> </span><span class="nn">lablink_allocator_service</span><span class="w"> </span><span class="kn">import</span> <span class="n">main</span>
 <a id="__codelineno-0-35" name="__codelineno-0-35"></a>
 <a id="__codelineno-0-36" name="__codelineno-0-36"></a>    <span class="n">session</span> <span class="o">=</span> <span class="n">main</span><span class="o">.</span><span class="n">database</span><span class="o">.</span><span class="n">get_session_for_peek</span><span class="p">(</span><span class="n">hostname</span><span class="p">)</span>
 <a id="__codelineno-0-37" name="__codelineno-0-37"></a>    <span class="k">if</span> <span class="n">session</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-38" name="__codelineno-0-38"></a>        <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s2">&quot;/admin/instances?vnc_error=peek_unavailable&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-38" name="__codelineno-0-38"></a>        <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s2">"/admin/instances?vnc_error=peek_unavailable"</span><span class="p">)</span>
 <a id="__codelineno-0-39" name="__codelineno-0-39"></a>
 <a id="__codelineno-0-40" name="__codelineno-0-40"></a>    <span class="k">return</span> <span class="n">sign_session_cookie_and_redirect</span><span class="p">(</span>
-<a id="__codelineno-0-41" name="__codelineno-0-41"></a>        <span class="n">session</span><span class="p">[</span><span class="s2">&quot;sessionid&quot;</span><span class="p">],</span> <span class="n">suffix</span><span class="o">=</span><span class="s2">&quot;view_only&quot;</span>
+<a id="__codelineno-0-41" name="__codelineno-0-41"></a>        <span class="n">session</span><span class="p">[</span><span class="s2">"sessionid"</span><span class="p">],</span> <span class="n">suffix</span><span class="o">=</span><span class="s2">"view_only"</span>
 <a id="__codelineno-0-42" name="__codelineno-0-42"></a>    <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
@@ -5031,16 +5031,16 @@ button and the /desktop wrapper page's Release form.</p>
 <span class="normal"><a href="#__codelineno-0-126">126</a></span>
 <span class="normal"><a href="#__codelineno-0-127">127</a></span>
 <span class="normal"><a href="#__codelineno-0-128">128</a></span>
-<span class="normal"><a href="#__codelineno-0-129">129</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-120" name="__codelineno-0-120"></a><span class="nd">@bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">&quot;/admin/instances/&lt;hostname&gt;/release&quot;</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;POST&quot;</span><span class="p">])</span>
+<span class="normal"><a href="#__codelineno-0-129">129</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-120" name="__codelineno-0-120"></a><span class="nd">@bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">"/admin/instances/&lt;hostname&gt;/release"</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s2">"POST"</span><span class="p">])</span>
 <a id="__codelineno-0-121" name="__codelineno-0-121"></a><span class="nd">@auth</span><span class="o">.</span><span class="n">login_required</span>
 <a id="__codelineno-0-122" name="__codelineno-0-122"></a><span class="k">def</span><span class="w"> </span><span class="nf">admin_release_vm</span><span class="p">(</span><span class="n">hostname</span><span class="p">):</span>
-<a id="__codelineno-0-123" name="__codelineno-0-123"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;End an admin troubleshooting session, returning the VM to the</span>
-<a id="__codelineno-0-124" name="__codelineno-0-124"></a><span class="sd">    assignable pool. Posted to by both the dashboard row&#39;s Release</span>
-<a id="__codelineno-0-125" name="__codelineno-0-125"></a><span class="sd">    button and the /desktop wrapper page&#39;s Release form.&quot;&quot;&quot;</span>
+<a id="__codelineno-0-123" name="__codelineno-0-123"></a><span class="w">    </span><span class="sd">"""End an admin troubleshooting session, returning the VM to the</span>
+<a id="__codelineno-0-124" name="__codelineno-0-124"></a><span class="sd">    assignable pool. Posted to by both the dashboard row's Release</span>
+<a id="__codelineno-0-125" name="__codelineno-0-125"></a><span class="sd">    button and the /desktop wrapper page's Release form."""</span>
 <a id="__codelineno-0-126" name="__codelineno-0-126"></a>    <span class="kn">from</span><span class="w"> </span><span class="nn">lablink_allocator_service</span><span class="w"> </span><span class="kn">import</span> <span class="n">main</span>
 <a id="__codelineno-0-127" name="__codelineno-0-127"></a>
 <a id="__codelineno-0-128" name="__codelineno-0-128"></a>    <span class="n">main</span><span class="o">.</span><span class="n">database</span><span class="o">.</span><span class="n">release_seat</span><span class="p">(</span><span class="n">hostname</span><span class="o">=</span><span class="n">hostname</span><span class="p">)</span>
-<a id="__codelineno-0-129" name="__codelineno-0-129"></a>    <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s2">&quot;/admin/instances&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-129" name="__codelineno-0-129"></a>    <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s2">"/admin/instances"</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>

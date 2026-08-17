@@ -4725,7 +4725,7 @@
 
 
 <h6 id="lablink_allocator_service.providers.connectivity.allocator_proxied.AllocatorProxiedClientConnectivity.name" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <code class="highlight language-python"><span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;allocator_proxied&#39;</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <code class="highlight language-python"><span class="n">name</span> <span class="o">=</span> <span class="s1">'allocator_proxied'</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
@@ -4831,7 +4831,7 @@
 <span class="normal"><a href="#__codelineno-0-45">45</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-41" name="__codelineno-0-41"></a><span class="k">def</span><span class="w"> </span><span class="nf">prepare_browser_session</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BrowserSessionTarget</span><span class="p">:</span>
 <a id="__codelineno-0-42" name="__codelineno-0-42"></a>    <span class="c1"># Inject AWS EC2 fallback resolver so client_session.py remains</span>
 <a id="__codelineno-0-43" name="__codelineno-0-43"></a>    <span class="c1"># provider-agnostic (SR-F1).</span>
-<a id="__codelineno-0-44" name="__codelineno-0-44"></a>    <span class="n">kwargs</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">&quot;fallback_fn&quot;</span><span class="p">,</span> <span class="n">_aws_fallback_ip</span><span class="p">)</span>
+<a id="__codelineno-0-44" name="__codelineno-0-44"></a>    <span class="n">kwargs</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">"fallback_fn"</span><span class="p">,</span> <span class="n">_aws_fallback_ip</span><span class="p">)</span>
 <a id="__codelineno-0-45" name="__codelineno-0-45"></a>    <span class="k">return</span> <span class="n">prepare_browser_session</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>

@@ -4863,17 +4863,17 @@ construct the pool itself rather than calling this.</p>
 <span class="normal"><a href="#__codelineno-0-130">130</a></span>
 <span class="normal"><a href="#__codelineno-0-131">131</a></span>
 <span class="normal"><a href="#__codelineno-0-132">132</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-111" name="__codelineno-0-111"></a><span class="k">def</span><span class="w"> </span><span class="nf">make_pool</span><span class="p">(</span><span class="n">cfg_db</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">pool_min_size</span><span class="o">=</span><span class="n">POOL_MIN_SIZE</span><span class="p">,</span> <span class="n">pool_max_size</span><span class="o">=</span><span class="n">POOL_MAX_SIZE</span><span class="p">):</span>
-<a id="__codelineno-0-112" name="__codelineno-0-112"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Build a ThreadedConnectionPool from a `cfg.db`-shaped object.</span>
+<a id="__codelineno-0-112" name="__codelineno-0-112"></a><span class="w">    </span><span class="sd">"""Build a ThreadedConnectionPool from a `cfg.db`-shaped object.</span>
 <a id="__codelineno-0-113" name="__codelineno-0-113"></a>
 <a id="__codelineno-0-114" name="__codelineno-0-114"></a><span class="sd">    For callers that need ONLY a pool and no persistence class — e.g. the</span>
 <a id="__codelineno-0-115" name="__codelineno-0-115"></a><span class="sd">    APScheduler job in scheduler.py, which shares one pool across several</span>
-<a id="__codelineno-0-116" name="__codelineno-0-116"></a><span class="sd">    handles. The pool is built with THIS module&#39;s psycopg2 binding; a caller</span>
+<a id="__codelineno-0-116" name="__codelineno-0-116"></a><span class="sd">    handles. The pool is built with THIS module's psycopg2 binding; a caller</span>
 <a id="__codelineno-0-117" name="__codelineno-0-117"></a><span class="sd">    that needs the binding to be its own (see validate_pool_sizes) should</span>
 <a id="__codelineno-0-118" name="__codelineno-0-118"></a><span class="sd">    construct the pool itself rather than calling this.</span>
 <a id="__codelineno-0-119" name="__codelineno-0-119"></a>
 <a id="__codelineno-0-120" name="__codelineno-0-120"></a><span class="sd">    Raises:</span>
 <a id="__codelineno-0-121" name="__codelineno-0-121"></a><span class="sd">        ValueError: If pool sizing is invalid.</span>
-<a id="__codelineno-0-122" name="__codelineno-0-122"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-122" name="__codelineno-0-122"></a><span class="sd">    """</span>
 <a id="__codelineno-0-123" name="__codelineno-0-123"></a>    <span class="n">validate_pool_sizes</span><span class="p">(</span><span class="n">pool_min_size</span><span class="p">,</span> <span class="n">pool_max_size</span><span class="p">)</span>
 <a id="__codelineno-0-124" name="__codelineno-0-124"></a>    <span class="k">return</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">pool</span><span class="o">.</span><span class="n">ThreadedConnectionPool</span><span class="p">(</span>
 <a id="__codelineno-0-125" name="__codelineno-0-125"></a>        <span class="n">minconn</span><span class="o">=</span><span class="n">pool_min_size</span><span class="p">,</span>
@@ -4958,10 +4958,10 @@ intercept psycopg2 itself.</p>
 <span class="normal"><a href="#__codelineno-0-106">106</a></span>
 <span class="normal"><a href="#__codelineno-0-107">107</a></span>
 <span class="normal"><a href="#__codelineno-0-108">108</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-89" name="__codelineno-0-89"></a><span class="k">def</span><span class="w"> </span><span class="nf">validate_pool_sizes</span><span class="p">(</span><span class="n">pool_min_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">pool_max_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-90" name="__codelineno-0-90"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Reject invalid pool sizing. Pure — deliberately touches no psycopg2.</span>
+<a id="__codelineno-0-90" name="__codelineno-0-90"></a><span class="w">    </span><span class="sd">"""Reject invalid pool sizing. Pure — deliberately touches no psycopg2.</span>
 <a id="__codelineno-0-91" name="__codelineno-0-91"></a>
 <a id="__codelineno-0-92" name="__codelineno-0-92"></a><span class="sd">    Callers that build their own pool (VmDatabase.__init__) use this instead</span>
-<a id="__codelineno-0-93" name="__codelineno-0-93"></a><span class="sd">    of make_pool, so that pool CONSTRUCTION stays inside the caller&#39;s module.</span>
+<a id="__codelineno-0-93" name="__codelineno-0-93"></a><span class="sd">    of make_pool, so that pool CONSTRUCTION stays inside the caller's module.</span>
 <a id="__codelineno-0-94" name="__codelineno-0-94"></a><span class="sd">    A module-level `import psycopg2` binds the module object at import time,</span>
 <a id="__codelineno-0-95" name="__codelineno-0-95"></a><span class="sd">    so whichever module actually builds the pool is the one whose binding of</span>
 <a id="__codelineno-0-96" name="__codelineno-0-96"></a><span class="sd">    psycopg2 gets exercised. Keeping construction in VmDatabase rather than</span>
@@ -4972,10 +4972,10 @@ intercept psycopg2 itself.</p>
 <a id="__codelineno-0-101" name="__codelineno-0-101"></a>
 <a id="__codelineno-0-102" name="__codelineno-0-102"></a><span class="sd">    Raises:</span>
 <a id="__codelineno-0-103" name="__codelineno-0-103"></a><span class="sd">        ValueError: If pool sizing is invalid.</span>
-<a id="__codelineno-0-104" name="__codelineno-0-104"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-104" name="__codelineno-0-104"></a><span class="sd">    """</span>
 <a id="__codelineno-0-105" name="__codelineno-0-105"></a>    <span class="k">if</span> <span class="n">pool_min_size</span> <span class="o">&lt;</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">pool_max_size</span> <span class="o">&lt;</span> <span class="n">pool_min_size</span><span class="p">:</span>
 <a id="__codelineno-0-106" name="__codelineno-0-106"></a>        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-<a id="__codelineno-0-107" name="__codelineno-0-107"></a>            <span class="sa">f</span><span class="s2">&quot;Invalid pool sizes: min=</span><span class="si">{</span><span class="n">pool_min_size</span><span class="si">}</span><span class="s2">, max=</span><span class="si">{</span><span class="n">pool_max_size</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-107" name="__codelineno-0-107"></a>            <span class="sa">f</span><span class="s2">"Invalid pool sizes: min=</span><span class="si">{</span><span class="n">pool_min_size</span><span class="si">}</span><span class="s2">, max=</span><span class="si">{</span><span class="n">pool_max_size</span><span class="si">}</span><span class="s2">"</span>
 <a id="__codelineno-0-108" name="__codelineno-0-108"></a>        <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>

@@ -4700,7 +4700,7 @@
 <p>Edit the allocator configuration:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># lablink-infrastructure/config/config.yaml</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nt">machine</span><span class="p">:</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="nt">machine_type</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;g5.xlarge&quot;</span><span class="w">  </span><span class="c1"># Change to desired instance type</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="nt">machine_type</span><span class="p">:</span><span class="w"> </span><span class="s">"g5.xlarge"</span><span class="w">  </span><span class="c1"># Change to desired instance type</span>
 </code></pre></div>
 <p>See <a href="../configuration/#machine-type-options">Configuration → Machine Type Options</a> for available types.</p>
 <p>Note this sets the <strong>client VM</strong> type. The allocator's own instance type is fixed at <code>t3.large</code> in OpenTofu and isn't a config key.</p>
@@ -4719,18 +4719,18 @@
 <summary>Can I use a different AWS region?</summary>
 <p>Yes. Update the region in configuration:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">app</span><span class="p">:</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;us-east-1&quot;</span><span class="w">  </span><span class="c1"># Change to your preferred region</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="s">"us-east-1"</span><span class="w">  </span><span class="c1"># Change to your preferred region</span>
 </code></pre></div>
 <p><strong>Important</strong>: AMI IDs are region-specific. You'll need to find the appropriate AMI for your region.</p>
 </details>
 <details class="note">
 <summary>Can I use a custom AMI?</summary>
 <p>Yes. Create an AMI with your software pre-installed:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>aws<span class="w"> </span>ec2<span class="w"> </span>create-image<span class="w"> </span>--instance-id<span class="w"> </span>i-xxxxx<span class="w"> </span>--name<span class="w"> </span><span class="s2">&quot;my-custom-ami&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>aws<span class="w"> </span>ec2<span class="w"> </span>create-image<span class="w"> </span>--instance-id<span class="w"> </span>i-xxxxx<span class="w"> </span>--name<span class="w"> </span><span class="s2">"my-custom-ami"</span>
 </code></pre></div>
 <p>Then point the config at it:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">machine</span><span class="p">:</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">ami_id</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;ami-your-custom-ami-id&quot;</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">ami_id</span><span class="p">:</span><span class="w"> </span><span class="s">"ami-your-custom-ami-id"</span>
 </code></pre></div>
 <p>See <a href="../adapting/#custom-ami">Adapting LabLink → Custom AMI</a>.</p>
 </details>
@@ -4784,8 +4784,8 @@
 <summary>Can I switch SSL providers later?</summary>
 <p>Yes. Change the configuration and redeploy:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">ssl</span><span class="p">:</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">provider</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;letsencrypt&quot;</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="nt">email</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;you@example.com&quot;</span><span class="w">  </span><span class="c1"># required for Let&#39;s Encrypt</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">provider</span><span class="p">:</span><span class="w"> </span><span class="s">"letsencrypt"</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="nt">email</span><span class="p">:</span><span class="w"> </span><span class="s">"you@example.com"</span><span class="w">  </span><span class="c1"># required for Let's Encrypt</span>
 </code></pre></div>
 <p>Then run:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>tofu<span class="w"> </span>apply
@@ -4844,14 +4844,14 @@
 <p>Yes — either <code>lablink deploy</code> from the CLI, or OpenTofu directly:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nb">cd</span><span class="w"> </span>lablink-infrastructure
 <a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>tofu<span class="w"> </span>init
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>tofu<span class="w"> </span>apply<span class="w"> </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=prod&quot;</span><span class="w"> </span>-var<span class="o">=</span><span class="s2">&quot;allocator_image_tag=v1.0.0&quot;</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>tofu<span class="w"> </span>apply<span class="w"> </span>-var<span class="o">=</span><span class="s2">"resource_suffix=prod"</span><span class="w"> </span>-var<span class="o">=</span><span class="s2">"allocator_image_tag=v1.0.0"</span>
 </code></pre></div>
 <p>See <a href="../deployment/#method-2-manual-opentofu-deployment">Deployment → Method 2: Manual OpenTofu</a>.</p>
 </details>
 <details class="note">
 <summary>How do I update an existing deployment?</summary>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>git<span class="w"> </span>pull
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>tofu<span class="w"> </span>apply<span class="w"> </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=prod&quot;</span><span class="w"> </span>-var<span class="o">=</span><span class="s2">&quot;allocator_image_tag=v1.1.0&quot;</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>tofu<span class="w"> </span>apply<span class="w"> </span>-var<span class="o">=</span><span class="s2">"resource_suffix=prod"</span><span class="w"> </span>-var<span class="o">=</span><span class="s2">"allocator_image_tag=v1.1.0"</span>
 </code></pre></div>
 <p>This replaces the EC2 instance with the new image.</p>
 </details>
@@ -4862,7 +4862,7 @@
 <p><strong>Via the API</strong>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://&lt;allocator-ip&gt;:5000/api/launch<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span>-u<span class="w"> </span>admin:password<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">  </span>-d<span class="w"> </span><span class="s2">&quot;instance_count=5&quot;</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">  </span>-d<span class="w"> </span><span class="s2">"instance_count=5"</span>
 </code></pre></div>
 </details>
 <details class="note">
@@ -4872,7 +4872,7 @@
 <p><strong>Via the database</strong>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;allocator-ip&gt;
 <a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">  </span>-c<span class="w"> </span><span class="s2">&quot;SELECT hostname, status, useremail FROM vms;&quot;</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">  </span>-c<span class="w"> </span><span class="s2">"SELECT hostname, status, useremail FROM vms;"</span>
 </code></pre></div>
 </details>
 <details class="note">
@@ -4880,7 +4880,7 @@
 <p><strong>Via GitHub Actions</strong> (template repo): Actions → "Destroy LabLink Infrastructure" (<code>terraform-destroy.yml</code>) → type <code>yes</code> to confirm and select the environment.</p>
 <p><strong>Via the CLI</strong>: <code>lablink destroy</code>.</p>
 <p><strong>Via OpenTofu</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>tofu<span class="w"> </span>destroy<span class="w"> </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=dev&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>tofu<span class="w"> </span>destroy<span class="w"> </span>-var<span class="o">=</span><span class="s2">"resource_suffix=dev"</span>
 </code></pre></div>
 </details>
 <details class="note">
@@ -4974,9 +4974,9 @@
 <details class="note">
 <summary>Can I add my own API endpoints?</summary>
 <p>Yes. Add a route in <code>packages/allocator/src/lablink_allocator_service/routes/</code>, then rebuild the image and redeploy:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="nd">@bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">&quot;/my-custom-endpoint&quot;</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;POST&quot;</span><span class="p">])</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="nd">@bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">"/my-custom-endpoint"</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s2">"POST"</span><span class="p">])</span>
 <a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="k">def</span><span class="w"> </span><span class="nf">my_custom_endpoint</span><span class="p">():</span>
-<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>    <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;success&quot;</span><span class="p">})</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>    <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">"status"</span><span class="p">:</span> <span class="s2">"success"</span><span class="p">})</span>
 </code></pre></div>
 <p>See <a href="../api-endpoints/">API Endpoints</a> for the existing routes and their auth requirements.</p>
 </details>

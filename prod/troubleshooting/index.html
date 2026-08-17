@@ -4637,7 +4637,7 @@
 <summary>SSH connection timed out</summary>
 <p>Timeout means the packets aren't arriving at all — a closed port or a stopped instance, not an auth problem.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>aws<span class="w"> </span>ec2<span class="w"> </span>describe-instances<span class="w"> </span>--instance-ids<span class="w"> </span>&lt;id&gt;<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span>--query<span class="w"> </span><span class="s1">&#39;Reservations[0].Instances[0].State.Name&#39;</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span>--query<span class="w"> </span><span class="s1">'Reservations[0].Instances[0].State.Name'</span>
 <a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>tofu<span class="w"> </span>output<span class="w"> </span>allocator_public_ip
 <a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>aws<span class="w"> </span>ec2<span class="w"> </span>authorize-security-group-ingress<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">  </span>--group-id<span class="w"> </span>&lt;sg-id&gt;<span class="w"> </span>--protocol<span class="w"> </span>tcp<span class="w"> </span>--port<span class="w"> </span><span class="m">22</span><span class="w"> </span>--cidr<span class="w"> </span><span class="m">0</span>.0.0.0/0
@@ -4665,7 +4665,7 @@
 <p>Entries with an <code>Info</code> field are real locks; the rest are digests. Copy the exact <code>LockID</code> — it does <strong>not</strong> always carry an <code>-md5</code> suffix — and delete it:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>aws<span class="w"> </span>dynamodb<span class="w"> </span>delete-item<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">    </span>--table-name<span class="w"> </span>lock-table<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">    </span>--key<span class="w"> </span><span class="s1">&#39;{&quot;LockID&quot;:{&quot;S&quot;:&quot;&lt;exact-lock-id-from-scan&gt;&quot;}}&#39;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">    </span>--key<span class="w"> </span><span class="s1">'{"LockID":{"S":"&lt;exact-lock-id-from-scan&gt;"}}'</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">    </span>--region<span class="w"> </span>us-west-2
 </code></pre></div>
 <p>On Windows PowerShell, put the key in a <code>key.json</code> file and pass <code>--key file://key.json</code>.</p>
@@ -4698,7 +4698,7 @@
 <summary>GitHub Actions: could not assume role with OIDC</summary>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>aws<span class="w"> </span>iam<span class="w"> </span>list-open-id-connect-providers
 <a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>aws<span class="w"> </span>iam<span class="w"> </span>get-role<span class="w"> </span>--role-name<span class="w"> </span>github-lablink-deploy<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">  </span>--query<span class="w"> </span><span class="s1">&#39;Role.AssumeRolePolicyDocument&#39;</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">  </span>--query<span class="w"> </span><span class="s1">'Role.AssumeRolePolicyDocument'</span>
 </code></pre></div>
 <p>The trust policy must name your repository (<code>repo:&lt;owner&gt;/&lt;repo&gt;:*</code>), and the role ARN in the workflow must match your account ID.</p>
 </details>
@@ -4782,7 +4782,7 @@
 <summary>Domain doesn't resolve to the allocator</summary>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="c1"># Does the record exist?</span>
 <a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>aws<span class="w"> </span>route53<span class="w"> </span>list-resource-record-sets<span class="w"> </span>--hosted-zone-id<span class="w"> </span>&lt;zone-id&gt;<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">  </span>--query<span class="w"> </span><span class="s2">&quot;ResourceRecordSets[?Name==&#39;&lt;your-domain&gt;.&#39;]&quot;</span>
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">  </span>--query<span class="w"> </span><span class="s2">"ResourceRecordSets[?Name=='&lt;your-domain&gt;.']"</span>
 <a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a>
 <a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="c1"># Does it match the actual IP?</span>
 <a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a>tofu<span class="w"> </span>output<span class="w"> </span>allocator_public_ip
@@ -4796,8 +4796,8 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="nt">dns</span><span class="p">:</span>
 <a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 <a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="w">  </span><span class="nt">terraform_managed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="w">  </span><span class="nt">domain</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;test.lablink.example.com&quot;</span>
-<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="w">  </span><span class="nt">zone_id</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Z0123456789ABCDEFGHIJ&quot;</span><span class="w">   </span><span class="c1"># force the correct zone</span>
+<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="w">  </span><span class="nt">domain</span><span class="p">:</span><span class="w"> </span><span class="s">"test.lablink.example.com"</span>
+<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="w">  </span><span class="nt">zone_id</span><span class="p">:</span><span class="w"> </span><span class="s">"Z0123456789ABCDEFGHIJ"</span><span class="w">   </span><span class="c1"># force the correct zone</span>
 </code></pre></div>
 <p>Delete the stray record from the wrong zone, then re-apply.</p>
 </details>
@@ -4814,7 +4814,7 @@
 <summary>NS delegation not working</summary>
 <p><code>nslookup</code> returns your registrar's nameservers instead of AWS, so records in Route53 are never consulted.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>dig<span class="w"> </span>NS<span class="w"> </span>lablink.example.com<span class="w">          </span><span class="c1"># should list four awsdns nameservers</span>
-<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>aws<span class="w"> </span>route53<span class="w"> </span>get-hosted-zone<span class="w"> </span>--id<span class="w"> </span>&lt;zone-id&gt;<span class="w"> </span>--query<span class="w"> </span><span class="s1">&#39;DelegationSet.NameServers&#39;</span>
+<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>aws<span class="w"> </span>route53<span class="w"> </span>get-hosted-zone<span class="w"> </span>--id<span class="w"> </span>&lt;zone-id&gt;<span class="w"> </span>--query<span class="w"> </span><span class="s1">'DelegationSet.NameServers'</span>
 </code></pre></div>
 <p>Add those four as NS records for the <code>lablink</code> subdomain at whoever hosts the parent domain, TTL 300, then re-check after 5–15 minutes.</p>
 <p>If you have both a parent and child zone in Route53 fighting each other, keep the one LabLink manages and delete the duplicate — <code>aws route53 list-hosted-zones --query 'HostedZones[*].[Name,Id]' --output table</code> shows them all.</p>
@@ -4838,10 +4838,10 @@
 <p>Clients <strong>register themselves</strong> — the allocator does not insert rows when OpenTofu finishes. Each client posts to <code>/api/v1/clients/register</code>, and the allocator stores its hostname alongside an argon2 hash of a freshly minted <code>client_secret</code>. A VM that never registers is a VM that never reached that endpoint.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="c1"># What the allocator has</span>
 <a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;allocator-container&gt;<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a><span class="w">  </span>-c<span class="w"> </span><span class="s2">&quot;SELECT hostname, status, inuse FROM vms;&quot;</span>
+<a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a><span class="w">  </span>-c<span class="w"> </span><span class="s2">"SELECT hostname, status, inuse FROM vms;"</span>
 <a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a>
 <a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a><span class="c1"># What the allocator saw</span>
-<a id="__codelineno-25-6" name="__codelineno-25-6" href="#__codelineno-25-6"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>&lt;allocator-container&gt;<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s2">&quot;clients/register|heartbeat&quot;</span>
+<a id="__codelineno-25-6" name="__codelineno-25-6" href="#__codelineno-25-6"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>&lt;allocator-container&gt;<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s2">"clients/register|heartbeat"</span>
 <a id="__codelineno-25-7" name="__codelineno-25-7" href="#__codelineno-25-7"></a>
 <a id="__codelineno-25-8" name="__codelineno-25-8" href="#__codelineno-25-8"></a><span class="c1"># What the client tried</span>
 <a id="__codelineno-25-9" name="__codelineno-25-9" href="#__codelineno-25-9"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;client-vm-ip&gt;
@@ -4863,10 +4863,10 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>&lt;allocator-container&gt;<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span>reboot
 <a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a>
 <a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;allocator-container&gt;<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a><span class="w">  </span><span class="s2">&quot;SELECT hostname, status, reboot_count, last_reboot_time FROM vms WHERE reboot_count &gt;= 3;&quot;</span>
+<a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a><span class="w">  </span><span class="s2">"SELECT hostname, status, reboot_count, last_reboot_time FROM vms WHERE reboot_count &gt;= 3;"</span>
 </code></pre></div>
 <p>There is no reboot API endpoint. To re-arm a VM that exhausted its attempts, reset it and let the next sweep pick it up:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="k">UPDATE</span><span class="w"> </span><span class="n">vms</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">reboot_count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;error&#39;</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">hostname</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;&lt;hostname&gt;&#39;</span><span class="p">;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="k">UPDATE</span><span class="w"> </span><span class="n">vms</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">reboot_count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'error'</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">hostname</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'&lt;hostname&gt;'</span><span class="p">;</span>
 </code></pre></div>
 <p>To reboot out of band, use the EC2 console or <code>aws ec2 reboot-instances</code>.</p>
 <div class="admonition note">
@@ -4879,7 +4879,7 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;client-vm-ip&gt;
 <a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a>nvidia-smi
 <a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--gpus<span class="w"> </span>all<span class="w"> </span>nvidia/cuda:12.4.0-base-ubuntu22.04<span class="w"> </span>nvidia-smi
-<a id="__codelineno-28-4" name="__codelineno-28-4" href="#__codelineno-28-4"></a>cat<span class="w"> </span>/etc/docker/daemon.json<span class="w">    </span><span class="c1"># expects &quot;default-runtime&quot;: &quot;nvidia&quot;</span>
+<a id="__codelineno-28-4" name="__codelineno-28-4" href="#__codelineno-28-4"></a>cat<span class="w"> </span>/etc/docker/daemon.json<span class="w">    </span><span class="c1"># expects "default-runtime": "nvidia"</span>
 </code></pre></div>
 <p>If <code>nvidia-smi</code> itself fails, the AMI has no drivers — use a GPU-enabled AMI. Also confirm the instance type actually has a GPU; a <code>t3.large</code> never will.</p>
 </details>
@@ -4917,7 +4917,7 @@
 <summary>Cannot connect to PostgreSQL</summary>
 <p><code>psycopg2.OperationalError: could not connect to server</code>. The container's <code>start.sh</code> starts Postgres and blocks on <code>pg_isready</code> before Flask boots, so a refused connection normally means the cluster died rather than that it was never started.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container&gt;<span class="w"> </span>pg_isready<span class="w"> </span>-U<span class="w"> </span>lablink
-<a id="__codelineno-30-2" name="__codelineno-30-2" href="#__codelineno-30-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container&gt;<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;SELECT 1;&quot;</span>
+<a id="__codelineno-30-2" name="__codelineno-30-2" href="#__codelineno-30-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container&gt;<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="s2">"SELECT 1;"</span>
 <a id="__codelineno-30-3" name="__codelineno-30-3" href="#__codelineno-30-3"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container&gt;<span class="w"> </span>tail<span class="w"> </span>-f<span class="w"> </span>/var/log/postgresql/postgresql-*-main.log
 </code></pre></div>
 <p>To restart the cluster in place:</p>
@@ -4953,7 +4953,7 @@
 <a id="__codelineno-34-10" name="__codelineno-34-10" href="#__codelineno-34-10"></a>
 <a id="__codelineno-34-11" name="__codelineno-34-11" href="#__codelineno-34-11"></a><span class="c1"># Database</span>
 <a id="__codelineno-34-12" name="__codelineno-34-12" href="#__codelineno-34-12"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container&gt;<span class="w"> </span>pg_isready<span class="w"> </span>-U<span class="w"> </span>lablink
-<a id="__codelineno-34-13" name="__codelineno-34-13" href="#__codelineno-34-13"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container&gt;<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;SELECT hostname, status, inuse FROM vms;&quot;</span>
+<a id="__codelineno-34-13" name="__codelineno-34-13" href="#__codelineno-34-13"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container&gt;<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="s2">"SELECT hostname, status, inuse FROM vms;"</span>
 <a id="__codelineno-34-14" name="__codelineno-34-14" href="#__codelineno-34-14"></a>
 <a id="__codelineno-34-15" name="__codelineno-34-15" href="#__codelineno-34-15"></a><span class="c1"># AWS reachability from inside the container</span>
 <a id="__codelineno-34-16" name="__codelineno-34-16" href="#__codelineno-34-16"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container&gt;<span class="w"> </span>aws<span class="w"> </span>sts<span class="w"> </span>get-caller-identity

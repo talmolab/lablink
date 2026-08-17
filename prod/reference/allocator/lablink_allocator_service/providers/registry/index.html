@@ -4602,7 +4602,7 @@ available even if entry-point metadata is missing (editable installs).</p>
 
 
 <h4 id="lablink_allocator_service.providers.registry.DEFAULT_PROVIDER" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <code class="highlight language-python"><span class="n">DEFAULT_PROVIDER</span> <span class="o">=</span> <span class="s1">&#39;aws&#39;</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <code class="highlight language-python"><span class="n">DEFAULT_PROVIDER</span> <span class="o">=</span> <span class="s1">'aws'</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
@@ -4693,15 +4693,15 @@ available even if entry-point metadata is missing (editable installs).</p>
 <a id="__codelineno-0-65" name="__codelineno-0-65"></a>    <span class="bp">cls</span> <span class="o">=</span> <span class="n">providers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
 <a id="__codelineno-0-66" name="__codelineno-0-66"></a>    <span class="k">if</span> <span class="bp">cls</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
 <a id="__codelineno-0-67" name="__codelineno-0-67"></a>        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-<a id="__codelineno-0-68" name="__codelineno-0-68"></a>            <span class="sa">f</span><span class="s2">&quot;unknown provider &#39;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39;; available: </span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="n">providers</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-68" name="__codelineno-0-68"></a>            <span class="sa">f</span><span class="s2">"unknown provider '</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">'; available: </span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="n">providers</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span>
 <a id="__codelineno-0-69" name="__codelineno-0-69"></a>        <span class="p">)</span>
-<a id="__codelineno-0-70" name="__codelineno-0-70"></a>    <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;manual&quot;</span><span class="p">:</span>
-<a id="__codelineno-0-71" name="__codelineno-0-71"></a>        <span class="n">conn_name</span> <span class="o">=</span> <span class="n">connectivity</span> <span class="ow">or</span> <span class="s2">&quot;lan_direct&quot;</span>
+<a id="__codelineno-0-70" name="__codelineno-0-70"></a>    <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">"manual"</span><span class="p">:</span>
+<a id="__codelineno-0-71" name="__codelineno-0-71"></a>        <span class="n">conn_name</span> <span class="o">=</span> <span class="n">connectivity</span> <span class="ow">or</span> <span class="s2">"lan_direct"</span>
 <a id="__codelineno-0-72" name="__codelineno-0-72"></a>        <span class="n">conn_cls</span> <span class="o">=</span> <span class="n">_CONNECTIVITY_BUILTIN</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">conn_name</span><span class="p">)</span>
 <a id="__codelineno-0-73" name="__codelineno-0-73"></a>        <span class="k">if</span> <span class="n">conn_cls</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
 <a id="__codelineno-0-74" name="__codelineno-0-74"></a>            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-<a id="__codelineno-0-75" name="__codelineno-0-75"></a>                <span class="sa">f</span><span class="s2">&quot;unknown connectivity &#39;</span><span class="si">{</span><span class="n">conn_name</span><span class="si">}</span><span class="s2">&#39;; &quot;</span>
-<a id="__codelineno-0-76" name="__codelineno-0-76"></a>                <span class="sa">f</span><span class="s2">&quot;available: </span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="n">_CONNECTIVITY_BUILTIN</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-75" name="__codelineno-0-75"></a>                <span class="sa">f</span><span class="s2">"unknown connectivity '</span><span class="si">{</span><span class="n">conn_name</span><span class="si">}</span><span class="s2">'; "</span>
+<a id="__codelineno-0-76" name="__codelineno-0-76"></a>                <span class="sa">f</span><span class="s2">"available: </span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="n">_CONNECTIVITY_BUILTIN</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span>
 <a id="__codelineno-0-77" name="__codelineno-0-77"></a>            <span class="p">)</span>
 <a id="__codelineno-0-78" name="__codelineno-0-78"></a>        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span>
 <a id="__codelineno-0-79" name="__codelineno-0-79"></a>            <span class="n">region</span><span class="o">=</span><span class="n">region</span><span class="p">,</span>

@@ -4779,7 +4779,7 @@ connection open long enough to hit Cloudflare's edge timeout.</p>
                   <details class="mkdocstrings-source">
                     <summary>Source code in <code>packages/allocator/src/lablink_allocator_service/operations.py</code></summary>
                     <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-26">26</a></span>
-<span class="normal"><a href="#__codelineno-0-27">27</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-26" name="__codelineno-0-26"></a><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">database</span><span class="p">:</span> <span class="s2">&quot;OperationsDatabase&quot;</span><span class="p">):</span>
+<span class="normal"><a href="#__codelineno-0-27">27</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-26" name="__codelineno-0-26"></a><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">database</span><span class="p">:</span> <span class="s2">"OperationsDatabase"</span><span class="p">):</span>
 <a id="__codelineno-0-27" name="__codelineno-0-27"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">database</span> <span class="o">=</span> <span class="n">database</span>
 </code></pre></div></td></tr></table></div>
                   </details>
@@ -4848,15 +4848,15 @@ instead of hanging forever or being silently forgotten.</p>
 <span class="normal"><a href="#__codelineno-0-38">38</a></span>
 <span class="normal"><a href="#__codelineno-0-39">39</a></span>
 <span class="normal"><a href="#__codelineno-0-40">40</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-29" name="__codelineno-0-29"></a><span class="k">def</span><span class="w"> </span><span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-30" name="__codelineno-0-30"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Mark any operation left queued/running from a prior process as</span>
+<a id="__codelineno-0-30" name="__codelineno-0-30"></a><span class="w">    </span><span class="sd">"""Mark any operation left queued/running from a prior process as</span>
 <a id="__codelineno-0-31" name="__codelineno-0-31"></a><span class="sd">    interrupted. Call once at allocator startup, before any new</span>
 <a id="__codelineno-0-32" name="__codelineno-0-32"></a><span class="sd">    operation can be submitted, so a crash/restart mid-job is surfaced</span>
-<a id="__codelineno-0-33" name="__codelineno-0-33"></a><span class="sd">    instead of hanging forever or being silently forgotten.&quot;&quot;&quot;</span>
+<a id="__codelineno-0-33" name="__codelineno-0-33"></a><span class="sd">    instead of hanging forever or being silently forgotten."""</span>
 <a id="__codelineno-0-34" name="__codelineno-0-34"></a>    <span class="n">count</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">database</span><span class="o">.</span><span class="n">sweep_interrupted_operations</span><span class="p">()</span>
 <a id="__codelineno-0-35" name="__codelineno-0-35"></a>    <span class="k">if</span> <span class="n">count</span><span class="p">:</span>
 <a id="__codelineno-0-36" name="__codelineno-0-36"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-<a id="__codelineno-0-37" name="__codelineno-0-37"></a>            <span class="s2">&quot;Marked </span><span class="si">%d</span><span class="s2"> operation(s) interrupted &quot;</span>
-<a id="__codelineno-0-38" name="__codelineno-0-38"></a>            <span class="s2">&quot;(allocator restarted mid-job)&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-37" name="__codelineno-0-37"></a>            <span class="s2">"Marked </span><span class="si">%d</span><span class="s2"> operation(s) interrupted "</span>
+<a id="__codelineno-0-38" name="__codelineno-0-38"></a>            <span class="s2">"(allocator restarted mid-job)"</span><span class="p">,</span>
 <a id="__codelineno-0-39" name="__codelineno-0-39"></a>            <span class="n">count</span><span class="p">,</span>
 <a id="__codelineno-0-40" name="__codelineno-0-40"></a>        <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
@@ -4936,7 +4936,7 @@ if another operation is already queued/running.</p>
 <a id="__codelineno-0-46" name="__codelineno-0-46"></a>    <span class="n">params</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <a id="__codelineno-0-47" name="__codelineno-0-47"></a>    <span class="n">created_by</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <a id="__codelineno-0-48" name="__codelineno-0-48"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
-<a id="__codelineno-0-49" name="__codelineno-0-49"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Queue a new operation and run it on a background thread.</span>
+<a id="__codelineno-0-49" name="__codelineno-0-49"></a><span class="w">    </span><span class="sd">"""Queue a new operation and run it on a background thread.</span>
 <a id="__codelineno-0-50" name="__codelineno-0-50"></a>
 <a id="__codelineno-0-51" name="__codelineno-0-51"></a><span class="sd">    Returns immediately after the operation row is created — does not</span>
 <a id="__codelineno-0-52" name="__codelineno-0-52"></a><span class="sd">    wait for `fn` to complete.</span>
@@ -4944,7 +4944,7 @@ if another operation is already queued/running.</p>
 <a id="__codelineno-0-54" name="__codelineno-0-54"></a><span class="sd">    Raises:</span>
 <a id="__codelineno-0-55" name="__codelineno-0-55"></a><span class="sd">        OperationInProgress: propagated from database.create_operation</span>
 <a id="__codelineno-0-56" name="__codelineno-0-56"></a><span class="sd">            if another operation is already queued/running.</span>
-<a id="__codelineno-0-57" name="__codelineno-0-57"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-57" name="__codelineno-0-57"></a><span class="sd">    """</span>
 <a id="__codelineno-0-58" name="__codelineno-0-58"></a>    <span class="n">operation_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">database</span><span class="o">.</span><span class="n">create_operation</span><span class="p">(</span>
 <a id="__codelineno-0-59" name="__codelineno-0-59"></a>        <span class="n">op_type</span><span class="o">=</span><span class="n">op_type</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">,</span> <span class="n">created_by</span><span class="o">=</span><span class="n">created_by</span>
 <a id="__codelineno-0-60" name="__codelineno-0-60"></a>    <span class="p">)</span>

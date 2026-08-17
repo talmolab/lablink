@@ -4604,7 +4604,7 @@ behaviour, not a crash.</p>
 
 
 <h4 id="lablink_client_service.monitoring.samplers.active_window.BROWSER_PATS" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <code class="highlight language-python"><span class="n">BROWSER_PATS</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;firefox&#39;</span><span class="p">,</span> <span class="s1">&#39;chrome&#39;</span><span class="p">,</span> <span class="s1">&#39;chromium&#39;</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <code class="highlight language-python"><span class="n">BROWSER_PATS</span> <span class="o">=</span> <span class="p">(</span><span class="s1">'firefox'</span><span class="p">,</span> <span class="s1">'chrome'</span><span class="p">,</span> <span class="s1">'chromium'</span><span class="p">)</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
@@ -4624,7 +4624,7 @@ behaviour, not a crash.</p>
 
 
 <h4 id="lablink_client_service.monitoring.samplers.active_window.TERMINAL_PATS" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <code class="highlight language-python"><span class="n">TERMINAL_PATS</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;xterm&#39;</span><span class="p">,</span> <span class="s1">&#39;terminal&#39;</span><span class="p">,</span> <span class="s1">&#39;files&#39;</span><span class="p">,</span> <span class="s1">&#39;thunar&#39;</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <code class="highlight language-python"><span class="n">TERMINAL_PATS</span> <span class="o">=</span> <span class="p">(</span><span class="s1">'xterm'</span><span class="p">,</span> <span class="s1">'terminal'</span><span class="p">,</span> <span class="s1">'files'</span><span class="p">,</span> <span class="s1">'thunar'</span><span class="p">)</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
@@ -4757,28 +4757,28 @@ An empty iterable disables subject matching entirely.</p>
 <span class="normal"><a href="#__codelineno-0-71">71</a></span>
 <span class="normal"><a href="#__codelineno-0-72">72</a></span>
 <span class="normal"><a href="#__codelineno-0-73">73</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-51" name="__codelineno-0-51"></a><span class="k">def</span><span class="w"> </span><span class="nf">sample</span><span class="p">(</span><span class="n">subject_patterns</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<a id="__codelineno-0-52" name="__codelineno-0-52"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the bucket name for the currently focused window.</span>
+<a id="__codelineno-0-52" name="__codelineno-0-52"></a><span class="w">    </span><span class="sd">"""Return the bucket name for the currently focused window.</span>
 <a id="__codelineno-0-53" name="__codelineno-0-53"></a>
 <a id="__codelineno-0-54" name="__codelineno-0-54"></a><span class="sd">    Args:</span>
 <a id="__codelineno-0-55" name="__codelineno-0-55"></a><span class="sd">        subject_patterns: lower-cased substrings that, when contained in the</span>
-<a id="__codelineno-0-56" name="__codelineno-0-56"></a><span class="sd">            title, mark it as the tutorial app (e.g. [&quot;sleap&quot;], [&quot;deeplabcut&quot;]).</span>
+<a id="__codelineno-0-56" name="__codelineno-0-56"></a><span class="sd">            title, mark it as the tutorial app (e.g. ["sleap"], ["deeplabcut"]).</span>
 <a id="__codelineno-0-57" name="__codelineno-0-57"></a><span class="sd">            An empty iterable disables subject matching entirely.</span>
 <a id="__codelineno-0-58" name="__codelineno-0-58"></a>
 <a id="__codelineno-0-59" name="__codelineno-0-59"></a><span class="sd">    Returns:</span>
-<a id="__codelineno-0-60" name="__codelineno-0-60"></a><span class="sd">        One of &quot;subject&quot; / &quot;terminal&quot; / &quot;browser&quot; / &quot;other&quot;.</span>
-<a id="__codelineno-0-61" name="__codelineno-0-61"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-60" name="__codelineno-0-60"></a><span class="sd">        One of "subject" / "terminal" / "browser" / "other".</span>
+<a id="__codelineno-0-61" name="__codelineno-0-61"></a><span class="sd">    """</span>
 <a id="__codelineno-0-62" name="__codelineno-0-62"></a>    <span class="n">title</span> <span class="o">=</span> <span class="n">_get_title</span><span class="p">()</span>
 <a id="__codelineno-0-63" name="__codelineno-0-63"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="n">title</span><span class="p">:</span>
-<a id="__codelineno-0-64" name="__codelineno-0-64"></a>        <span class="k">return</span> <span class="s2">&quot;other&quot;</span>
+<a id="__codelineno-0-64" name="__codelineno-0-64"></a>        <span class="k">return</span> <span class="s2">"other"</span>
 <a id="__codelineno-0-65" name="__codelineno-0-65"></a>    <span class="n">title_l</span> <span class="o">=</span> <span class="n">title</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
 <a id="__codelineno-0-66" name="__codelineno-0-66"></a>    <span class="n">subj</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">subject_patterns</span><span class="p">]</span>
 <a id="__codelineno-0-67" name="__codelineno-0-67"></a>    <span class="k">if</span> <span class="n">subj</span> <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span><span class="n">p</span> <span class="ow">in</span> <span class="n">title_l</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">subj</span><span class="p">):</span>
-<a id="__codelineno-0-68" name="__codelineno-0-68"></a>        <span class="k">return</span> <span class="s2">&quot;subject&quot;</span>
+<a id="__codelineno-0-68" name="__codelineno-0-68"></a>        <span class="k">return</span> <span class="s2">"subject"</span>
 <a id="__codelineno-0-69" name="__codelineno-0-69"></a>    <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">p</span> <span class="ow">in</span> <span class="n">title_l</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">TERMINAL_PATS</span><span class="p">):</span>
-<a id="__codelineno-0-70" name="__codelineno-0-70"></a>        <span class="k">return</span> <span class="s2">&quot;terminal&quot;</span>
+<a id="__codelineno-0-70" name="__codelineno-0-70"></a>        <span class="k">return</span> <span class="s2">"terminal"</span>
 <a id="__codelineno-0-71" name="__codelineno-0-71"></a>    <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">p</span> <span class="ow">in</span> <span class="n">title_l</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">BROWSER_PATS</span><span class="p">):</span>
-<a id="__codelineno-0-72" name="__codelineno-0-72"></a>        <span class="k">return</span> <span class="s2">&quot;browser&quot;</span>
-<a id="__codelineno-0-73" name="__codelineno-0-73"></a>    <span class="k">return</span> <span class="s2">&quot;other&quot;</span>
+<a id="__codelineno-0-72" name="__codelineno-0-72"></a>        <span class="k">return</span> <span class="s2">"browser"</span>
+<a id="__codelineno-0-73" name="__codelineno-0-73"></a>    <span class="k">return</span> <span class="s2">"other"</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
