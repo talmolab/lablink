@@ -167,19 +167,6 @@ Publishes Python packages to PyPI with safety guardrails.
 | `dry_run`    | Test without publishing  | `true`, `false`                                       | `true`   |
 | `skip_tests` | Skip test suite          | `true`, `false`                                       | `false`  |
 
-### Workflow Steps
-
-1. **Determine which packages to publish** (from tag or input)
-2. **Run guardrails**:
-   - Verify release from main branch (for releases)
-   - Validate version matches tag
-   - Validate package metadata
-   - Run linting with `ruff`
-   - Run unit tests (unless skipped)
-3. **Build package** with `uv build`
-4. **Publish to PyPI** (unless dry-run)
-5. **Display manual Docker build instructions**
-
 ### Package Versioning
 
 - **Format**: `{package-name}_v{version}`
@@ -591,69 +578,6 @@ allocator_image_tag = "latest"
 | Manual dispatch   | `test`      | ❌ No        | `-test` | Test specific changes      |
 | Manual dispatch   | `ci-test`   | ❌ No        | `-test` | CI testing with S3 backend |
 
-### Workflow Jobs
-
-#### 1. Build Job
-
-1. **Free Disk Space**
-
-   - Removes large pre-installed packages from GitHub Actions runner (~20-30GB freed)
-   - **Why needed**: Client image with CUDA is ~6GB and requires 12-18GB during build
-   - **Problem**: GitHub runners start with only ~14GB free space, causing "No space left on device" errors
-   - **What's removed**:
-     - Android SDK (~11GB) - Not needed for Python/Docker builds
-     - .NET SDK (~2GB) - Not needed
-     - Haskell GHC (~5GB) - Not needed
-     - Swap storage (~4GB) - Not needed for Docker builds
-     - Other cloud SDKs - Not needed
-   - **What's kept**: Tool cache (Python, Node.js) for potential use in later steps
-   - **Impact**: Adds 2-4 minutes to build time, eliminates disk space failures
-   - **Safety**: Runs on separate runners from verification jobs, no impact on image quality
-
-2. **Select Dockerfile**
-
-   - Dev: Uses `Dockerfile.dev` (copies local source, uses `uv sync`)
-   - Prod: Uses `Dockerfile` (installs from PyPI with `uv pip install`)
-
-3. **Build Allocator Image**
-
-   - Context: Repository root
-   - Dockerfile: `packages/allocator/Dockerfile[.dev]`
-   - Tags: `ghcr.io/talmolab/lablink-allocator-image:<tags>`
-
-4. **Build Client Image**
-
-   - Context: Repository root
-   - Dockerfile: `packages/client/Dockerfile[.dev]`
-   - Tags: `ghcr.io/talmolab/lablink-client-base-image:<tags>`
-
-5. **Push to Registry**
-   - Authenticates to ghcr.io
-   - Pushes images with all applicable tags
-
-#### 2. Verify Allocator Job
-
-Runs after successful build, pulls and tests the allocator image:
-
-- **Image Selection**: Pulls using SHA-based tag (e.g., `:linux-amd64-<sha>-test`) to ensure exact image match and prevent race conditions from concurrent builds
-- **Virtual Environment**: Activates venv at `/app/.venv`
-- **Entry Points**: Verifies `main()` and `generate_init_sql.main()` are importable and callable
-- **Console Scripts**: Verifies `lablink-allocator` and `generate-init-sql` exist and execute
-- **Package Imports**: Tests importing `main`, every `db/` module (`db.pool`, `db.vms.VmDatabase`, `db.schedules.ScheduleDatabase`, `db.metrics.MetricsDatabase`, `db.operations.OperationsDatabase`), and `get_config`. Importing each `db/` submodule explicitly is what catches a subpackage that failed to ship in the wheel
-- **Dev Dependencies** (dev images only): Verifies pytest, ruff with versions
-
-#### 3. Verify Client Job
-
-Runs after successful build, pulls and tests the client image:
-
-- **Image Selection**: Pulls using SHA-based tag (e.g., `:linux-amd64-<sha>-test`) to ensure exact image match and prevent race conditions from concurrent builds
-- **Virtual Environment**: Activates venv at `/home/client/.venv`
-- **Entry Points**: Verifies `agent.api.main()`/`create_app()`, `check_gpu.main()`, `update_inuse_status.main()` are importable and callable
-- **Console Scripts**: Verifies `agent`, `check_gpu`, `update_inuse_status` exist and execute
-- **Package Imports**: Tests importing `agent.api`, `agent.kasmvnc.rotate_kasmvnc_password`, `check_gpu`, `update_inuse_status`
-- **UV Availability**: Verifies `uv` command and version
-- **Dev Dependencies** (dev images only): Verifies pytest, ruff with versions
-
 ### Example Workflow Run
 
 ```
@@ -718,79 +642,6 @@ Deploys LabLink infrastructure to AWS using OpenTofu.
 
 All deployments use the `lablink-infrastructure/` directory structure with configuration at `lablink-infrastructure/config/config.yaml`.
 
-### Workflow Steps
-
-#### 1. Environment Determination
-
-```
-Push to 'test' branch → env=test
-Manual dispatch → env=<user input>
-Repository dispatch → env=<payload>
-```
-
-#### 2. AWS Authentication
-
-Uses OpenID Connect (OIDC) to assume IAM role:
-
-```yaml
-- name: Configure AWS credentials via OIDC
-  uses: aws-actions/configure-aws-credentials@v3
-  with:
-    role-to-assume: arn:aws:iam::711387140753:role/github_lablink_repository-AE68499B37C7
-    aws-region: us-west-2
-```
-
-**No AWS credentials stored in GitHub!**
-
-#### 3. OpenTofu Initialization
-
-```bash
-# Dev (local state)
-tofu init
-
-# Test/Prod (remote state)
-tofu init -backend-config=backend-<env>.hcl
-```
-
-#### 4. Validation
-
-```bash
-tofu fmt -check  # Check formatting
-tofu validate    # Validate syntax
-```
-
-#### 5. Planning
-
-```bash
-tofu plan \
-  -var="resource_suffix=<env>" \
-  -var="allocator_image_tag=<tag>"
-```
-
-#### 6. Application
-
-```bash
-tofu apply -auto-approve \
-  -var="resource_suffix=<env>" \
-  -var="allocator_image_tag=<tag>"
-```
-
-#### 7. Artifact Handling
-
-- Extracts SSH private key from OpenTofu output
-- Saves as artifact (expires in 1 day)
-- Provides download link in workflow summary
-
-#### 8. Failure Handling
-
-If `tofu apply` fails:
-
-```bash
-tofu destroy -auto-approve
-```
-
-Automatically cleans up partial deployments.
-
 ### Example Workflow Run
 
 **Scenario**: Deploy to production
@@ -854,14 +705,6 @@ Safely destroy LabLink infrastructure for an environment.
 - Requires environment selection
 - Shows plan before destroying
 - Logs all destroyed resources
-
-### Workflow Steps
-
-1. Authenticate to AWS via OIDC
-2. Initialize OpenTofu with correct backend
-3. Plan destruction
-4. Execute `tofu destroy -auto-approve`
-5. Output destroyed resources
 
 ### Example Usage
 
