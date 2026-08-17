@@ -1,0 +1,11 @@
+.video-container {
+  margin: 1rem 0 1.5rem;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--md-default-fg-color--lightest);
+}
+
+.video-container video {
+  display: block;
+  width: 100%;
+}
