@@ -296,9 +296,11 @@ Common questions about LabLink. If something here doesn't resolve your problem, 
 ## Advanced
 
 ??? note "Can I use RDS instead of PostgreSQL in Docker?"
-    Yes, for production. See [Database → Migrating to RDS](database.md#migrating-to-rds-production).
-
-    Benefits: automated backups, high availability, managed updates.
+    No. PostgreSQL runs inside the allocator container with a fixed identity
+    (database `lablink_db`, user `lablink`, `localhost:5432`) — only the
+    password is configurable. The database is created fresh with each
+    deployment and torn down with it, so an external managed database has
+    nothing to persist.
 
 ??? note "Can I use LabLink with multiple AWS accounts?"
     Yes. Deploy separate instances with different AWS credentials or roles per account.

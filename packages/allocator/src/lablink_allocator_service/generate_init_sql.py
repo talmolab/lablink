@@ -1,13 +1,15 @@
+from lablink_allocator_service.conf.structured_config import (
+    DB_NAME,
+    DB_USER,
+    VM_TABLE_NAME,
+)
 from lablink_allocator_service.get_config import get_config
 
 
 def build_init_sql() -> str:
     """Build the PostgreSQL initialization SQL script as a string."""
     config = get_config()
-    DB_NAME = config.db.dbname
-    DB_USER = config.db.user
     DB_PASSWORD = config.db.password
-    VM_TABLE = config.db.table_name
     # MESSAGE_CHANNEL was the CRD notify channel; no longer needed.
 
     return f"""
@@ -83,7 +85,7 @@ CREATE INDEX idx_operations_created_at ON operations(created_at);
 CREATE UNIQUE INDEX IF NOT EXISTS operations_single_flight
     ON operations ((1)) WHERE status IN ('queued', 'running');
 
-CREATE TABLE IF NOT EXISTS {VM_TABLE} (
+CREATE TABLE IF NOT EXISTS {VM_TABLE_NAME} (
     HostName VARCHAR(1024) PRIMARY KEY,
     UserEmail VARCHAR(1024),
     InUse BOOLEAN NOT NULL DEFAULT FALSE,
@@ -140,15 +142,15 @@ CREATE TABLE IF NOT EXISTS {VM_TABLE} (
     SessionMetricsRaw                JSONB
 );
 
-CREATE UNIQUE INDEX {VM_TABLE}_browser_token_idx
-    ON {VM_TABLE}(BrowserToken) WHERE BrowserToken IS NOT NULL;
-CREATE UNIQUE INDEX {VM_TABLE}_session_id_idx
-    ON {VM_TABLE}(SessionId) WHERE SessionId IS NOT NULL;
-CREATE UNIQUE INDEX {VM_TABLE}_machine_identity_idx
-    ON {VM_TABLE}(machine_identity) WHERE machine_identity IS NOT NULL;
-CREATE INDEX {VM_TABLE}_provider_idx ON {VM_TABLE}(provider);
-CREATE INDEX {VM_TABLE}_assignable_idx
-    ON {VM_TABLE}(status, useremail, last_release_time)
+CREATE UNIQUE INDEX {VM_TABLE_NAME}_browser_token_idx
+    ON {VM_TABLE_NAME}(BrowserToken) WHERE BrowserToken IS NOT NULL;
+CREATE UNIQUE INDEX {VM_TABLE_NAME}_session_id_idx
+    ON {VM_TABLE_NAME}(SessionId) WHERE SessionId IS NOT NULL;
+CREATE UNIQUE INDEX {VM_TABLE_NAME}_machine_identity_idx
+    ON {VM_TABLE_NAME}(machine_identity) WHERE machine_identity IS NOT NULL;
+CREATE INDEX {VM_TABLE_NAME}_provider_idx ON {VM_TABLE_NAME}(provider);
+CREATE INDEX {VM_TABLE_NAME}_assignable_idx
+    ON {VM_TABLE_NAME}(status, useremail, last_release_time)
     WHERE useremail IS NULL AND status = 'running' AND adminreservedat IS NULL;
 
 CREATE TABLE IF NOT EXISTS settings (

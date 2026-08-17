@@ -48,6 +48,13 @@ def execute_scheduled_destruction_job(
         schedule_id: ID of the scheduled destruction
         tofu_dir: Path to OpenTofu directory
     """
+    from lablink_allocator_service.conf.structured_config import (
+        DB_HOST,
+        DB_NAME,
+        DB_PORT,
+        DB_USER,
+        VM_TABLE_NAME,
+    )
     from lablink_allocator_service.db.pool import make_pool
     from lablink_allocator_service.db.vms import VmDatabase
     from lablink_allocator_service.get_config import get_config
@@ -62,18 +69,18 @@ def execute_scheduled_destruction_job(
     # second pool internally. VmDatabase does not take ownership
     # of an injected pool (see its __init__ docstring), so `pool` remains
     # the sole owner and `finally` below is the only place that closes it.
-    pool = make_pool(cfg.db)
+    pool = make_pool(cfg.db.password)
 
     try:
         schedule_db = ScheduleDatabase(pool=pool)
-        metrics_db = MetricsDatabase(pool=pool, table_name=cfg.db.table_name)
+        metrics_db = MetricsDatabase(pool=pool, table_name=VM_TABLE_NAME)
         database = VmDatabase(
-            dbname=cfg.db.dbname,
-            user=cfg.db.user,
+            dbname=DB_NAME,
+            user=DB_USER,
             password=cfg.db.password,
-            host=cfg.db.host,
-            port=cfg.db.port,
-            table_name=cfg.db.table_name,
+            host=DB_HOST,
+            port=DB_PORT,
+            table_name=VM_TABLE_NAME,
             pool=pool,
         )
 

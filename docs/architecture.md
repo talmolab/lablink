@@ -518,7 +518,6 @@ See [Security](security.md) for detailed security considerations.
 
 - Horizontal: Multiple allocators with load balancer
 - Vertical: Larger instance types for allocator
-- Database: RDS for managed PostgreSQL at scale
 
 ## Technology Choices
 

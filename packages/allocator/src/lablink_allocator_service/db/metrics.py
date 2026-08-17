@@ -92,7 +92,7 @@ class MetricsDatabase:
 
     Args:
         pool: A psycopg2 connection pool, shared with the other db classes.
-        table_name: The VM table name, from cfg.db.table_name.
+        table_name: The VM table name (VM_TABLE_NAME in production).
     """
 
     def __init__(self, pool, table_name: str):

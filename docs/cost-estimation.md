@@ -391,7 +391,6 @@ New AWS accounts get 12 months of free tier:
 3. **Old EBS snapshots**: Accumulate over time
 4. **Unused load balancers**: $16-18/month
 5. **NAT Gateways**: $32/month + data transfer
-6. **Idle RDS instances**: $15-200/month
 
 **Solution**: Regular cleanup and monitoring
 

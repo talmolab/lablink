@@ -11,7 +11,14 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import generate_password_hash
 
 from lablink_allocator_service.get_config import get_config
-from lablink_allocator_service.conf.structured_config import is_unresolved_secret
+from lablink_allocator_service.conf.structured_config import (
+    DB_HOST,
+    DB_NAME,
+    DB_PORT,
+    DB_USER,
+    VM_TABLE_NAME,
+    is_unresolved_secret,
+)
 from lablink_allocator_service.db.vms import VmDatabase
 from lablink_allocator_service.db.schedules import ScheduleDatabase
 from lablink_allocator_service.db.metrics import MetricsDatabase
@@ -116,7 +123,7 @@ app.config["LABLINK_PROVIDER"] = get_provider(
 )
 
 os.environ["DATABASE_URL"] = (
-    f"postgresql://{cfg.db.user}:{cfg.db.password}@{cfg.db.host}:{cfg.db.port}/{cfg.db.dbname}"
+    f"postgresql://{DB_USER}:{cfg.db.password}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 )
 
 def verify_secrets_resolved() -> None:
@@ -211,22 +218,22 @@ def init_database():
     """Initialize the database connection."""
     global database
     database = VmDatabase(
-        dbname=cfg.db.dbname,
-        user=cfg.db.user,
+        dbname=DB_NAME,
+        user=DB_USER,
         password=cfg.db.password,
-        host=cfg.db.host,
-        port=cfg.db.port,
-        table_name=cfg.db.table_name,
+        host=DB_HOST,
+        port=DB_PORT,
+        table_name=VM_TABLE_NAME,
     )
     global schedule_db
     schedule_db = ScheduleDatabase(pool=database.pool)
     global metrics_db
-    metrics_db = MetricsDatabase(pool=database.pool, table_name=cfg.db.table_name)
+    metrics_db = MetricsDatabase(pool=database.pool, table_name=VM_TABLE_NAME)
     # Expose the underlying psycopg2 pool to blueprints (e.g. /desktop,
     # /internal/proxy_auth) that need a raw connection for the signed-cookie
     # helpers, without coupling them to the VmDatabase wrapper.
     app.config["DB_POOL"] = database._pool
-    app.config["VM_TABLE_NAME"] = cfg.db.table_name
+    app.config["VM_TABLE_NAME"] = VM_TABLE_NAME
     # Persist the deployment register-token as an argon2 hash at rest
     # (SR-F14). Validation reads this back via settings (Option A).
     database.set_setting("register_token_hash", hash_secret(REGISTER_TOKEN))
@@ -272,8 +279,8 @@ def main():
         # Initialize scheduler service
         logger.info("Initializing scheduler service...")
         db_url = (
-            f"postgresql://{cfg.db.user}:{cfg.db.password}"
-            f"@{cfg.db.host}:{cfg.db.port}/{cfg.db.dbname}"
+            f"postgresql://{DB_USER}:{cfg.db.password}"
+            f"@{DB_HOST}:{DB_PORT}/{DB_NAME}"
         )
         scheduler_service = ScheduledDestructionService(
             schedule_db=schedule_db,
