@@ -46,15 +46,8 @@ VM_TABLE_NAME = "vms"
 
 @dataclass
 class DatabaseConfig:
-    """Configuration for the database used in the LabLink Allocator Service.
-
-    Only the password is deployment-configurable; the database name, user,
-    host, port, and VM table name are fixed (see the DB_* / VM_TABLE_NAME
-    constants above).
-
-    Attributes:
-        password (str): The password for the database.
-    """
+    """Database config. Only the password is deployment-configurable;
+    everything else is fixed — see the DB_* constants above."""
 
     password: str = field(default="lablink")
 
