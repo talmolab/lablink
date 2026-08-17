@@ -5,10 +5,16 @@ All notable changes to **lablink-cli** will be documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and
 this project uses [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.1.0] - 2026-08-17
+
+First stable release (supersedes the `0.1.0a1` prerelease).
 
 ### Added
 
+- The admin page URL is surfaced in `lablink deploy` and `lablink status`
+  output (#456).
+- `lablink logs` viewer auto-fetches logs instead of requiring a manual
+  refresh (#451).
 - `manual` provider for bring-your-own (BYO) GPU boxes. `lablink configure`
   now offers an AWS-vs-Manual provider screen; manual deployments run the
   allocator via `docker-compose` on the operator's host and skip the AWS
@@ -60,6 +66,8 @@ this project uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- The wizard's region screen highlights the currently configured region
+  (#455).
 - Bumped the pinned `lablink-template` version to **v0.2.2**, which fixes
   Cloudflare **Full** SSL mode. The allocator origin now serves HTTPS:443
   with a self-signed cert (Caddy `tls internal`) instead of HTTP only, so
