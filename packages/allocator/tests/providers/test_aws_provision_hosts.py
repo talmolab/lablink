@@ -141,6 +141,21 @@ def test_provision_hosts_writes_runtime_tfvars(aws_provider, all_aws_mocks, tmp_
         assert f"{key} = " in content, f"missing key {key}"
 
 
+def test_none_repository_writes_empty_string_not_the_word_none(
+    aws_provider, all_aws_mocks, tmp_path
+):
+    """cfg.machine.repository defaults to None; the f-string tfvars writer
+    used to turn that into the literal string "None", which reached client
+    start.sh as TUTORIAL_REPO_TO_CLONE="None" and made every VM boot run
+    `git clone None` (logging `fatal: repository 'None' does not exist`)."""
+    spec = _make_spec()
+    spec["repository"] = None
+    aws_provider.provision_hosts(count=1, spec=spec)
+    content = (tmp_path / "terraform.runtime.tfvars").read_text()
+    assert 'repository = ""' in content
+    assert "None" not in content
+
+
 def test_provision_hosts_runs_tofu_plan_show_apply(
     aws_provider, all_aws_mocks,
 ):

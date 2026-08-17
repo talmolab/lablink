@@ -336,8 +336,11 @@ if ! send_status "initializing"; then
   ) &
 fi
 
-# Clone the tutorial repository if specified
-if [ -n "$TUTORIAL_REPO_TO_CLONE" ]; then
+# Clone the tutorial repository if specified. Also skip the literal string
+# "None": allocators predating the tfvars fix (providers/aws.py) f-string a
+# Python None into exactly that value, and `git clone None` fails on every
+# boot with `fatal: repository 'None' does not exist`.
+if [ -n "$TUTORIAL_REPO_TO_CLONE" ] && [ "$TUTORIAL_REPO_TO_CLONE" != "None" ]; then
   mkdir -p /home/client/Desktop
   cd /home/client/Desktop
   echo "Cloning repository $TUTORIAL_REPO_TO_CLONE..."
