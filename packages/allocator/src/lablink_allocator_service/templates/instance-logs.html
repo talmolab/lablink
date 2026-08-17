@@ -218,6 +218,9 @@
                 <button onclick="toggleAutoRefresh()" id="autoRefreshBtn">
                     <i class="bi bi-play me-1"></i>Start Auto Refresh
                 </button>
+                <button onclick="toggleErrorsOnly()" id="errorsOnlyBtn">
+                    <i class="bi bi-exclamation-triangle me-1"></i>Show errors only
+                </button>
                 <button class="btn-secondary" onclick="downloadLogs()">
                     <i class="bi bi-download me-1"></i>Download
                 </button>
@@ -293,6 +296,7 @@
         const hasCloudInit = {{ 'true' if has_cloud_init else 'false' }};
         let autoRefreshInterval = null;
         let isAutoRefreshing = false;
+        let errorsOnly = false;
 
         // Initialize page
         document.addEventListener('DOMContentLoaded', function() {
@@ -310,11 +314,19 @@
             try {
                 const shouldFollowTail = document.getElementById("followTail").checked;
 
-                const res = await fetch(logEndpoint, { credentials : 'include' });
+                const url = errorsOnly
+                    ? logEndpoint + "?errors_only=true"
+                    : logEndpoint;
+                const res = await fetch(url, { credentials : 'include' });
                 if (res.ok) {
                     const data = await res.json();
-                    const cloudInitLogs = data.cloud_init_logs || "No logs available.";
-                    const dockerLogs = data.docker_logs || data.error || "No logs available.";
+                    // A filtered stream that matched nothing comes back as
+                    // "" — that is "no errors", not "no logs".
+                    const emptyMsg = errorsOnly
+                        ? "No error lines in this log."
+                        : "No logs available.";
+                    const cloudInitLogs = data.cloud_init_logs || emptyMsg;
+                    const dockerLogs = data.docker_logs || data.error || emptyMsg;
 
                     setBoxText("cloudInitLogBox", cloudInitLogs);
                     setBoxText("dockerLogBox", dockerLogs);
@@ -366,14 +378,50 @@
             }
         }
 
-        function downloadLogs() {
-            const docker = document.getElementById("dockerLogBox").textContent;
+        function toggleErrorsOnly() {
+            // The filter is server-side (one rule, shared with the CLI's
+            // /api/vm-logs path), so flipping it means refetching.
+            errorsOnly = !errorsOnly;
+            const btn = document.getElementById("errorsOnlyBtn");
+            if (errorsOnly) {
+                btn.innerHTML = '<i class="bi bi-list-ul me-1"></i>Show all';
+                btn.className = 'btn-danger';
+            } else {
+                btn.innerHTML =
+                    '<i class="bi bi-exclamation-triangle me-1"></i>Show errors only';
+                btn.className = '';
+            }
+            refreshLogs();
+        }
+
+        async function downloadLogs() {
+            // Always export the complete log, even while the view is
+            // filtered: an admin attaching this to an issue needs the
+            // context, and a silently-filtered file is data loss.
+            let cloudInit = null;
+            let docker = null;
+            let fetched = false;
+            try {
+                const res = await fetch(logEndpoint, { credentials : 'include' });
+                if (res.ok) {
+                    const data = await res.json();
+                    cloudInit = data.cloud_init_logs;
+                    docker = data.docker_logs || data.error;
+                    fetched = true;
+                }
+            } catch (err) {
+                console.error("Error fetching full logs for download:", err);
+            }
+            if (!fetched) {
+                alert("Could not fetch the full log; try again.");
+                return;
+            }
             let logs;
             if (hasCloudInit) {
-                const cloudInit = document.getElementById("cloudInitLogBox").textContent;
-                logs = "=== Cloud Init Logs ===\n" + cloudInit + "\n\n=== Docker Logs ===\n" + docker;
+                logs = "=== Cloud Init Logs ===\n" + (cloudInit || "") +
+                       "\n\n=== Docker Logs ===\n" + (docker || "");
             } else {
-                logs = "=== Docker Logs ===\n" + docker;
+                logs = "=== Docker Logs ===\n" + (docker || "");
             }
             const blob = new Blob([logs], { type: 'text/plain' });
             const url = window.URL.createObjectURL(blob);

@@ -1900,3 +1900,59 @@ def test_vm_metrics_bumps_last_seen(client, monkeypatch):
 
     assert resp.status_code == 200
     fake_db.touch_last_seen.assert_called_once_with(hostname="vm-1")
+
+
+def test_get_vm_logs_errors_only_filters_both_streams(
+    client, admin_headers, monkeypatch
+):
+    """?errors_only=true keeps error lines and drops the benign ones."""
+    fake_db = MagicMock()
+    fake_db.vm_exists.return_value = True
+    fake_db.get_status_by_hostname.return_value = "running"
+    fake_db.get_vm_logs.return_value = {
+        "cloud_init_logs": "INFO booting\nERROR cloud-init exploded",
+        "docker_logs": (
+            "INFO healthy\n"
+            "ERROR check_gpu: Failed to report GPU health after 3 attempts\n"
+            "ERROR agent: real problem"
+        ),
+    }
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    resp = client.get(
+        f"{VM_LOGS_ENDPOINT}/lablink-vm-test-1?errors_only=true",
+        headers=admin_headers,
+    )
+
+    assert resp.status_code == 200
+    result = resp.get_json()
+    assert result["cloud_init_logs"] == "ERROR cloud-init exploded"
+    assert result["docker_logs"] == "ERROR agent: real problem"
+    # The combined key is built from the filtered halves.
+    assert result["logs"] == (
+        "ERROR cloud-init exploded\nERROR agent: real problem"
+    )
+
+
+def test_get_vm_logs_is_unfiltered_by_default(client, admin_headers, monkeypatch):
+    """Omitting the param must not change the existing response."""
+    fake_db = MagicMock()
+    fake_db.vm_exists.return_value = True
+    fake_db.get_status_by_hostname.return_value = "running"
+    fake_db.get_vm_logs.return_value = {
+        "cloud_init_logs": "INFO booting",
+        "docker_logs": "INFO healthy",
+    }
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    resp = client.get(
+        f"{VM_LOGS_ENDPOINT}/lablink-vm-test-1", headers=admin_headers
+    )
+
+    result = resp.get_json()
+    assert result["cloud_init_logs"] == "INFO booting"
+    assert result["docker_logs"] == "INFO healthy"

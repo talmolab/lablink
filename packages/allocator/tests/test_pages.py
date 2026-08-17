@@ -518,3 +518,20 @@ def test_instances_shows_clear_unhealthy_only_for_unhealthy_rows(
     # Connect must still be offered on the unhealthy row — a successful
     # Admin Connect is the other, automatic way the flag gets cleared.
     assert "/admin/instances/vm-unhealthy/connect" in html
+
+
+def test_log_page_has_an_errors_only_toggle(client, admin_headers, monkeypatch):
+    """The toggle and the query param it sends must both render."""
+    fake_db = MagicMock()
+    fake_db.vm_exists.return_value = True
+    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db)
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.cfg",
+        SimpleNamespace(provider="aws"),
+    )
+
+    html = client.get("/admin/logs/vm-1", headers=admin_headers).data.decode()
+    assert 'id="errorsOnlyBtn"' in html
+    assert "Show errors only" in html
+    assert "errors_only=true" in html
+    assert "No error lines in this log." in html

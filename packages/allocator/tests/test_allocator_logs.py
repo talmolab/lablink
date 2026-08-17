@@ -54,3 +54,38 @@ def test_page_has_no_close_button(client, admin_headers):
 def test_admin_dashboard_links_to_the_page(client, admin_headers):
     html = client.get("/admin", headers=admin_headers).data.decode()
     assert "/admin/allocator-logs" in html
+
+
+def test_api_errors_only_filters_the_tail(client, admin_headers, monkeypatch):
+    monkeypatch.setattr(
+        "lablink_allocator_service.routes.allocator_logs.read_allocator_log",
+        lambda: "INFO serving on :5000\nERROR - could not reach postgres",
+    )
+    body = client.get(
+        "/api/allocator-logs?errors_only=true", headers=admin_headers
+    ).get_json()
+    assert body["docker_logs"] == "ERROR - could not reach postgres"
+    assert body["error"] is None
+
+
+def test_api_errors_only_with_no_errors_is_not_a_missing_file(
+    client, admin_headers, monkeypatch
+):
+    """An empty filtered result must not claim the log file is absent --
+    the page distinguishes "no errors" from "no log"."""
+    monkeypatch.setattr(
+        "lablink_allocator_service.routes.allocator_logs.read_allocator_log",
+        lambda: "INFO serving on :5000",
+    )
+    body = client.get(
+        "/api/allocator-logs?errors_only=true", headers=admin_headers
+    ).get_json()
+    assert body["docker_logs"] == ""
+    assert body["error"] is None
+
+
+def test_page_has_an_errors_only_toggle(client, admin_headers):
+    """The allocator page shares the template, so it gets the toggle too."""
+    html = client.get("/admin/allocator-logs", headers=admin_headers).data.decode()
+    assert 'id="errorsOnlyBtn"' in html
+    assert "errors_only=true" in html

@@ -7,9 +7,10 @@ therefore cannot run `docker logs` on itself.
 """
 import logging
 
-from flask import Blueprint, jsonify, render_template
+from flask import Blueprint, jsonify, render_template, request
 
 from lablink_allocator_service.auth import auth
+from lablink_allocator_service.utils.log_filter import filter_errors
 from lablink_allocator_service.utils.log_tail import read_allocator_log
 
 bp = Blueprint("allocator_logs", __name__)
@@ -33,11 +34,17 @@ def allocator_logs_api():
     container, and is deliberately out of scope.
     """
     logs = read_allocator_log()
+    # Capture missing-ness *before* filtering: a log with no error lines
+    # filters down to "", which is falsy, and would otherwise be reported
+    # as a missing log file.
+    missing = logs is None
+    if request.args.get("errors_only", "false").lower() == "true":
+        logs = filter_errors(logs)
     return jsonify(
         {
             "cloud_init_logs": None,
             "docker_logs": logs,
-            "error": None if logs else _MISSING_LOG_MSG,
+            "error": _MISSING_LOG_MSG if missing else None,
         }
     )
 
