@@ -402,7 +402,13 @@ if [ -f "/docker_scripts/custom-startup.sh" ] && [ -s "/docker_scripts/custom-st
   done
 
   if [ $rc -ne 0 ]; then
-    echo "Warning: custom startup script did not succeed after $MAX_ATTEMPTS attempt(s) (exit $rc)"
+    # Uppercase ERROR on purpose: it is the token the allocator's
+    # errors-only log view matches. The tools a startup script calls mostly
+    # do not emit one (uv logs lowercase `error:`, bash prints `command not
+    # found`), so without this line a failed startup script is invisible in
+    # that view. The per-attempt "retrying" line above deliberately carries
+    # no token -- only retry exhaustion surfaces.
+    echo "ERROR: custom startup script did not succeed after $MAX_ATTEMPTS attempt(s) (exit $rc)"
     if [ "${STARTUP_ON_ERROR}" = "fail" ]; then
       touch "$STATUS_SUPERSEDED_FILE"
       send_status "error" || echo ">> WARNING: failed to report status=error"

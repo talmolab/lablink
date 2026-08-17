@@ -50,3 +50,19 @@ def test_metrics_curl_is_silent(script_text):
         if "curl" in ln and "/api/vm-metrics/" in ln
     )
     assert "-sS" in metrics_curl
+
+
+def test_startup_script_exhaustion_carries_the_error_token(script_text):
+    """The allocator's errors-only view matches uppercase ERROR. The tools a
+    startup script calls mostly do not emit one (uv logs lowercase `error:`,
+    bash prints `command not found`), so start.sh's own retry-exhaustion
+    summary must carry the token or a failed script is invisible there. The
+    per-attempt retry notice stays token-free -- only exhaustion surfaces."""
+    summary = next(
+        ln for ln in script_text.splitlines() if "did not succeed after" in ln
+    )
+    assert "ERROR:" in summary
+    retry_notice = next(
+        ln for ln in script_text.splitlines() if "; retrying in" in ln
+    )
+    assert "ERROR" not in retry_notice
