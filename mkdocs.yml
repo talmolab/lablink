@@ -96,25 +96,25 @@ nav:
   - Getting Started:
       - Prerequisites: prerequisites.md
       - Quickstart: quickstart.md
-      - "Quickstart: Template repo": quickstart-template.md
-      - AWS Setup (Manual): aws-setup.md
   - CLI:
       - Overview: cli/index.md
       - Installation: cli/installation.md
       - First Deployment: cli/first-deployment.md
       - Bring-Your-Own Clients: cli/byo-clients.md
       - Managing Deployments: cli/managing-deployments.md
+  - Template Repo:
+      - Quickstart: quickstart-template.md
+      - AWS Setup (Manual): aws-setup.md
+      - Deployment: deployment.md
   - Admin Guide:
       - Adapting for Your Software: adapting.md
       - Workshop Guide: workshop-guide.md
       - Configuration: configuration.md
       - Cost Estimation: cost-estimation.md
-      - Troubleshooting: troubleshooting.md
-      - FAQ: faq.md
-  - Infrastructure:
-      - Deployment: deployment.md
       - DNS Configuration: dns-configuration.md
       - Security & Access: security.md
+      - Troubleshooting: troubleshooting.md
+      - FAQ: faq.md
   - Developer Guide:
       - Architecture: architecture.md
       - Database: database.md

@@ -27,6 +27,9 @@ LabLink is **software-agnostic**. You can [adapt it for any software](adapting.m
 
 Prefer a local workflow over the template repository? The [LabLink CLI](cli/index.md) deploys the same infrastructure from your own machine with `lablink configure && lablink deploy`.
 
+!!! note "Cloud-agnostic via Bring-Your-Own clients"
+    LabLink is not tied to AWS. With the CLI's [Bring-Your-Own clients](cli/byo-clients.md) mode, any machine with Docker and an internet connection (to pull LabLink's published packages from PyPI and container images) can serve as a client — lab workstations, on-prem servers, or VMs from any cloud. BYO clients are only available through the CLI; the template-repo path does not support them.
+
 ---
 
 ## Getting Started
