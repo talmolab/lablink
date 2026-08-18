@@ -13,6 +13,7 @@ from rich.markup import escape
 
 from lablink_allocator_service.conf.structured_config import Config
 
+from lablink_cli import manual
 from lablink_cli.api import authenticated_json_request
 from lablink_cli.commands.utils import (
     AwsQueryError,
@@ -295,25 +296,21 @@ def fetch_manual_allocator_logs(*, docker: Docker | None = None) -> dict:
 # ------------------------------------------------------------------
 # Manual-provider TUI launcher
 # ------------------------------------------------------------------
-def _run_logs_manual(cfg: Config) -> None:
+def _run_logs_manual(
+    cfg: Config, *, workdir_root: Path | None = None
+) -> None:
     """Discover BYO clients via /api/v1/clients and launch the TUI.
 
     The TUI shows the local allocator container plus every registered
     BYO client. Client logs come from /api/vm-logs/<hostname> (populated
     by the manual-client log shipper). The allocator entry is fetched
     via local ``docker logs lablink-allocator`` instead of SSH.
+
+    `workdir_root` overrides the default compose root (used by tests).
     """
-    from lablink_cli.commands.deploy_compose import DEFAULT_HTTP_PORT
-    from lablink_cli.commands.status import (
-        _fetch_registered_clients,
-        _resolve_manual_admin_credentials,
-    )
+    workdir = manual.workdir(cfg, workdir_root)
 
-    workdir = Path.home() / ".lablink" / "compose" / (
-        cfg.deployment_name or "lablink"
-    )
-
-    creds = _resolve_manual_admin_credentials(cfg, workdir)
+    creds = manual.admin_credentials(cfg, workdir)
     if not creds:
         console.print(
             "[red]Could not resolve allocator admin credentials.[/red]\n"
@@ -322,14 +319,12 @@ def _run_logs_manual(cfg: Config) -> None:
         raise SystemExit(1)
     admin_user, admin_pw = creds
 
-    allocator_url = f"http://localhost:{DEFAULT_HTTP_PORT}"
+    allocator_url = manual.base_url(cfg)
 
     console.print(
         "[dim]Fetching registered BYO clients from the allocator...[/dim]"
     )
-    clients, err = _fetch_registered_clients(
-        allocator_url, admin_user, admin_pw
-    )
+    clients, err = manual.registered_clients(cfg, admin_user, admin_pw)
     if clients is None:
         console.print(
             f"[red]Failed to list clients:[/red] {err}\n"
@@ -340,7 +335,7 @@ def _run_logs_manual(cfg: Config) -> None:
     # Synthetic VM list: allocator first, then clients. Shapes match the
     # AWS-mode dicts (name, type, vm_type, public_ip, state) so LogsApp +
     # VMListItem work uniformly. The allocator is implicitly "running"
-    # here — _fetch_registered_clients just succeeded against it.
+    # here — manual.registered_clients just succeeded against it.
     vms: list[dict] = [
         {
             "name": "lablink-allocator",

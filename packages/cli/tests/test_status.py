@@ -548,7 +548,10 @@ class TestManualStatus:
         )
         mock_health.return_value = {"healthy": True, "detail": ""}
 
-        with patch("lablink_cli.commands.status.Path.home", return_value=tmp_path):
+        with patch(
+            "lablink_cli.manual.DEFAULT_COMPOSE_DIR",
+            tmp_path / ".lablink" / "compose",
+        ):
             run_status(mock_cfg)
 
         out = capsys.readouterr().out
@@ -566,7 +569,10 @@ class TestManualStatus:
         fake_docker = _ComposeDocker()
         mock_default_docker.return_value = fake_docker
 
-        with patch("lablink_cli.commands.status.Path.home", return_value=tmp_path):
+        with patch(
+            "lablink_cli.manual.DEFAULT_COMPOSE_DIR",
+            tmp_path / ".lablink" / "compose",
+        ):
             run_status(mock_cfg)
 
         out = capsys.readouterr().out
@@ -588,7 +594,10 @@ class TestManualStatus:
         mock_default_docker.return_value = _ComposeDocker(Result(0, stdout=""))
         mock_health.return_value = {"healthy": False, "detail": "starting"}
 
-        with patch("lablink_cli.commands.status.Path.home", return_value=tmp_path):
+        with patch(
+            "lablink_cli.manual.DEFAULT_COMPOSE_DIR",
+            tmp_path / ".lablink" / "compose",
+        ):
             run_status(mock_cfg)
 
         out = capsys.readouterr().out
@@ -596,9 +605,12 @@ class TestManualStatus:
 
     @patch("lablink_cli.commands.status.default_docker")
     @patch("lablink_cli.commands.status.check_health_endpoint")
-    def test_manual_self_signed_uses_https(
+    def test_manual_health_probe_is_always_localhost_http(
         self, mock_health, mock_default_docker, mock_cfg, tmp_path,
     ):
+        # Regression: this probe used to switch to "https://localhost"
+        # (no port) for self_signed — a branch deploy_compose's
+        # SUPPORTED_SSL_FOR_MANUAL makes unreachable for a real deploy.
         from lablink_cli.commands.status import run_status
 
         mock_cfg.provider = "manual"
@@ -609,12 +621,14 @@ class TestManualStatus:
         mock_default_docker.return_value = _ComposeDocker(Result(0, stdout=""))
         mock_health.return_value = {"healthy": True, "detail": ""}
 
-        with patch("lablink_cli.commands.status.Path.home", return_value=tmp_path):
+        with patch(
+            "lablink_cli.manual.DEFAULT_COMPOSE_DIR",
+            tmp_path / ".lablink" / "compose",
+        ):
             run_status(mock_cfg)
 
-        # Health URL should use https scheme for self_signed.
         called_url = mock_health.call_args[0][0]
-        assert called_url.startswith("https://")
+        assert called_url == "http://localhost:80"
 
 
 class TestManualStatusPublicUrl:
@@ -644,7 +658,10 @@ class TestManualStatusPublicUrl:
         mock_default_docker.return_value = _ComposeDocker(Result(0, stdout=""))
         mock_health.return_value = {"healthy": True, "detail": ""}
 
-        with patch("lablink_cli.commands.status.Path.home", return_value=tmp_path):
+        with patch(
+            "lablink_cli.manual.DEFAULT_COMPOSE_DIR",
+            tmp_path / ".lablink" / "compose",
+        ):
             run_status(mock_cfg)
 
         out = capsys.readouterr().out
@@ -674,7 +691,10 @@ class TestManualStatusPublicUrl:
             {"healthy": False, "detail": "connection refused"},   # funnel
         ]
 
-        with patch("lablink_cli.commands.status.Path.home", return_value=tmp_path):
+        with patch(
+            "lablink_cli.manual.DEFAULT_COMPOSE_DIR",
+            tmp_path / ".lablink" / "compose",
+        ):
             run_status(mock_cfg)
 
         out = capsys.readouterr().out
@@ -697,7 +717,10 @@ class TestManualStatusPublicUrl:
         mock_default_docker.return_value = _ComposeDocker(Result(0, stdout=""))
         mock_health.return_value = {"healthy": True, "detail": ""}
 
-        with patch("lablink_cli.commands.status.Path.home", return_value=tmp_path):
+        with patch(
+            "lablink_cli.manual.DEFAULT_COMPOSE_DIR",
+            tmp_path / ".lablink" / "compose",
+        ):
             run_status(mock_cfg)
 
         assert "Public URL" not in capsys.readouterr().out
@@ -718,7 +741,10 @@ class TestManualStatusPublicUrl:
         mock_default_docker.return_value = _ComposeDocker(Result(0, stdout=""))
         mock_health.return_value = {"healthy": True, "detail": ""}
 
-        with patch("lablink_cli.commands.status.Path.home", return_value=tmp_path):
+        with patch(
+            "lablink_cli.manual.DEFAULT_COMPOSE_DIR",
+            tmp_path / ".lablink" / "compose",
+        ):
             run_status(mock_cfg)
 
         assert "Public URL" not in capsys.readouterr().out

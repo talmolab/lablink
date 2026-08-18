@@ -2,17 +2,12 @@
 
 from __future__ import annotations
 
-import io
-import json
 from unittest.mock import MagicMock, patch
 
 import pytest
-import yaml
 
 from lablink_cli.commands.status import (
-    _fetch_registered_clients,
     _render_manual_clients_table,
-    _resolve_manual_admin_credentials,
     _run_status_manual,
 )
 from lablink_cli.docker import Docker, Result
@@ -32,136 +27,6 @@ class _ComposeDocker(Docker):
 
     def compose(self, workdir, *args, capture=True):
         return self._result
-
-
-# ---- _resolve_manual_admin_credentials ----------------------------------
-
-class TestResolveManualAdminCredentials:
-    def test_uses_cfg_when_present(self, tmp_path):
-        cfg = MagicMock()
-        cfg.app.admin_user = "admin"
-        cfg.app.admin_password = "pw123"
-        assert _resolve_manual_admin_credentials(cfg, tmp_path) == (
-            "admin",
-            "pw123",
-        )
-
-    def test_falls_back_to_workdir_config(self, tmp_path):
-        cfg = MagicMock()
-        cfg.app.admin_user = ""
-        cfg.app.admin_password = ""
-        (tmp_path / "config.yaml").write_text(
-            yaml.safe_dump(
-                {"app": {"admin_user": "op", "admin_password": "fromfile"}}
-            )
-        )
-        assert _resolve_manual_admin_credentials(cfg, tmp_path) == (
-            "op",
-            "fromfile",
-        )
-
-    def test_ignores_missing_sentinel(self, tmp_path):
-        cfg = MagicMock()
-        cfg.app.admin_user = "MISSING"
-        cfg.app.admin_password = "MISSING"
-        assert _resolve_manual_admin_credentials(cfg, tmp_path) is None
-
-    def test_returns_none_when_nothing_available(self, tmp_path):
-        cfg = MagicMock()
-        cfg.app.admin_user = ""
-        cfg.app.admin_password = ""
-        assert _resolve_manual_admin_credentials(cfg, tmp_path) is None
-
-
-# ---- _fetch_registered_clients ------------------------------------------
-
-class TestFetchRegisteredClients:
-    @patch("lablink_cli.commands.status.urlopen")
-    def test_sends_basic_auth_and_returns_clients(self, mock_urlopen):
-        resp = MagicMock()
-        resp.read.return_value = json.dumps(
-            {"clients": [{"hostname": "byo-1"}]}
-        ).encode()
-        mock_urlopen.return_value = resp
-
-        clients, err = _fetch_registered_clients(
-            "http://localhost", "admin", "pw"
-        )
-        assert err == ""
-        assert clients == [{"hostname": "byo-1"}]
-        sent_req = mock_urlopen.call_args[0][0]
-        # admin:pw → YWRtaW46cHc=
-        assert sent_req.headers["Authorization"] == "Basic YWRtaW46cHc="
-        assert sent_req.full_url == "http://localhost/api/v1/clients"
-
-    @patch("lablink_cli.commands.status.urlopen")
-    def test_returns_empty_list_when_response_missing_key(self, mock_urlopen):
-        resp = MagicMock()
-        resp.read.return_value = b"{}"
-        mock_urlopen.return_value = resp
-        clients, err = _fetch_registered_clients(
-            "http://localhost", "admin", "pw"
-        )
-        assert clients == []
-        assert err == ""
-
-    @patch("lablink_cli.commands.status.urlopen")
-    def test_returns_error_on_http_failure(self, mock_urlopen):
-        from email.message import Message
-        from urllib.error import HTTPError
-
-        mock_urlopen.side_effect = HTTPError(
-            "http://localhost/api/v1/clients",
-            401,
-            "Unauthorized",
-            Message(),
-            io.BytesIO(b""),
-        )
-        clients, err = _fetch_registered_clients(
-            "http://localhost", "admin", "wrong"
-        )
-        assert clients is None
-        assert "401" in err
-        # A bare "HTTP 401" leaves the operator guessing. Name the
-        # credentials that were rejected and where they come from.
-        assert "admin_user" in err
-        assert "admin_password" in err
-        # Must name a file that actually exists: the config is
-        # ~/.lablink/config.yaml (app.DEFAULT_CONFIG). "lablink.yaml"
-        # appears nowhere in the project and sends people hunting.
-        assert "config.yaml" in err
-        assert "lablink.yaml" not in err
-
-    @patch("lablink_cli.commands.status.urlopen")
-    def test_non_401_http_error_stays_generic(self, mock_urlopen):
-        from email.message import Message
-        from urllib.error import HTTPError
-
-        mock_urlopen.side_effect = HTTPError(
-            "http://localhost/api/v1/clients",
-            500,
-            "Server Error",
-            Message(),
-            io.BytesIO(b""),
-        )
-        clients, err = _fetch_registered_clients(
-            "http://localhost", "admin", "pw"
-        )
-        assert clients is None
-        assert "500" in err
-        # Credential guidance would be misleading here.
-        assert "admin_password" not in err
-
-    @patch("lablink_cli.commands.status.urlopen")
-    def test_returns_error_on_url_failure(self, mock_urlopen):
-        from urllib.error import URLError
-
-        mock_urlopen.side_effect = URLError("connection refused")
-        clients, err = _fetch_registered_clients(
-            "http://localhost", "admin", "pw"
-        )
-        assert clients is None
-        assert "connection refused" in err
 
 
 # ---- _render_manual_clients_table ---------------------------------------
@@ -218,33 +83,21 @@ def manual_cfg():
     return cfg
 
 
-def _make_workdir(tmp_path, deployment_name):
-    """Build the workdir under tmp_path that _run_status_manual will look at."""
-    workdir = tmp_path / ".lablink" / "compose" / deployment_name
-    workdir.mkdir(parents=True)
-    return workdir
-
-
 class TestRunStatusManual:
-    @patch("lablink_cli.commands.status.Path.home")
-    def test_no_workdir(self, mock_home, manual_cfg, tmp_path):
+    def test_no_workdir(self, manual_cfg, tmp_path):
         # tmp_path exists but does not contain a compose workdir for mylab.
-        mock_home.return_value = tmp_path
-        _run_status_manual(manual_cfg)  # must not raise
+        _run_status_manual(manual_cfg, workdir_root=tmp_path)  # must not raise
 
-    @patch("lablink_cli.commands.status._fetch_registered_clients")
+    @patch("lablink_cli.manual.registered_clients")
     @patch("lablink_cli.commands.status.check_health_endpoint")
-    @patch("lablink_cli.commands.status.Path.home")
     def test_renders_clients_when_present(
         self,
-        mock_home,
         mock_health,
         mock_fetch,
         manual_cfg,
         tmp_path,
     ):
-        mock_home.return_value = tmp_path
-        _make_workdir(tmp_path, "mylab")
+        (tmp_path / "mylab").mkdir()
         mock_health.return_value = {"healthy": True, "detail": "ok"}
         mock_fetch.return_value = (
             [
@@ -263,72 +116,88 @@ class TestRunStatusManual:
         )
 
         _run_status_manual(
-            manual_cfg, docker=_ComposeDocker(Result(0, stdout="ps output"))
+            manual_cfg,
+            docker=_ComposeDocker(Result(0, stdout="ps output")),
+            workdir_root=tmp_path,
         )
 
         mock_fetch.assert_called_once()
-        assert mock_fetch.call_args[0] == ("http://localhost", "admin", "pw123")
+        assert mock_fetch.call_args[0] == (manual_cfg, "admin", "pw123")
 
-    @patch("lablink_cli.commands.status._fetch_registered_clients")
+    @patch("lablink_cli.manual.registered_clients")
     @patch("lablink_cli.commands.status.check_health_endpoint")
-    @patch("lablink_cli.commands.status.Path.home")
     def test_handles_empty_client_list(
         self,
-        mock_home,
         mock_health,
         mock_fetch,
         manual_cfg,
         tmp_path,
         capsys,
     ):
-        mock_home.return_value = tmp_path
-        _make_workdir(tmp_path, "mylab")
+        (tmp_path / "mylab").mkdir()
         mock_health.return_value = {"healthy": True}
         mock_fetch.return_value = ([], "")
-        _run_status_manual(manual_cfg, docker=_ComposeDocker())
+        _run_status_manual(
+            manual_cfg, docker=_ComposeDocker(), workdir_root=tmp_path
+        )
         out = capsys.readouterr().out
         assert "No clients registered yet" in out
 
-    @patch("lablink_cli.commands.status._fetch_registered_clients")
+    @patch("lablink_cli.manual.registered_clients")
     @patch("lablink_cli.commands.status.check_health_endpoint")
-    @patch("lablink_cli.commands.status.Path.home")
     def test_reports_fetch_failure(
         self,
-        mock_home,
         mock_health,
         mock_fetch,
         manual_cfg,
         tmp_path,
         capsys,
     ):
-        mock_home.return_value = tmp_path
-        _make_workdir(tmp_path, "mylab")
+        (tmp_path / "mylab").mkdir()
         mock_health.return_value = {"healthy": True}
         mock_fetch.return_value = (
             None,
-            "HTTP 401 from http://localhost/api/v1/clients",
+            "HTTP 401 from http://localhost:80/api/v1/clients",
         )
-        _run_status_manual(manual_cfg, docker=_ComposeDocker())
+        _run_status_manual(
+            manual_cfg, docker=_ComposeDocker(), workdir_root=tmp_path
+        )
         out = capsys.readouterr().out
         assert "Failed to list clients" in out
         assert "401" in out
 
     @patch("lablink_cli.commands.status.check_health_endpoint")
-    @patch("lablink_cli.commands.status.Path.home")
     def test_warns_when_creds_missing(
         self,
-        mock_home,
         mock_health,
         manual_cfg,
         tmp_path,
         capsys,
     ):
-        mock_home.return_value = tmp_path
-        _make_workdir(tmp_path, "mylab")
+        (tmp_path / "mylab").mkdir()
         # Wipe creds out of cfg and leave no config.yaml in the workdir.
         manual_cfg.app.admin_user = ""
         manual_cfg.app.admin_password = ""
         mock_health.return_value = {"healthy": True}
-        _run_status_manual(manual_cfg, docker=_ComposeDocker())
+        _run_status_manual(
+            manual_cfg, docker=_ComposeDocker(), workdir_root=tmp_path
+        )
         out = capsys.readouterr().out
         assert "Admin credentials not found" in out
+
+    @patch("lablink_cli.commands.status.check_health_endpoint")
+    def test_health_probe_hits_canonical_localhost_port(
+        self, mock_health, manual_cfg, tmp_path
+    ):
+        # Regression: this probe used to build "https://localhost" (no
+        # port, unreachable-for-manual https branch) instead of the same
+        # base URL every other manual path uses.
+        (tmp_path / "mylab").mkdir()
+        manual_cfg.app.admin_user = ""
+        manual_cfg.app.admin_password = ""
+        manual_cfg.ssl.provider = "self_signed"
+        mock_health.return_value = {"healthy": True}
+        _run_status_manual(
+            manual_cfg, docker=_ComposeDocker(), workdir_root=tmp_path
+        )
+        assert mock_health.call_args_list[0][0][0] == "http://localhost:80"

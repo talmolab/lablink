@@ -35,9 +35,13 @@ from lablink_cli.deployment_metrics import (
     write_metrics,
 )
 from lablink_cli.docker import Docker, DockerUnavailable, default_docker
+from lablink_cli.manual import (
+    CANONICAL_URL_FILENAME,
+    DEFAULT_COMPOSE_DIR,  # noqa: F401 — re-exported for callers/tests
+    DEFAULT_HTTP_PORT,
+    workdir as compose_workdir,
+)
 
-DEFAULT_COMPOSE_DIR = Path.home() / ".lablink" / "compose"
-DEFAULT_HTTP_PORT = "80"
 HEALTH_POLL_TIMEOUT_SECONDS = 300
 ALLOCATOR_IMAGE_BASE = "ghcr.io/talmolab/lablink-allocator-image"
 # Only ssl=none is supported by the manual-provider compose stack today:
@@ -61,24 +65,7 @@ FUNNEL_ENABLE_RETRY_DELAY_SECONDS = 2
 # a few seconds; 6 tries 5s apart leaves ~25s of headroom over that.
 PUBLIC_HOSTNAME_MAX_ATTEMPTS = 6
 PUBLIC_HOSTNAME_RETRY_DELAY_SECONDS = 5
-# Name of the file carrying the allocator's real public URL, staged next to
-# config.yaml and bind-mounted to /config/<name>. Must stay in sync with
-# config_helpers.CANONICAL_URL_FILENAME in the allocator package — duplicated
-# rather than imported because each package's CI job installs only its own
-# dependencies, so a cross-package import would fail there. Guarded by
-# test_deploy_compose.py::TestCanonicalUrlFile::test_filename_matches_allocator.
-CANONICAL_URL_FILENAME = "allocator-url"
-
 console = Console()
-
-
-def compose_workdir(cfg: Config, root: Path | None = None) -> Path:
-    """Path to the rendered compose working directory for this deployment.
-
-    `root` overrides `DEFAULT_COMPOSE_DIR` (used by tests via `workdir_root`).
-    """
-    name = cfg.deployment_name or "lablink"
-    return (root or DEFAULT_COMPOSE_DIR) / name
 
 
 def _read_env_value(env_path: Path, key: str) -> str | None:

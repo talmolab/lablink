@@ -209,8 +209,8 @@ class TestRunLogsManualTui:
     def _patch_common(self):
         """Patches shared by every test in this class."""
         return [
-            patch("lablink_cli.commands.status._resolve_manual_admin_credentials"),
-            patch("lablink_cli.commands.status._fetch_registered_clients"),
+            patch("lablink_cli.manual.admin_credentials"),
+            patch("lablink_cli.manual.registered_clients"),
             patch("lablink_cli.tui.logs_viewer.LogsApp"),
         ]
 
@@ -221,10 +221,10 @@ class TestRunLogsManualTui:
         mock_cfg.deployment_name = "testlab"
 
         with patch(
-            "lablink_cli.commands.status._resolve_manual_admin_credentials",
+            "lablink_cli.manual.admin_credentials",
             return_value=("admin", "pw"),
         ), patch(
-            "lablink_cli.commands.status._fetch_registered_clients",
+            "lablink_cli.manual.registered_clients",
             return_value=([
                 {"hostname": "byo-01", "lan_ip": "192.168.1.10"},
                 {"hostname": "byo-02", "lan_ip": "192.168.1.11"},
@@ -263,10 +263,10 @@ class TestRunLogsManualTui:
         mock_cfg.deployment_name = "testlab"
 
         with patch(
-            "lablink_cli.commands.status._resolve_manual_admin_credentials",
+            "lablink_cli.manual.admin_credentials",
             return_value=("admin", "pw"),
         ), patch(
-            "lablink_cli.commands.status._fetch_registered_clients",
+            "lablink_cli.manual.registered_clients",
             return_value=([], ""),
         ), patch(
             "lablink_cli.tui.logs_viewer.LogsApp"
@@ -287,7 +287,7 @@ class TestRunLogsManualTui:
         mock_cfg.deployment_name = "testlab"
 
         with patch(
-            "lablink_cli.commands.status._resolve_manual_admin_credentials",
+            "lablink_cli.manual.admin_credentials",
             return_value=None,
         ):
             with pytest.raises(SystemExit) as exc:
@@ -303,10 +303,10 @@ class TestRunLogsManualTui:
         mock_cfg.deployment_name = "testlab"
 
         with patch(
-            "lablink_cli.commands.status._resolve_manual_admin_credentials",
+            "lablink_cli.manual.admin_credentials",
             return_value=("admin", "pw"),
         ), patch(
-            "lablink_cli.commands.status._fetch_registered_clients",
+            "lablink_cli.manual.registered_clients",
             return_value=(None, "connection refused"),
         ):
             with pytest.raises(SystemExit) as exc:
@@ -322,10 +322,10 @@ class TestRunLogsManualTui:
         mock_cfg.deployment_name = "testlab"
 
         with patch(
-            "lablink_cli.commands.status._resolve_manual_admin_credentials",
+            "lablink_cli.manual.admin_credentials",
             return_value=("admin", "pw"),
         ), patch(
-            "lablink_cli.commands.status._fetch_registered_clients",
+            "lablink_cli.manual.registered_clients",
             return_value=([], ""),
         ), patch(
             "lablink_cli.tui.logs_viewer.LogsApp"
