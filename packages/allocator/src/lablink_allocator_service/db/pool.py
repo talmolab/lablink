@@ -10,6 +10,7 @@ import logging
 import os
 
 import psycopg2
+import psycopg2.extras
 import psycopg2.pool
 
 from lablink_allocator_service.conf.structured_config import (
@@ -55,10 +56,17 @@ class PooledCursor:
     """Checks out an autocommit connection from the pool, opens a cursor,
     and returns both to the pool/closes on exit. Preserves the per-call
     context-manager API previously provided by _LockedCursor.
+
+    ``dict_rows=True`` opens a RealDictCursor, so rows come back keyed by
+    the database's own column names instead of as positional tuples —
+    schema drift then fails loudly as a KeyError at the access instead of
+    silently shifting values into the wrong keys. Opt-in because
+    VmDatabase reads rows positionally throughout.
     """
 
-    def __init__(self, pool):
+    def __init__(self, pool, dict_rows: bool = False):
         self._pool = pool
+        self._dict_rows = dict_rows
         self._conn = None
         self._cur = None
 
@@ -72,7 +80,12 @@ class PooledCursor:
             self._conn.set_isolation_level(
                 psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT
             )
-            self._cur = self._conn.cursor()
+            if self._dict_rows:
+                self._cur = self._conn.cursor(
+                    cursor_factory=psycopg2.extras.RealDictCursor
+                )
+            else:
+                self._cur = self._conn.cursor()
             return self._cur
         except Exception:
             self._pool.putconn(self._conn)

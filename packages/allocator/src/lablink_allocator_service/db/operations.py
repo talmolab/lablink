@@ -20,24 +20,6 @@ from lablink_allocator_service.db.pool import PooledCursor
 
 logger = logging.getLogger(__name__)
 
-# Named-key contract for rows returned by the SELECT * queries below. Every
-# query in this class must emit columns in this order (matches the
-# CREATE TABLE column order in generate_init_sql.py).
-_OPERATION_COLUMNS = (
-    "id",
-    "op_type",
-    "status",
-    "params",
-    "created_by",
-    "created_at",
-    "started_at",
-    "finished_at",
-    "output",
-    "error",
-    "resources_total",
-    "resources_completed",
-)
-
 
 class OperationInProgress(Exception):
     """Raised by create_operation when another operation is already
@@ -65,8 +47,9 @@ class OperationsDatabase:
     @property
     def _cursor(self):
         """Return a context manager that checks out a pooled connection
-        and yields a cursor. See db.pool.PooledCursor."""
-        return PooledCursor(self._pool)
+        and yields a dict-rows cursor (rows keyed by the database's own
+        column names). See db.pool.PooledCursor."""
+        return PooledCursor(self._pool, dict_rows=True)
 
     def create_operation(
         self,
@@ -93,7 +76,7 @@ class OperationsDatabase:
         with self._cursor as cursor:
             try:
                 cursor.execute(query, (op_type, params, created_by))
-                operation_id = cursor.fetchone()[0]
+                operation_id = cursor.fetchone()["id"]
                 logger.info(
                     "Created operation #%d (%s)", operation_id, op_type
                 )
@@ -112,19 +95,14 @@ class OperationsDatabase:
         with self._cursor as cursor:
             cursor.execute(query, (operation_id,))
             row = cursor.fetchone()
-        if row:
-            return dict(zip(_OPERATION_COLUMNS, row))
-        return None
+        return dict(row) if row else None
 
     def list_operations(self, limit: int = 50) -> List[dict]:
         """List recent operations, newest first."""
         query = "SELECT * FROM operations ORDER BY created_at DESC LIMIT %s;"
         with self._cursor as cursor:
             cursor.execute(query, (limit,))
-            return [
-                dict(zip(_OPERATION_COLUMNS, row))
-                for row in cursor.fetchall()
-            ]
+            return [dict(row) for row in cursor.fetchall()]
 
     def get_in_progress_operation(self) -> Optional[dict]:
         """Return the currently queued/running operation, if any.
@@ -140,9 +118,7 @@ class OperationsDatabase:
         with self._cursor as cursor:
             cursor.execute(query)
             row = cursor.fetchone()
-        if row:
-            return dict(zip(_OPERATION_COLUMNS, row))
-        return None
+        return dict(row) if row else None
 
     def start_operation(self, operation_id: int) -> None:
         """Mark an operation running."""

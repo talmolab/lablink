@@ -86,14 +86,26 @@ def test_bulk_seal_session_metrics_targets_all_unsealed(fake_db):
     assert "SessionMetricsSealedAt IS NULL" in sql
 
 
+def _summary_row(host, started, label, train, track, subject, gpu, frames, epochs):
+    """A dict row keyed as the summary SELECT aliases its columns."""
+    return {
+        "host_name": host,
+        "session_metrics_started_at": started,
+        "seconds_to_first_sleap_label": label,
+        "seconds_to_first_sleap_train": train,
+        "seconds_to_first_sleap_track": track,
+        "seconds_in_subject_software": subject,
+        "gpu_active_seconds": gpu,
+        "max_labeled_frames": frames,
+        "training_epochs_completed": epochs,
+    }
+
+
 def test_get_session_metrics_summary_returns_funnel_counts(fake_db):
-    # Columns match _SUMMARY_COLUMNS order: host_name, started_at,
-    # to_first_label, to_first_train, to_first_track, in_subject,
-    # gpu_active, max_frames, epochs.
     fake_db._cursor_mock.fetchall.return_value = [
-        ("vm-1", "2026-06-05T17:00:00Z", 300, 1080, 3120, 4820, 1640, 480, 35),
-        ("vm-2", "2026-06-05T17:01:00Z", 540, None, None, 820, 0, 12, 0),
-        ("vm-3", "2026-06-05T17:02:00Z", 280, 720, None, 3200, 1100, 240, 18),
+        _summary_row("vm-1", "2026-06-05T17:00:00Z", 300, 1080, 3120, 4820, 1640, 480, 35),
+        _summary_row("vm-2", "2026-06-05T17:01:00Z", 540, None, None, 820, 0, 12, 0),
+        _summary_row("vm-3", "2026-06-05T17:02:00Z", 280, 720, None, 3200, 1100, 240, 18),
     ]
     summary = fake_db.get_session_metrics_summary()
     assert summary["total_vms"] == 3
@@ -109,15 +121,12 @@ def test_get_session_metrics_summary_returns_funnel_counts(fake_db):
     assert summary["median_epochs_completed"] == 18         # median of [0, 18, 35]
 
 
-def test_summary_tolerates_short_rows(fake_db):
-    """The defensive zip lets test/legacy fixtures omit trailing
-    columns without crashing — missing keys medianize to None."""
-    fake_db._cursor_mock.fetchall.return_value = [
-        # 7-element row — frames + epochs columns omitted.
-        ("vm-1", "2026-06-05T17:00:00Z", 300, 1080, 3120, 4820, 1640),
-    ]
-    summary = fake_db.get_session_metrics_summary()
-    assert summary["total_vms"] == 1
-    assert summary["funnel"]["labeled"] == 1
-    assert summary["median_labeled_frames"] is None
-    assert summary["median_epochs_completed"] is None
+def test_summary_raises_loudly_on_missing_key(fake_db):
+    """Drift between the SELECT's aliases and _build_summary's keys must
+    be a KeyError at the access, not a silently-None median (the old
+    zip-based rows degraded short rows to plausible-but-wrong output)."""
+    row = _summary_row("vm-1", "2026-06-05T17:00:00Z", 300, 1080, 3120, 4820, 1640, 480, 35)
+    del row["max_labeled_frames"]
+    fake_db._cursor_mock.fetchall.return_value = [row]
+    with pytest.raises(KeyError, match="max_labeled_frames"):
+        fake_db.get_session_metrics_summary()
