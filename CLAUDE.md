@@ -7,7 +7,7 @@
 | Resource | Location |
 |----------|----------|
 | Architecture, providers, connectivity | `docs/architecture.md` |
-| API endpoints | `docs/api-endpoints.md` |
+| API endpoints | Generated at docs-build time from route docstrings by `docs/scripts/gen_api_endpoints.py` |
 | Database schema | `docs/database.md` |
 | CI/CD workflows and image tagging | `docs/workflows.md` |
 | Configuration reference | `docs/configuration.md` |
@@ -176,9 +176,13 @@ guards in `test_database.py` / `test_reboot.py`.
 
 ### When Adding Features
 1. Add to structured config if user-facing
-2. Document in the relevant `docs/` page — `docs/api-endpoints.md` for a new
-   route, `docs/database.md` for a schema change, `docs/configuration.md` for a
-   new config key
+2. Document in the relevant `docs/` page — `docs/database.md` for a schema
+   change, `docs/configuration.md` for a new config key. A new route needs no
+   docs page edit: write its docstring — the API Endpoints page is generated
+   from route docstrings at docs-build time (`docs/scripts/gen_api_endpoints.py`),
+   and a route without a docstring fails the docs build. Keep relative
+   `docs/` links out of docstrings (they also render under `reference/`);
+   an `Auth:` line in the docstring overrides decorator-inferred auth
 
 ### Code Review Checklist
 - [ ] Follows existing patterns

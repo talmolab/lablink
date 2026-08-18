@@ -21,12 +21,14 @@ logger = logging.getLogger(__name__)
 @bp.route("/admin/create")
 @auth.login_required
 def create_instances():
+    """Render the VM creation page (drives `POST /api/launch`)."""
     return render_template("create-instances.html")
 
 
 @bp.route("/admin")
 @auth.login_required
 def admin():
+    """Render the admin panel: entry links, pool counts, connection usage."""
     from lablink_allocator_service import main
 
     provider = current_app.config["LABLINK_PROVIDER"]
@@ -75,6 +77,7 @@ def byo_onboarding():
 @bp.route("/admin/instances")
 @auth.login_required
 def view_instances():
+    """Render the instances table with per-VM session actions."""
     from lablink_allocator_service import main
 
     instances = main.database.get_all_vms()
@@ -84,6 +87,7 @@ def view_instances():
 @bp.route("/admin/instances/fragment")
 @auth.login_required
 def view_instances_fragment():
+    """Instances table as an HTML fragment, for the page's auto-refresh."""
     from lablink_allocator_service import main
 
     instances = main.database.get_all_vms()
@@ -93,6 +97,7 @@ def view_instances_fragment():
 @bp.route("/admin/instances/delete")
 @auth.login_required
 def delete_instances():
+    """Render the destroy-confirmation page (drives `POST /destroy`)."""
     return render_template("delete-instances.html")
 
 

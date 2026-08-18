@@ -26,7 +26,35 @@ MAX_LOG_SIZE = 1 * 1024 * 1024  # 1MB
 @bp.route("/api/update_inuse_status", methods=["POST"])
 @require_client_secret
 def update_inuse_status():
-    """Update the in-use status of a VM."""
+    """Update the in-use status of a VM.
+
+    Called by the client VM to indicate whether a user is actively using it.
+
+    **Request Body:** `application/json`
+
+    ```json
+    {
+      "hostname": "lablink-vm-prod-1",
+      "status": true
+    }
+    ```
+
+    **Success Response:**
+
+    - **Code:** `200 OK`
+    - **Content:** `{"message": "In-use status updated successfully."}`
+
+    **Error Response:**
+
+    - **Code:** `400 Bad Request` if `hostname` or `status` is missing.
+    - **Code:** `500 Internal Server Error` on failure.
+
+    **Client Usage:** Called by the `update_inuse_status` service, which is
+    started by `start.sh` and runs continuously. The service monitors for the
+    presence of the research software process (e.g., `sleap`). When the
+    process starts, it sends `status: true`; when it stops, `status: false`.
+    This lets the allocator know if a user is actively using the VM.
+    """
     from lablink_allocator_service import main
 
     data = request.get_json()
@@ -49,7 +77,34 @@ def update_inuse_status():
 @bp.route("/api/gpu_health", methods=["POST"])
 @require_client_secret
 def update_gpu_health():
-    """Check the health of the GPU."""
+    """Update the GPU health status of a VM.
+
+    **Request Body:** `application/json`
+
+    ```json
+    {
+      "hostname": "lablink-vm-prod-1",
+      "gpu_status": "healthy"
+    }
+    ```
+
+    **Success Response:**
+
+    - **Code:** `200 OK`
+    - **Content:** `{"message": "GPU health status updated successfully."}`
+
+    **Error Response:**
+
+    - **Code:** `400 Bad Request` if `hostname` or `gpu_status` is missing.
+    - **Code:** `500 Internal Server Error` on failure.
+
+    **Client Usage:** Called by the `check_gpu` service, which is started by
+    `start.sh` and runs continuously. The service periodically runs
+    `nvidia-smi`, determines the GPU status (`Healthy`, `Unhealthy`, or
+    `N/A`), and reports whenever the status changes. The value lands in the
+    `Healthy` column — the auto-reboot service decides what to do about an
+    unhealthy VM.
+    """
     from lablink_allocator_service import main
 
     data = request.get_json()
@@ -71,7 +126,29 @@ def update_gpu_health():
 @bp.route("/api/heartbeat", methods=["POST"])
 @require_client_secret
 def heartbeat():
-    """Record a client-VM liveness heartbeat."""
+    """Record a client-VM liveness heartbeat.
+
+    Periodic liveness ping. Lets the allocator detect silent failures — a
+    dead container, a broken network, a hung host, an OOM, or an out-of-band
+    VM termination — that no other endpoint would reveal. The body also
+    carries cheap health signals for early warning.
+
+    Auth: Client secret (resolved from the `vm_id` field).
+
+    **Request Body:** `application/json`
+
+    ```json
+    {
+      "vm_id": "lablink-vm-prod-1",
+      "boot_id": "…",
+      "disk_free_pct": 62
+    }
+    ```
+
+    **Client Usage:** Sent by the client's `heartbeat` service every
+    `HEARTBEAT_INTERVAL_SECONDS`. A client that stops heartbeating for longer
+    than the staleness window becomes eligible for automatic recovery.
+    """
     from lablink_allocator_service import main
 
     data = request.get_json() or {}
@@ -99,6 +176,38 @@ def heartbeat():
 @bp.route("/api/vm-status", methods=["POST"])
 @require_client_secret
 def update_vm_status():
+    """Update the overall status of a VM.
+
+    Called by the client VM during its startup sequence to report its
+    current status (`initializing`, `running`, `error`, `rebooting`).
+
+    **Request Body:** `application/json`
+
+    ```json
+    {
+      "hostname": "lablink-vm-prod-1",
+      "status": "running"
+    }
+    ```
+
+    **Success Response:**
+
+    - **Code:** `200 OK`
+    - **Content:** `{"message": "VM status updated successfully."}`
+
+    **Error Response:**
+
+    - **Code:** `400 Bad Request` if `hostname` or `status` is missing.
+    - **Code:** `500 Internal Server Error` on failure.
+
+    **Client Usage:** Not called from the `packages/client` code. It is
+    called by the `user_data.sh` script during the client VM's initial boot
+    sequence (cloud-init), which reports `initializing`, `running`, and
+    `error` statuses so the allocator can track the VM's progress before the
+    client service container has started. An error trap in `user_data.sh`
+    automatically sends an `error` status if any command fails, which can
+    then trigger the auto-reboot service.
+    """
     from lablink_allocator_service import main
 
     try:
@@ -121,6 +230,27 @@ def update_vm_status():
 @bp.route("/api/vm-status", methods=["GET"])
 @auth.login_required
 def get_all_vm_status():
+    """Get the status of all VMs.
+
+    Returns a JSON object mapping each VM hostname to its current status.
+    Used by the admin dashboard.
+
+    **Success Response:**
+
+    - **Code:** `200 OK`
+    - **Content:**
+      ```json
+      {
+        "lablink-vm-prod-1": "running",
+        "lablink-vm-prod-2": "initializing"
+      }
+      ```
+
+    **Error Response:**
+
+    - **Code:** `404 Not Found` if no VMs are found in the database.
+    - **Code:** `500 Internal Server Error` on failure.
+    """
     from lablink_allocator_service import main
 
     try:
@@ -137,6 +267,43 @@ def get_all_vm_status():
 @bp.route("/api/vm-logs/<hostname>", methods=["POST"])
 @require_client_secret
 def receive_vm_logs(hostname):
+    """Receive and store logs pushed from a VM.
+
+    Receives batched log lines pushed from a VM by the `log_shipper.sh`
+    script, which tails the VM's `cloud-init` output and the client
+    container's Docker logs.
+
+    **URL Parameters:**
+
+    - `hostname` (string, required): The hostname of the VM.
+
+    **Request Body:** `application/json`
+
+    ```json
+    {
+      "log_group": "/aws/ec2/lablink",
+      "log_stream": "lablink-vm-prod-1",
+      "messages": ["log line 1", "log line 2"]
+    }
+    ```
+
+    **Success Response:**
+
+    - **Code:** `200 OK`
+    - **Content:** `{"message": "VM logs posted successfully."}`
+
+    **Error Response:**
+
+    - **Code:** `400 Bad Request` if required fields are missing.
+    - **Code:** `404 Not Found` if the VM does not exist.
+    - **Code:** `500 Internal Server Error` on failure.
+
+    **Client Usage:** Not called directly from `packages/client` code. The
+    `log_shipper.sh` script, installed on each VM by the OpenTofu user-data
+    script, tails the VM's `cloud-init` output log and the client
+    container's Docker logs, batches new lines, and POSTs them here. ANSI
+    escapes are stripped and each log type is capped at 1MB.
+    """
     from lablink_allocator_service import main
 
     try:
@@ -187,6 +354,47 @@ def receive_vm_logs(hostname):
 @bp.route("/api/vm-logs/<hostname>", methods=["GET"])
 @auth.login_required
 def get_vm_logs_by_hostname(hostname):
+    """Get the stored logs for a specific VM.
+
+    Used by the admin log viewer page.
+
+    **URL Parameters:**
+
+    - `hostname` (string, required): The hostname of the VM.
+
+    **Query Parameters:**
+
+    - `errors_only` (boolean, optional, default `false`): When `true`, both
+      `cloud_init_logs` and `docker_logs` are reduced to their error lines —
+      lines carrying an uppercase level token (`ERROR`, `CRITICAL`, `FATAL`,
+      plus cloudflared's `ERR`/`FTL` and postgres' `PANIC`), together with
+      any traceback that follows them. Matching is case-sensitive so the
+      client startup script's `--retry-all-errors` and `status=error` lines
+      are not treated as errors, and a short denylist suppresses client
+      reporting-path failures that do not affect the VM's usability
+      (GPU-health and in-use-status report failures, and session-metrics
+      push failures). A stream with no error lines becomes `""`, not `null`.
+
+    **Success Response:**
+
+    - **Code:** `200 OK`
+    - **Content:**
+      ```json
+      {
+        "hostname": "lablink-vm-prod-1",
+        "cloud_init_logs": "Starting cloud-init...\\n...",
+        "docker_logs": "[start] ALLOCATOR_HOST: ...\\n...",
+        "logs": "Starting cloud-init...\\n..."
+      }
+      ```
+
+    **Error Response:**
+
+    - **Code:** `404 Not Found` if the VM is not found.
+    - **Code:** `503 Service Unavailable` if the logs are not yet available
+      because the VM's log shipper has not started reporting yet.
+    - **Code:** `500 Internal Server Error` on failure.
+    """
     from lablink_allocator_service import main
 
     try:
@@ -222,7 +430,41 @@ def get_vm_logs_by_hostname(hostname):
 @bp.route("/api/vm-metrics/<hostname>", methods=["POST"])
 @require_client_secret
 def receive_vm_metrics(hostname):
-    """Receive and store VM Cloud init metrics."""
+    """Receive and store startup metrics from a VM.
+
+    Called by the client VM to post timing metrics for `cloud-init` and
+    container startup.
+
+    **URL Parameters:**
+
+    - `hostname` (string, required): The hostname of the VM reporting
+      metrics.
+
+    **Request Body:** `application/json`
+
+    ```json
+    {
+      "cloud_init_start": 1678886400,
+      "cloud_init_end": 1678886460,
+      "cloud_init_duration_seconds": 60
+    }
+    ```
+
+    **Success Response:**
+
+    - **Code:** `200 OK`
+    - **Content:** `{"message": "VM metrics posted successfully."}`
+
+    **Error Response:**
+
+    - **Code:** `404 Not Found` if the VM does not exist.
+    - **Code:** `500 Internal Server Error` on failure.
+
+    **Client Usage:** `user_data.sh` posts cloud-init timings during boot,
+    and the client container's `start.sh` entrypoint posts its own start/end
+    times at the end of its startup sequence. This helps in monitoring
+    startup duration.
+    """
     from lablink_allocator_service import main
 
     try:
