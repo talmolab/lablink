@@ -1,8 +1,12 @@
 """Filesystem sampler.
 
-Polls the watch dir for the newest `.slp` (HDF5) and the newest
-`training_log.csv` under `models/`. Returns numeric progress signals
-only — no filenames, no paths, no file contents leave this module.
+Polls the watch dir *recursively* for the newest `.slp` (HDF5) and the
+newest `training_log.csv` under any `models/` directory. Recursion
+matters: start.sh clones the tutorial repository into a subfolder of the
+watch dir, and SLEAP writes `models/` next to the project file — a
+top-level-only scan misses everyone who follows the tutorial layout.
+Returns numeric progress signals only — no filenames, no paths, no file
+contents leave this module.
 
 A partially-written `.slp` may raise on open; we swallow and return
 None for that field, letting the next tick try again.
@@ -90,10 +94,12 @@ def sample(watch_dir: str) -> tuple[int | None, int | None, float | None]:
     root = Path(watch_dir)
     if not root.exists():
         return None, None, None
-    slp = _latest(root.glob("*.slp"))
+    # ponytail: full directory walk every tick; cache/inotify if a large
+    # dataset under the watch dir ever makes this visible in profiles.
+    slp = _latest(root.glob("**/*.slp"))
     frames = count_labeled_frames(slp) if slp is not None else None
 
-    log = _latest(root.glob("models/**/training_log.csv"))
+    log = _latest(root.glob("**/models/**/training_log.csv"))
     epoch, loss = (None, None)
     if log is not None:
         epoch, loss = parse_training_log(log)

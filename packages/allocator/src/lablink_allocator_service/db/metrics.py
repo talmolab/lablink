@@ -105,7 +105,7 @@ class MetricsDatabase:
         and yields a cursor. See db.pool.PooledCursor."""
         return PooledCursor(self._pool)
 
-    def update_session_metrics(self, hostname: str, payload: dict) -> None:
+    def update_session_metrics(self, hostname: str, payload: dict):
         """Last-write-wins UPDATE of session-metrics columns.
 
         Atomic with respect to seal: the sealed-row check is folded into
@@ -114,6 +114,11 @@ class MetricsDatabase:
         When the UPDATE affects zero rows, a follow-up existence SELECT
         classifies the failure as ``LookupError`` (no such row) or
         ``ValueError`` (row exists but is sealed).
+
+        Returns:
+            The row's authoritative ``SessionStartedAt`` (datetime or
+            None), via RETURNING on the same UPDATE — the route echoes
+            it so the client can heal a lost session anchor.
 
         Raises:
             LookupError: if hostname unknown.
@@ -141,6 +146,7 @@ class MetricsDatabase:
                   TrainingFinalLoss            = %s,
                   SessionMetricsRaw            = %s
                 WHERE HostName = %s AND SessionMetricsSealedAt IS NULL
+                RETURNING SessionStartedAt
                 """,
                 (
                     payload.get("session_started_at"),
@@ -162,7 +168,8 @@ class MetricsDatabase:
                 ),
             )
             if cursor.rowcount >= 1:
-                return
+                row = cursor.fetchone()
+                return row[0] if row else None
 
             # UPDATE matched zero rows — classify so the route can return
             # 404 vs 409. HostName is PRIMARY KEY on vms, so this SELECT

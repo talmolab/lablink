@@ -145,3 +145,49 @@ def test_sample_finds_latest_slp_and_latest_log(tmp_path):
 
 def test_sample_returns_none_when_no_files(tmp_path):
     assert filesystem.sample(watch_dir=str(tmp_path)) == (None, None, None)
+
+
+def test_sample_finds_slp_and_log_inside_subfolders(tmp_path):
+    """The tutorial repo is cloned into a subfolder of the watch dir;
+    the sampler must find the project and its models/ tree there."""
+    repo = tmp_path / "sleap-tutorial"
+    run_dir = repo / "models" / "20260611-1"
+    run_dir.mkdir(parents=True)
+    (repo / "labels.slp").write_bytes(b"x")
+    log = run_dir / "training_log.csv"
+    with log.open("w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["epoch", "loss"])
+        w.writerow(["7", "0.5"])
+
+    fake_h5 = MagicMock()
+    fake_h5.__enter__.return_value = {"frames": MagicMock(shape=(42,))}
+    fake_h5.__exit__.return_value = False
+    with patch(
+        "lablink_client_service.monitoring.samplers.filesystem.h5py.File",
+        return_value=fake_h5,
+    ):
+        frames, epochs, loss = filesystem.sample(watch_dir=str(tmp_path))
+    assert frames == 42
+    assert epochs == 7
+    assert loss == pytest.approx(0.5)
+
+
+def test_sample_prefers_newest_slp_across_depths(tmp_path):
+    """A newer project in a subfolder beats an older top-level one."""
+    old = tmp_path / "old.slp"
+    old.write_bytes(b"a")
+    os.utime(old, (time.time() - 100, time.time() - 100))
+    sub = tmp_path / "repo"
+    sub.mkdir()
+    (sub / "new.slp").write_bytes(b"b")
+
+    seen = []
+    with patch(
+        "lablink_client_service.monitoring.samplers.filesystem."
+        "count_labeled_frames",
+        side_effect=lambda p: seen.append(p) or 5,
+    ):
+        frames, _, _ = filesystem.sample(watch_dir=str(tmp_path))
+    assert frames == 5
+    assert seen[0].name == "new.slp"
