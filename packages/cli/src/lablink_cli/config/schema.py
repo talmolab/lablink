@@ -200,6 +200,33 @@ CPU_INSTANCE_TYPES: list[dict[str, str]] = [
     },
 ]
 
+# Sentinel values meaning "no credential configured" — the schema default
+# ("MISSING") and the empty string a wizard skip leaves behind.
+_MISSING = ("MISSING", "")
+
+
+def resolve_from_saved_config(path: Path) -> tuple[str, str] | None:
+    """Try to get admin credentials from a deploy-time config.yaml at ``path``.
+
+    Both providers stash the resolved credentials in a rendered config.yaml,
+    just in different places (AWS: the deploy dir, manual: the compose
+    workdir), so the read is shared and only the path differs.
+    """
+    if not path.exists():
+        return None
+
+    with open(path) as f:
+        saved_cfg = yaml.safe_load(f) or {}
+
+    app_cfg = saved_cfg.get("app", {}) or {}
+    user = app_cfg.get("admin_user", "")
+    pw = app_cfg.get("admin_password", "")
+
+    if user and user not in _MISSING and pw and pw not in _MISSING:
+        return user, pw
+    return None
+
+
 AWS_REGIONS: list[dict[str, str]] = [
     {"id": "us-east-1", "name": "US East (N. Virginia)"},
     {"id": "us-east-2", "name": "US East (Ohio)"},

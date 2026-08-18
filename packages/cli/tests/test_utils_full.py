@@ -162,7 +162,7 @@ class TestResolveAdminCredentials:
         )
 
         with patch(
-            "lablink_cli.commands.deploy_compose.DEFAULT_COMPOSE_DIR", tmp_path
+            "lablink_cli.manual.DEFAULT_COMPOSE_DIR", tmp_path
         ):
             with patch("lablink_cli.commands.utils.get_deploy_dir") as mock_dir:
                 user, pw = resolve_admin_credentials(mock_cfg)

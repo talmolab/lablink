@@ -16,6 +16,7 @@ from rich.panel import Panel
 
 from lablink_allocator_service.conf.structured_config import Config
 
+from lablink_cli import manual
 from lablink_cli.commands.setup import (
     _get_session,
     check_credentials,
@@ -27,8 +28,6 @@ from lablink_cli.commands.utils import (
 from lablink_cli.docker import Docker, default_docker
 
 console = Console()
-
-DEFAULT_COMPOSE_DIR = Path.home() / ".lablink" / "compose"
 
 
 def _delete_if_exists(
@@ -614,15 +613,21 @@ def run_cleanup(
 # Manual-provider cleanup
 # ------------------------------------------------------------------
 def _run_cleanup_manual(
-    cfg: Config, *, dry_run: bool, docker: Docker | None = None
+    cfg: Config,
+    *,
+    dry_run: bool,
+    docker: Docker | None = None,
+    workdir_root: Path | None = None,
 ) -> None:
     """Tear down a local docker-compose allocator stack.
 
     Runs `docker compose down --volumes` in the deployment workdir and
     then removes the workdir itself. No AWS API calls are made.
+
+    `workdir_root` overrides the default compose root (used by tests).
     """
     docker = docker or default_docker()
-    workdir = DEFAULT_COMPOSE_DIR / (cfg.deployment_name or "lablink")
+    workdir = manual.workdir(cfg, workdir_root)
 
     console.print(
         f"[bold]Manual cleanup:[/bold] {cfg.deployment_name or 'lablink'}"
