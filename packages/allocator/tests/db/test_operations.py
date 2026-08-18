@@ -42,7 +42,7 @@ def operations_db(mock_pool_and_cursor):
 
 
 def test_create_operation_returns_id(operations_db):
-    operations_db.cursor.fetchone.return_value = (7,)
+    operations_db.cursor.fetchone.return_value = {"id": 7}
 
     operation_id = operations_db.create_operation(
         op_type="destroy", params=None, created_by="admin"
@@ -69,10 +69,11 @@ def test_create_operation_raises_operation_in_progress_with_existing_job_id(
         ),
         None,  # the SELECT inside get_in_progress_operation
     ]
-    operations_db.cursor.fetchone.return_value = (
-        5, "destroy", "running", None, "admin",
-        None, None, None, None, None,
-    )
+    operations_db.cursor.fetchone.return_value = {
+        "id": 5,
+        "op_type": "destroy",
+        "status": "running",
+    }
 
     with pytest.raises(OperationInProgress) as exc_info:
         operations_db.create_operation(
@@ -101,11 +102,15 @@ def test_create_operation_raises_runtime_error_when_in_progress_operation_vanish
 
 
 def test_get_operation_returns_dict(operations_db):
-    operations_db.cursor.fetchone.return_value = (
-        3, "apply", "succeeded", '{"num_vms": 2}', "admin",
-        "2026-07-17 10:00:00", "2026-07-17 10:00:01",
-        "2026-07-17 10:02:00", "apply output", None,
-    )
+    operations_db.cursor.fetchone.return_value = {
+        "id": 3,
+        "op_type": "apply",
+        "status": "succeeded",
+        "params": '{"num_vms": 2}',
+        "created_by": "admin",
+        "output": "apply output",
+        "error": None,
+    }
 
     operation = operations_db.get_operation(3)
 
@@ -126,12 +131,8 @@ def test_get_operation_returns_none_when_missing(operations_db):
 
 def test_list_operations_returns_dicts_newest_first(operations_db):
     operations_db.cursor.fetchall.return_value = [
-        (2, "destroy", "succeeded", None, "admin",
-         "2026-07-17 11:00:00", "2026-07-17 11:00:01",
-         "2026-07-17 11:03:00", "destroy output", None),
-        (1, "apply", "succeeded", '{"num_vms": 1}', "admin",
-         "2026-07-17 10:00:00", "2026-07-17 10:00:01",
-         "2026-07-17 10:02:00", "apply output", None),
+        {"id": 2, "op_type": "destroy", "status": "succeeded"},
+        {"id": 1, "op_type": "apply", "status": "succeeded"},
     ]
 
     operations = operations_db.list_operations(limit=50)
@@ -146,10 +147,11 @@ def test_list_operations_returns_dicts_newest_first(operations_db):
 
 
 def test_get_in_progress_operation_returns_row(operations_db):
-    operations_db.cursor.fetchone.return_value = (
-        9, "destroy", "running", None, "admin",
-        "2026-07-17 12:00:00", "2026-07-17 12:00:01", None, None, None,
-    )
+    operations_db.cursor.fetchone.return_value = {
+        "id": 9,
+        "op_type": "destroy",
+        "status": "running",
+    }
 
     operation = operations_db.get_in_progress_operation()
 
@@ -211,7 +213,7 @@ def test_finish_operation_failed(operations_db):
 
 
 def test_sweep_interrupted_operations_returns_count(operations_db):
-    operations_db.cursor.fetchall.return_value = [(1,), (2,)]
+    operations_db.cursor.fetchall.return_value = [{"id": 1}, {"id": 2}]
 
     count = operations_db.sweep_interrupted_operations()
 
@@ -269,16 +271,7 @@ def test_finish_operation_failed_passes_status_twice_for_case_guard(operations_d
     assert args[1] == ("failed", None, "boom", "failed", 7)
 
 
-def test_get_operation_includes_progress_columns(operations_db):
-    """A regression guard for _OPERATION_COLUMNS: get_operation's dict
-    construction (dict(zip(_OPERATION_COLUMNS, row))) must stay in sync
-    with the CREATE TABLE column order — this proves the two new columns
-    actually surface in the returned dict, not just that the SQL text
-    looks right."""
-    operations_db.cursor.fetchone.return_value = (
-        7, "apply", "running", None, "admin",
-        None, None, None, None, None, 8, 3,
-    )
-    operation = operations_db.get_operation(7)
-    assert operation["resources_total"] == 8
-    assert operation["resources_completed"] == 3
+# The old test_get_operation_includes_progress_columns "regression guard
+# for _OPERATION_COLUMNS" is gone with the tuple it guarded: the dict-rows
+# cursor keys rows by the database's own column names, so there is no
+# hand-kept column order left to drift.

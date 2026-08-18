@@ -33,43 +33,23 @@ def _median(values: list):
     return (values[mid - 1] + values[mid]) // 2
 
 
-# Named-key contract for rows returned by get_session_metrics_summary's
-# SELECT. The SELECT statement MUST emit these columns in this order;
-# both sides reference this tuple so column renames/reorderings stay
-# in lockstep. Reordering the SELECT without updating this list is the
-# kind of silent-wrong-numbers bug an earlier review flagged.
-_SUMMARY_COLUMNS = (
-    "host_name",
-    "session_metrics_started_at",
-    "seconds_to_first_sleap_label",
-    "seconds_to_first_sleap_train",
-    "seconds_to_first_sleap_track",
-    "seconds_in_subject_software",
-    "gpu_active_seconds",
-    "max_labeled_frames",
-    "training_epochs_completed",
-)
-
-
 def _build_summary(rows: list) -> dict:
-    """Build the session-metrics cohort summary from a row iterable.
+    """Build the session-metrics cohort summary from an iterable of dict
+    rows (keyed as aliased in get_session_metrics_summary's SELECT).
 
-    Rows are positional tuples from psycopg2; we zip them against
-    `_SUMMARY_COLUMNS` so the rest of this function reads by name.
-    Test fixtures that pass fewer trailing fields produce dicts with
-    those keys missing — `.get(...)` returns None for those, which is
-    the same behavior callers see for a NULL column.
+    A NULL column arrives as an explicit None value, and a missing key
+    would mean the SELECT and this function disagree — `[...]` access
+    below raises KeyError rather than silently medianizing to None.
     """
-    keyed = [dict(zip(_SUMMARY_COLUMNS, r)) for r in rows]
-    total = len(keyed)
-    started = sum(1 for r in keyed if r.get("session_metrics_started_at") is not None)
-    labeled = sum(1 for r in keyed if r.get("seconds_to_first_sleap_label") is not None)
-    trained = sum(1 for r in keyed if r.get("seconds_to_first_sleap_train") is not None)
-    tracked = sum(1 for r in keyed if r.get("seconds_to_first_sleap_track") is not None)
-    secs_in_subject = [r.get("seconds_in_subject_software") for r in keyed]
-    first_train = [r.get("seconds_to_first_sleap_train") for r in keyed]
-    frames = [r.get("max_labeled_frames") for r in keyed]
-    epochs = [r.get("training_epochs_completed") for r in keyed]
+    total = len(rows)
+    started = sum(1 for r in rows if r["session_metrics_started_at"] is not None)
+    labeled = sum(1 for r in rows if r["seconds_to_first_sleap_label"] is not None)
+    trained = sum(1 for r in rows if r["seconds_to_first_sleap_train"] is not None)
+    tracked = sum(1 for r in rows if r["seconds_to_first_sleap_track"] is not None)
+    secs_in_subject = [r["seconds_in_subject_software"] for r in rows]
+    first_train = [r["seconds_to_first_sleap_train"] for r in rows]
+    frames = [r["max_labeled_frames"] for r in rows]
+    epochs = [r["training_epochs_completed"] for r in rows]
     pct_train = (trained / total * 100.0) if total else 0.0
     return {
         "total_vms": total,
@@ -102,8 +82,9 @@ class MetricsDatabase:
     @property
     def _cursor(self):
         """Return a context manager that checks out a pooled connection
-        and yields a cursor. See db.pool.PooledCursor."""
-        return PooledCursor(self._pool)
+        and yields a dict-rows cursor (rows keyed by the database's own
+        column names). See db.pool.PooledCursor."""
+        return PooledCursor(self._pool, dict_rows=True)
 
     def update_session_metrics(self, hostname: str, payload: dict) -> None:
         """Last-write-wins UPDATE of session-metrics columns.
@@ -191,21 +172,23 @@ class MetricsDatabase:
     def get_session_metrics_summary(self) -> dict:
         """Aggregate the cohort summary for the admin page.
 
-        The SELECT column order MUST match `_SUMMARY_COLUMNS` at module
-        top — `_build_summary` zips them together to access rows by name.
+        The AS aliases below ARE the row keys `_build_summary` reads —
+        the dict-rows cursor keys each row by them (Postgres folds the
+        unquoted CamelCase column names to bare lowercase, hence the
+        explicit snake_case aliases).
         """
         with self._cursor as cursor:
             cursor.execute(
                 f"""
-                SELECT HostName,
-                       SessionMetricsStartedAt,
-                       SecondsToFirstSleapLabel,
-                       SecondsToFirstSleapTrain,
-                       SecondsToFirstSleapTrack,
-                       SecondsInSubjectSoftware,
-                       GpuActiveSeconds,
-                       MaxLabeledFrames,
-                       TrainingEpochsCompleted
+                SELECT HostName                 AS host_name,
+                       SessionMetricsStartedAt  AS session_metrics_started_at,
+                       SecondsToFirstSleapLabel AS seconds_to_first_sleap_label,
+                       SecondsToFirstSleapTrain AS seconds_to_first_sleap_train,
+                       SecondsToFirstSleapTrack AS seconds_to_first_sleap_track,
+                       SecondsInSubjectSoftware AS seconds_in_subject_software,
+                       GpuActiveSeconds         AS gpu_active_seconds,
+                       MaxLabeledFrames         AS max_labeled_frames,
+                       TrainingEpochsCompleted  AS training_epochs_completed
                 FROM {self.table_name}
                 """
             )
