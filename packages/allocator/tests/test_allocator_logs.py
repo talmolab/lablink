@@ -45,10 +45,12 @@ def test_page_renders_single_docker_tab(client, admin_headers):
     assert '"/api/allocator-logs"' in html
 
 
-def test_page_has_no_close_button(client, admin_headers):
+def test_page_has_back_link_instead_of_close_button(client, admin_headers):
     """Same-tab navigation from /admin means window.close() would do nothing."""
     html = client.get("/admin/allocator-logs", headers=admin_headers).data.decode()
     assert "Close Tab" not in html
+    assert "Back to Admin Panel" in html
+    assert 'href="/admin"' in html
 
 
 def test_admin_dashboard_links_to_the_page(client, admin_headers):
