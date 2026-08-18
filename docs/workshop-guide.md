@@ -152,7 +152,7 @@ Check [Cost Estimation](cost-estimation.md) for guidance on reviewing your AWS b
 
 ## Related
 
-- [API Endpoints](api-endpoints.md#admin-api-endpoints) for programmatic access to admin features
+- [API Endpoints](api-endpoints.md) for programmatic access to admin features
 - [Configuration](configuration.md) for admin password and app settings
 - [Security & Access](security.md) for authentication details
 - [Troubleshooting](troubleshooting.md) for common issues

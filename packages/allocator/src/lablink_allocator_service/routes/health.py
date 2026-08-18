@@ -134,7 +134,41 @@ def connection_stats() -> dict | None:
 
 @bp.route("/api/health", methods=["GET"])
 def health_check():
-    """Return structured readiness status."""
+    """Readiness check.
+
+    Auth: None — this is what load balancers, `lablink deploy` and `lablink status` poll.
+
+    Returns a structured readiness report rather than a bare 200. The
+    `checks` map always covers `database`, `scheduler` and `reboot_service`,
+    and gains a `tailscale` entry when the configured connectivity needs
+    one, or a `tunnel` entry for reverse-tunnel deployments.
+
+    **Success Response:**
+
+    - **Code:** `200 OK` when every gating check is `ok`
+    - **Content:**
+      ```json
+      {
+        "status": "healthy",
+        "checks": {
+          "database": "ok",
+          "scheduler": "ok",
+          "reboot_service": "ok"
+        },
+        "uptime_seconds": 123.4
+      }
+      ```
+
+    **Error Response:**
+
+    - **Code:** `503 Service Unavailable` with `"status": "starting"` when a
+      gating check fails.
+
+    A dead client tunnel does not make the allocator unready: unattached
+    client tunnels are reported but deliberately don't gate readiness — a
+    registering client is unattached until its tunnel comes up. The
+    allocator's own dependencies (tunnel server, database) do gate.
+    """
     from lablink_allocator_service import main
 
     checks = {
@@ -182,8 +216,50 @@ def health_check():
 @bp.route("/api/health/connections", methods=["GET"])
 @auth.login_required
 def connection_health():
-    """Report Postgres connection usage. Admin-gated; 503 means the numbers are
-    unreadable, never that the pool is merely busy."""
+    """Report PostgreSQL connection usage.
+
+    Reports usage against the server's configured maximum, for checking
+    headroom before scaling a deployment up.
+
+    `active_connections` counts client backends only — the things
+    `max_connections` bounds — excluding the background-worker rows
+    `pg_stat_activity` also carries. It includes the connection serving this
+    request. `max_connections` is read from PostgreSQL, so it tracks
+    whatever is actually configured.
+
+    `idle_in_transaction` distinguishes a leaked pooled connection from
+    ordinary load; a non-zero value that doesn't fall back to zero is worth
+    investigating. It counts `idle in transaction (aborted)` too — an
+    aborted-but-open transaction pins locks just like a live one.
+
+    The same numbers appear on the `/admin` panel, which escalates to a
+    banner above 90%.
+
+    **Success Response:**
+
+    - **Code:** `200 OK`
+    - **Content:**
+      ```json
+      {
+        "status": "ok",
+        "active_connections": 61,
+        "idle_in_transaction": 0,
+        "max_connections": 300,
+        "utilization_percent": 20.3,
+        "level": "ok"
+      }
+      ```
+
+    `level` is `ok`, `warning` above 80% utilization, or `critical` above
+    90%. High utilization still answers `200` — busy is not broken.
+
+    **Error Response:**
+
+    - **Code:** `503 Service Unavailable` with `{"status": "unavailable"}`
+      when the numbers can't be read — the database isn't initialized yet,
+      or the query failed (including a pool with no free connections). Never
+      means the pool is merely busy.
+    """
     stats = connection_stats()
     if stats is None:
         return jsonify({"status": "unavailable"}), 503

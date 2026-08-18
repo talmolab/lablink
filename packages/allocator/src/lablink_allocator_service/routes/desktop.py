@@ -26,6 +26,17 @@ bp = Blueprint("desktop", __name__)
 
 @bp.route("/desktop")
 def desktop():
+    """The participant desktop.
+
+    Auth: The signed `lablink_session` cookie.
+
+    Renders the noVNC viewer page. Reads the cookie minted by
+    `POST /api/request_vm`, looks up the assigned VM by `session_id`, and
+    configures the viewer from the persisted `browser_ws_url` and
+    `browser_credential`. If the cookie is missing, invalid, or the bound VM
+    is no longer running, it redirects to `/` so the participant can submit
+    their email again.
+    """
     raw_cookie = request.cookies.get("lablink_session")
     if not raw_cookie:
         return redirect("/", code=302)

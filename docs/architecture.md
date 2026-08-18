@@ -4,52 +4,70 @@ This page describes LabLink's architecture, components, and how they interact.
 
 ## System Overview
 
+Two repositories feed a deployment. This repo (`talmolab/lablink`) publishes the
+Python packages to PyPI and the Docker images to ghcr.io;
+[`talmolab/lablink-template`](https://github.com/talmolab/lablink-template)
+holds the allocator's Terraform configs, released as tagged bundles. The
+`lablink` CLI downloads a pinned template release and runs OpenTofu itself —
+alternatively, admins can fork the template repo and deploy through its GitHub
+Actions workflows. See [CLI First Deployment](cli/first-deployment.md) and
+[Template Repo Deployment](deployment.md).
+
 ```mermaid
 graph TB
     subgraph GitHub["GitHub"]
-        SourceCode[Source Code<br/>Repository]
-        Actions[GitHub Actions<br/>CI/CD]
-        SourceCode --> Actions
+        Lablink[talmolab/lablink<br/>Packages + CI]
+        Template[talmolab/lablink-template<br/>Terraform configs<br/>tagged releases]
     end
 
     subgraph Artifacts["Build Artifacts"]
+        PyPI[Python Packages<br/>PyPI]
         DockerImages[Docker Images<br/>ghcr.io]
-        TofuDeploy[OpenTofu Apply<br/>Infrastructure]
     end
 
-    Actions --> DockerImages
-    Actions --> TofuDeploy
+    Lablink --> PyPI
+    Lablink --> DockerImages
+
+    CLI[lablink CLI<br/><br/>• deploy / destroy<br/>• status / logs<br/>• OpenTofu apply]
+    PyPI --> CLI
+    Template -->|terraform bundle| CLI
 
     subgraph AWS["AWS Cloud"]
         subgraph AllocatorInstance["Allocator EC2 Instance"]
+            Caddy[Caddy<br/>TLS termination<br/>ports 80/443]
             subgraph AllocatorContainer["Docker Container: lablink-allocator"]
-                Flask[Flask App<br/>Port 80<br/><br/>• Web UI<br/>• API<br/>• OpenTofu]
-                PostgreSQL[(PostgreSQL DB<br/>Port 5432<br/><br/>• VM table<br/>• Triggers<br/>• Listen/Notify)]
+                Nginx[nginx :5000<br/>only network-facing<br/>process]
+                Flask[Flask App<br/>127.0.0.1:8000<br/><br/>• Web UI<br/>• API<br/>• OpenTofu]
+                PostgreSQL[(PostgreSQL 17<br/><br/>• vms<br/>• operations<br/>• schedules)]
+                Nginx --> Flask
                 Flask <--> PostgreSQL
             end
+            Caddy --> Nginx
         end
 
         subgraph ClientInstances["Client EC2 Instances (Dynamic)"]
             subgraph ClientContainer["Docker Container: lablink-client"]
-                Subscribe[Subscribe Service<br/><br/>• Heartbeat<br/>• GPU Check<br/>• Status]
+                Desktop[KasmVNC Desktop<br/>:6080 WebSocket<br/>+ agent :7070]
+                Services[Client Services<br/><br/>• Heartbeat<br/>• GPU Check<br/>• Status]
                 Research[Research Code<br/>User Repo<br/><br/>• SLEAP/Custom<br/>• Your Software]
-                Subscribe --> Research
+                Services --> Research
             end
             Note[Multiple instances,<br/>dynamically created]
         end
 
         subgraph AWSResources["AWS Resources"]
-            SecurityGroups[Security Groups<br/>• Port 80<br/>• Port 22<br/>• Port 5432]
+            SecurityGroups[Security Groups]
             ElasticIPs[Elastic IPs<br/>Static IPs]
-            S3[S3 Bucket<br/>TF State]
+            S3[S3 Bucket<br/>TF State + Lock Table]
         end
     end
 
-    TofuDeploy --> AllocatorInstance
+    CLI -->|tofu apply| AllocatorInstance
     DockerImages -.-> AllocatorContainer
     DockerImages -.-> ClientContainer
-    Flask -->|spawns via<br/>OpenTofu| ClientInstances
-    Subscribe -.->|heartbeat,<br/>status updates| Flask
+    Flask -->|async operation:<br/>tofu apply| ClientInstances
+    Services -.->|heartbeat, GPU health,<br/>status via HTTP API| Flask
+    Nginx -->|proxies noVNC<br/>WebSocket| Desktop
 
     style GitHub fill:#f0f0f0
     style Artifacts fill:#e1f5ff
@@ -61,9 +79,23 @@ graph TB
     style AWSResources fill:#f0f0f0
     style Flask fill:#4a90e2,color:#fff
     style PostgreSQL fill:#336791,color:#fff
-    style Subscribe fill:#4a90e2,color:#fff
+    style Services fill:#4a90e2,color:#fff
     style Research fill:#8bc34a,color:#fff
 ```
+
+Inside the allocator container, nginx on port 5000 is the only network-facing
+process: Flask binds loopback (127.0.0.1:8000) and PostgreSQL runs co-located
+in the same container. Participants' noVNC traffic is proxied by that nginx to
+the client's KasmVNC WebSocket — the browser never talks to a client VM
+directly. When `ssl.provider=letsencrypt` (the default) or `cloudflare`, a
+Caddy reverse proxy on the EC2 host terminates TLS on ports 80/443 and
+forwards to the container's port 5000.
+
+Depending on configuration, extra processes join the stack: a `wstunnel`
+server inside the container (`manual.connectivity=reverse_tunnel`), a
+`cloudflared` connector inside the container
+(`manual.participant_exposure=cloudflare_tunnel`), and a Tailscale sidecar
+container (`manual.connectivity=mesh_overlay`).
 
 ## Providers and Connectivity
 
@@ -117,9 +149,10 @@ contract.
 
 **Technology Stack**:
 
-- **Flask**: Web application framework
-- **PostgreSQL**: Relational database for VM state
-- **SQLAlchemy**: ORM for database operations
+- **Flask**: Web application framework, behind nginx (the container's only network-facing process)
+- **PostgreSQL 17**: Relational database for VM state, co-located in the container
+- **psycopg2**: Direct SQL through a shared connection pool (see `db/` layout in `CLAUDE.md`); no ORM — SQLAlchemy appears in the dependencies only as APScheduler's job store
+- **APScheduler**: Scheduled destruction jobs
 - **OpenTofu**: Infrastructure provisioning
 - **Docker**: Containerization
 
@@ -135,8 +168,9 @@ contract.
 
    - `/api/request_vm`: Claim a seat for a participant
    - `/desktop`: Cookie-gated noVNC viewer
-   - `/admin/create`: Create new VM instances
+   - `/api/launch`: Provision new VM instances (async operation)
    - `/admin/instances`: List all instances
+   - `/admin/allocator-logs`: The allocator's own log viewer
    - `/api/v1/clients/register`: BYO client self-registration
    - `/api/heartbeat`: Client liveness reporting
 
@@ -148,7 +182,7 @@ contract.
    - Claims seats atomically with `FOR UPDATE SKIP LOCKED`
 
 4. **Infrastructure Orchestration**:
-   - Spawns client VMs via OpenTofu
+   - Spawns and destroys client VMs via OpenTofu, as **async operations**: `/api/launch` and `/destroy` enqueue a job in the `operations` table, a background worker runs `tofu apply`/`destroy`, and the admin dashboard polls `/api/operations` for progress — only one operation runs at a time
    - Manages AWS credentials
    - Handles security group configuration
 
@@ -159,7 +193,7 @@ contract.
    - Fallback: EC2 stop/start cycle (for OOM or hung processes)
    - Respects cooldown periods (default: 300s) and max attempt limits (default: 3)
 
-**Configuration**: See `packages/allocator/src/lablink_allocator/conf/structured_config.py`
+**Configuration**: See `packages/allocator/src/lablink_allocator_service/conf/structured_config.py`
 
 ### Client Service
 
@@ -239,7 +273,7 @@ aside from inside the container, so the loader is pointed away from them
 instead. The variables are set on the `Xvnc` process only: `xstartup`, the
 desktop session, and SLEAP all keep the full driver stack and CUDA.
 
-**Configuration**: See `packages/client/src/lablink_client/conf/structured_config.py`
+**Configuration**: See `packages/client/src/lablink_client_service/conf/structured_config.py`
 
 ### Database Schema
 
@@ -330,13 +364,17 @@ stateDiagram-v2
 
 **Allocator Security Group**:
 
-- Port 80 (HTTP): Web interface and API
+- Ports 80/443 (HTTP/HTTPS): Caddy, when an SSL provider is configured
+- Port 5000: The container's nginx (direct access for `ssl.provider=none`, or from the ALB in the ACM setup)
 - Port 22 (SSH): Administrative access
-- Port 5432 (PostgreSQL): Database connections from clients
 
-**Client Security Groups**:
+PostgreSQL is not exposed: clients report over the HTTP API, not by connecting
+to the database.
+
+**Client Security Group**:
 
 - Port 22 (SSH): Administrative access
+- Port 6080 (KasmVNC WebSocket) and port 7070 (client agent): Reachable from the allocator, which proxies participant traffic
 - Egress: Full internet access for package downloads
 
 #### Networking
@@ -349,7 +387,8 @@ stateDiagram-v2
 
 - **S3 Buckets**: OpenTofu state storage
 
-  - Separate state per environment (dev/test/prod)
+  - Separate state per named deployment (CLI) or per environment (template repo)
+  - DynamoDB lock table prevents concurrent applies
   - Versioning enabled
   - Encrypted at rest
 
@@ -405,19 +444,28 @@ sequenceDiagram
 sequenceDiagram
     actor Admin
     participant Flask as Flask App
+    participant Worker as Operations Worker
     participant OpenTofu
     participant AWS as AWS EC2
     participant VM as Client VM Instance
     participant Docker as Docker Container
 
-    Admin->>Flask: POST /admin/create<br/>(instance_count)
-    Flask->>OpenTofu: Execute tofu apply<br/>(subprocess)
+    Admin->>Flask: POST /api/launch<br/>(num_vms)
+    Flask->>Worker: Enqueue operation<br/>(operations table)
+    Flask-->>Admin: 202 — operation started
 
+    loop Until operation completes
+        Admin->>Flask: GET /api/operations
+        Flask-->>Admin: status, progress
+    end
+
+    Worker->>OpenTofu: tofu apply<br/>(subprocess)
     OpenTofu->>AWS: Create security group
     OpenTofu->>AWS: Generate SSH key pair
     OpenTofu->>AWS: Launch EC2 instance<br/>with user_data script
     AWS-->>OpenTofu: Return instance details<br/>(hostname, IP, etc.)
-    OpenTofu-->>Flask: Provisioning complete
+    OpenTofu-->>Worker: Provisioning complete
+    Worker->>Flask: Mark operation succeeded
 
     Note over VM: Boot sequence begins
     VM->>VM: Execute user_data script
@@ -426,9 +474,10 @@ sequenceDiagram
     VM->>VM: Clone user repository<br/>(if configured)
     VM->>Docker: Start client services<br/>(agent, heartbeat, check_gpu)
     Docker->>Flask: POST /api/vm-status<br/>(status: running)
-
-    Flask-->>Admin: VMs created successfully<br/>(show instance details)
 ```
+
+Only one operation (apply or destroy) can run at a time; a second request
+while one is in progress is rejected with the in-flight job's id.
 
 ### Health Check Flow
 
@@ -442,67 +491,67 @@ sequenceDiagram
 
     loop Health Check Cycle
         Client->>Client: Check GPU status
-        Client->>Client: Check system resources
+        Client->>Flask: POST /api/gpu_health<br/>(gpu_status, hostname)
+        Flask->>DB: Update Healthy column,<br/>touch LastSeen
+        Flask-->>Client: ACK
 
-        alt GPU/System Healthy
-            Client->>Flask: POST /health_check<br/>(status: healthy)
-            Flask->>DB: Verify VM record
-            Flask-->>Client: ACK
-        else GPU/System Unhealthy
-            Client->>Flask: POST /health_check<br/>(status: failed)
-            Flask->>DB: UPDATE vms<br/>SET status='failed'
-            Flask-->>Client: ACK
-            Note over DB: VM marked as failed<br/>removed from available pool
-        end
+        Client->>Flask: POST /api/heartbeat
+        Flask->>DB: Touch LastSeen
+        Flask-->>Client: ACK
     end
+
+    Note over DB: Unhealthy VMs are picked up by the<br/>auto-reboot service; stale LastSeen<br/>marks the VM unreachable
 ```
 
-## Deployment Environments
+Both endpoints authenticate with the per-client secret issued at
+registration. GPU health lands in the `Healthy` column rather than flipping
+`Status` directly — the auto-reboot service decides what to do about an
+unhealthy VM.
 
-LabLink supports multiple isolated environments:
+## Deployment Paths
 
-| Environment | Purpose           | Image Tag   | OpenTofu Backend  |
-| ----------- | ----------------- | ----------- | ------------------ |
-| `dev`       | Local development | `*-test`    | Local state        |
-| `test`      | Staging/testing   | `*-test`    | `backend-test.hcl` |
-| `prod`      | Production        | Pinned tags | `backend-prod.hcl` |
+There are two ways to stand up an allocator, both driving the same Terraform
+configs from `talmolab/lablink-template`:
 
-Each environment has:
-
-- Separate OpenTofu state
-- Unique resource naming (`-dev`, `-test`, `-prod` suffix)
-- Independent AWS resources
+- **CLI (recommended)**: `lablink deploy` downloads a pinned, checksummed
+  template release, runs OpenTofu locally, and stores state remotely in an
+  S3 bucket (`lablink-tf-state-<account-id>`) with a DynamoDB lock table —
+  one state key per named deployment. See
+  [CLI First Deployment](cli/first-deployment.md).
+- **Template repo fork**: GitHub Actions workflows in the template repo run
+  `tofu apply`/`destroy` for isolated `dev`/`test`/`prod` environments, each
+  with its own backend config and resource-name suffix. See
+  [Deployment](deployment.md).
 
 ## CI/CD Pipeline
 
 See [Workflows](workflows.md) for detailed CI/CD architecture.
 
-**Key Workflows**:
+**Key Workflows** (this repo):
 
-1. **Build Images** (`lablink-images.yml`):
+1. **CI** (`ci.yml`): Lints and tests all three packages on pull requests
 
-   - Triggers on code changes
+2. **Build Images** (`lablink-images.yml`):
+
+   - Triggers on PRs, pushes to `main`/`test`, and manual dispatch
    - Builds allocator and client Docker images
    - Pushes to GitHub Container Registry
 
-2. **OpenTofu Deploy** (`lablink-allocator-terraform.yml`):
+3. **Publish Packages** (`publish-pip.yml`): Publishes the allocator, client,
+   and CLI packages to PyPI on releases/tags
 
-   - Triggers on branch push or manual dispatch
-   - Applies infrastructure changes
-   - Supports environment selection
-
-3. **Destroy** (`lablink-allocator-destroy.yml`):
-   - Manual trigger only
-   - Safely destroys environment resources
+Infrastructure deployment workflows live in the
+[template repository](https://github.com/talmolab/lablink-template), not here.
 
 ## Security Architecture
 
+- **TLS**: Caddy on the allocator host terminates HTTPS (Let's Encrypt by default); inside the container, nginx is the only network-facing process
 - **Admin Authentication**: HTTP Basic Auth for admin dashboard and management endpoints
-- **API Token Authentication**: Auto-generated bearer token for all machine-to-machine endpoints (client VM → allocator). Token is distributed to VMs via OpenTofu/cloud-init at launch time.
+- **Client Registration & Secrets**: Clients (AWS-provisioned and BYO alike) register with a deployment-wide register token, and each is issued its own per-client secret — stored hashed, and presented as a Bearer token on every machine-to-machine endpoint
+- **Participant Sessions**: `/api/request_vm` sets a signed `lablink_session` cookie; nginx gates the noVNC WebSocket proxy through Flask via `auth_request` (`/internal/proxy_auth`)
 - **OIDC Authentication**: GitHub Actions authenticate to AWS without stored credentials
 - **SSH Keys**: Auto-generated per environment, ephemeral artifacts
-- **Secrets**: Managed via GitHub Secrets and AWS Secrets Manager
-- **Network**: Security groups restrict access by port and source
+- **Network**: Security groups restrict access by port and source; client desktops are reachable only through the allocator's proxy
 
 See [Security](security.md) for detailed security considerations.
 
@@ -521,14 +570,17 @@ See [Security](security.md) for detailed security considerations.
 
 ## Technology Choices
 
-| Component     | Technology      | Rationale                          |
-| ------------- | --------------- | ---------------------------------- |
-| Web Framework | Flask           | Lightweight, Python ecosystem      |
-| Database      | PostgreSQL      | ACID compliance, `SKIP LOCKED` for race-free seat claims |
-| IaC           | OpenTofu       | Declarative, AWS support           |
-| Containers    | Docker          | Portability, dependency isolation  |
-| CI/CD         | GitHub Actions  | Native GitHub integration          |
-| Config        | Hydra/OmegaConf | Structured configs, easy overrides |
+| Component      | Technology      | Rationale                          |
+| -------------- | --------------- | ---------------------------------- |
+| Web Framework  | Flask           | Lightweight, Python ecosystem      |
+| Database       | PostgreSQL      | ACID compliance, `SKIP LOCKED` for race-free seat claims |
+| Remote Desktop | KasmVNC + noVNC | Browser-only access, no client install |
+| Proxy / TLS    | nginx + Caddy   | Single ingress into the container; automatic HTTPS on the host |
+| IaC            | OpenTofu        | Declarative, AWS support           |
+| Containers     | Docker          | Portability, dependency isolation  |
+| CI/CD          | GitHub Actions  | Native GitHub integration          |
+| CLI            | Typer           | Deploys and manages infrastructure from the terminal |
+| Config         | Hydra/OmegaConf | Structured configs, easy overrides |
 
 ## Next Steps
 

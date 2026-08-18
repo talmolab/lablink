@@ -37,6 +37,58 @@ _VALID_HOSTNAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,252}$")
 
 @bp.route("/api/v1/clients/register", methods=["POST"])
 def register_client():
+    """Register a client machine and mint its credentials.
+
+    Auth: Register token (the one deployment-wide bearer credential).
+
+    **Request Body:** `application/json`
+
+    | Field | Required | Description |
+    |---|---|---|
+    | `hostname` | yes | The client's self-declared hostname, which becomes its `client_id`. Must start with a letter or digit and contain only letters, digits, dots, dashes and underscores (max 253 chars). |
+    | `machine_identity` | yes | Stable machine identifier, unique across the deployment. Re-registering the same identity replaces the old row rather than adding a seat. |
+    | `provider` | no | Defaults to `aws`. BYO clients send `manual`. |
+    | `provider_metadata` | no | Shape must match the deployment's configured `manual.connectivity` — `lan_ip` for `lan_direct`, `overlay_hostname` for `mesh_overlay`, `reverse_tunnel: true` for `reverse_tunnel`. A mismatch is rejected here rather than failing opaquely at assignment time. |
+    | `endpoint_url`, `gpu_present`, `gpu_model` | no | Reported by the client; all auto-detected by the CLI. |
+
+    **Success Response:**
+
+    - **Code:** `200 OK`
+    - **Content:** the client's credentials and the configuration it needs
+      to start:
+
+    ```json
+    {
+      "client_id": "gpu-box-3",
+      "client_secret": "…",
+      "agent_token": "…",
+      "allocator_url": "https://lab.example.org",
+      "connectivity": "lan_direct",
+      "client_image": "ghcr.io/talmolab/lablink-client-base-image:latest",
+      "repository": "https://github.com/talmolab/sleap-tutorial-data.git",
+      "subject_software": "sleap",
+      "register_token": "…",
+      "startup_script_b64": "",
+      "startup_on_error": "continue",
+      "startup_max_attempts": 3,
+      "startup_base_delay_seconds": 30,
+      "startup_success_check_b64": "",
+      "monitoring": { "enabled": false }
+    }
+    ```
+
+    `client_secret` is returned **once** and stored only as an argon2 hash.
+    Reverse-tunnel registrations additionally receive `tunnel_url`,
+    `tunnel_path_prefix` and `tunnel_bind_addr`, all minted by the
+    allocator.
+
+    **Error Response:**
+
+    - **Code:** `400 Bad Request` — missing/invalid `hostname` or
+      `machine_identity`, or a `provider_metadata` shape that doesn't match
+      the configured connectivity.
+    - **Code:** `401 Unauthorized` — bad or missing register token.
+    """
     from lablink_allocator_service import main
 
     auth_header = request.headers.get("Authorization", "")
@@ -275,6 +327,12 @@ def register_client():
 
 @bp.route("/api/v1/clients/<client_id>/status", methods=["GET"])
 def client_status(client_id):
+    """Get one client's status.
+
+    Auth: Bearer client_secret (that client's own secret).
+
+    Lets a registered client confirm the allocator still knows about it.
+    """
     from lablink_allocator_service import main
 
     auth_header = request.headers.get("Authorization", "")

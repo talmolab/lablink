@@ -36,6 +36,29 @@ def _wants_json():
 @bp.route("/api/launch", methods=["POST"])
 @auth.login_required
 def launch():
+    """Launch new client VMs.
+
+    Takes a number of VMs to create and enqueues an async `apply` operation;
+    the background worker generates an OpenTofu variables file and runs
+    `tofu apply` to provision the new instances. Poll `GET /api/operations`
+    for progress. Rejected with `405` when the provider cannot provision
+    hosts (`manual`).
+
+    **Request Body:** `application/x-www-form-urlencoded`
+
+    - `num_vms` (integer, required): The number of new VMs to launch.
+
+    **Success Response:**
+
+    - **Code:** `202 Accepted` with `{"job_id": 7, "status": "queued"}` for
+      JSON clients; browsers get `302` → `/admin/instances?job=<id>`.
+
+    **Error Response:**
+
+    - **Code:** `409 Conflict` when another operation is already in
+      progress; the body carries the in-flight `job_id`.
+    - **Code:** `400 Bad Request` for a missing or non-positive `num_vms`.
+    """
     from lablink_allocator_service import main
 
     provider = current_app.config["LABLINK_PROVIDER"]
@@ -170,6 +193,30 @@ def launch():
 @bp.route("/destroy", methods=["POST"])
 @auth.login_required
 def destroy():
+    """Destroy all client VMs.
+
+    Enqueues an async `destroy` operation: the background worker runs
+    `tofu destroy` to terminate all client EC2 instances and associated
+    resources, then clears all records from the `vms` table. **This is a
+    destructive action.** Driven by `lablink client destroy`, and by
+    `lablink destroy` as its first teardown step. Open session-metrics rows
+    are sealed (best-effort) before teardown so final sessions keep a
+    duration.
+
+    **Request Body:** None
+
+    **Success Response:**
+
+    - **Code:** `202 Accepted` with `{"job_id": 8, "status": "queued"}` for
+      JSON clients; browsers get `302` → `/admin/instances?job=<id>`.
+
+    **Error Response:**
+
+    - **Code:** `409 Conflict` when another operation is already in
+      progress.
+    - **Code:** `405 Method Not Allowed` when the provider cannot destroy
+      hosts (`manual`).
+    """
     from lablink_allocator_service import main
 
     provider = current_app.config["LABLINK_PROVIDER"]
@@ -237,6 +284,13 @@ def destroy():
 @bp.route("/api/operations", methods=["GET"])
 @auth.login_required
 def list_operations():
+    """List recent operations.
+
+    Returns recent operations with their `op_type`, `status`, timestamps,
+    and `resources_completed` / `resources_total` progress counters.
+    `?status=in_progress` returns just the currently running operation, if
+    any.
+    """
     from lablink_allocator_service import main
 
     if request.args.get("status") == "in_progress":
@@ -247,6 +301,15 @@ def list_operations():
 @bp.route("/api/operations/<int:operation_id>", methods=["GET"])
 @auth.login_required
 def get_operation(operation_id):
+    """Get one operation.
+
+    Returns one operation, including its captured `output` and `error`.
+    This is what the CLI polls while `client launch` runs.
+
+    **Error Response:**
+
+    - **Code:** `404 Not Found` if the operation does not exist.
+    """
     from lablink_allocator_service import main
 
     operation = main.operations_db.get_operation(operation_id)
