@@ -121,3 +121,19 @@ def test_summary_tolerates_short_rows(fake_db):
     assert summary["funnel"]["labeled"] == 1
     assert summary["median_labeled_frames"] is None
     assert summary["median_epochs_completed"] is None
+
+
+def test_update_session_metrics_returns_session_started_at(fake_db):
+    """The UPDATE RETURNs the row's authoritative SessionStartedAt so the
+    route can echo it back for client anchor healing."""
+    from datetime import datetime, timezone
+
+    started = datetime(2026, 6, 11, 15, 21, 13, tzinfo=timezone.utc)
+    fake_db._cursor_mock.rowcount = 1
+    fake_db._cursor_mock.fetchone.return_value = (started,)
+    result = fake_db.update_session_metrics(
+        "vm-1", {"session_started_at": None, "counters": {}}
+    )
+    assert result == started
+    update_sql = fake_db._cursor_mock.execute.call_args_list[0].args[0]
+    assert "RETURNING SessionStartedAt" in update_sql

@@ -68,3 +68,48 @@ def test_push_summary_logs_warning_on_4xx(caplog):
         )
     assert rc == 409
     assert any("409" in rec.message for rec in caplog.records)
+
+
+def test_push_summary_adopts_echoed_anchor(tmp_path, monkeypatch):
+    from lablink_client_service.session_anchor import read_anchor
+
+    anchor = tmp_path / "anchor"
+    monkeypatch.setenv("LABLINK_SESSION_ANCHOR_PATH", str(anchor))
+    fake_resp = MagicMock(status_code=200, text="")
+    fake_resp.json.return_value = {
+        "message": "Session metrics updated.",
+        "session_started_at": "2026-06-11T15:21:13.459805+00:00",
+    }
+    with patch(
+        "lablink_client_service.monitoring.pusher.requests.post",
+        return_value=fake_resp,
+    ):
+        rc = push_summary(
+            allocator_url="https://alloc.example",
+            hostname="vm-1",
+            client_secret="s3cret",
+            counters=_counters(),
+        )
+    assert rc == 200
+    assert read_anchor() == datetime(
+        2026, 6, 11, 15, 21, 13, 459805, tzinfo=timezone.utc
+    )
+
+
+def test_push_summary_ignores_null_or_bad_echo(tmp_path, monkeypatch):
+    anchor = tmp_path / "anchor"
+    monkeypatch.setenv("LABLINK_SESSION_ANCHOR_PATH", str(anchor))
+    for echoed in (None, "not-a-timestamp", 42):
+        fake_resp = MagicMock(status_code=200, text="")
+        fake_resp.json.return_value = {"session_started_at": echoed}
+        with patch(
+            "lablink_client_service.monitoring.pusher.requests.post",
+            return_value=fake_resp,
+        ):
+            push_summary(
+                allocator_url="https://alloc.example",
+                hostname="vm-1",
+                client_secret="s3cret",
+                counters=_counters(),
+            )
+    assert not anchor.exists()

@@ -411,7 +411,7 @@ Optional **Tier 1 usability telemetry** collected on each client VM and summaris
 | `enabled` | bool | `false` | Master switch. When `false`, no monitoring process runs on the VM. |
 | `subject_window_patterns` | list[str] | `[]` (empty) | Lower-cased substrings that mark a focused window as "the tutorial app" (e.g. `["sleap"]`, `["deeplabcut"]`). When empty, falls back to `[client.software]` at runtime — so most deployments don't need to set this. |
 | `process_allowlist` | list[str] | `["sleap-train","sleap-track","sleap-label"]` | Process names tracked for time-to-first-invocation. Column names in the DB (`SecondsToFirstSleapLabel/Train/Track`) are static, so a non-SLEAP tutorial will need to interpret those columns by allowlist position. |
-| `watch_dir` | string | `/home/client/Desktop` | Directory scanned for `.slp` files and `models/**/training_log.csv`. |
+| `watch_dir` | string | `/home/client/Desktop` | Directory scanned recursively for `.slp` files and `models/**/training_log.csv` (covers projects inside a cloned tutorial repo). |
 | `sample_interval_seconds` | int | `2` | How often each sampler ticks. |
 | `push_interval_seconds` | int | `60` | How often the rolling summary is POSTed to the allocator. |
 
