@@ -6496,6 +6496,10 @@ path space.</p>
 <p>Report session metrics.</p>
 <p>The client's monitoring sampler posts its accumulated per-session
 counters (time-in-software, GPU activity, training progress).</p>
+<p>The 200 response echoes <code>session_started_at</code> — the VM's
+authoritative assignment time (ISO-8601, null while the seat is
+free) — which the client writes to its session anchor, healing an
+anchor lost to a container restart mid-session.</p>
 <p><strong>Error Response:</strong></p>
 <ul>
 <li><strong>Code:</strong> <code>400 Bad Request</code> if <code>counters</code> is missing.</li>

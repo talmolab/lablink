@@ -4609,6 +4609,13 @@
 allocator noticing we <em>stop</em> pushing, not any single POST. A 409 means
 the row was sealed (e.g. destroy already ran); the caller may choose
 to stop the agent.</p>
+<p>A 200 response echoes the allocator's authoritative session-start
+timestamp (the DB's SessionStartedAt, null when the seat is free); the
+pusher writes it to the on-disk session anchor. That heals a lost
+anchor — e.g. the container was recreated mid-session and /tmp went
+with it — within one push interval: the monitoring loop re-anchors from
+the file on its next tick. Rewriting an unchanged value is a no-op for
+the loop, so this never causes reset oscillation.</p>
 
 
 
@@ -4686,17 +4693,7 @@ to stop the agent.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/client/src/lablink_client_service/monitoring/pusher.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-27">27</a></span>
-<span class="normal"><a href="#__codelineno-0-28">28</a></span>
-<span class="normal"><a href="#__codelineno-0-29">29</a></span>
-<span class="normal"><a href="#__codelineno-0-30">30</a></span>
-<span class="normal"><a href="#__codelineno-0-31">31</a></span>
-<span class="normal"><a href="#__codelineno-0-32">32</a></span>
-<span class="normal"><a href="#__codelineno-0-33">33</a></span>
-<span class="normal"><a href="#__codelineno-0-34">34</a></span>
-<span class="normal"><a href="#__codelineno-0-35">35</a></span>
-<span class="normal"><a href="#__codelineno-0-36">36</a></span>
-<span class="normal"><a href="#__codelineno-0-37">37</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-37">37</a></span>
 <span class="normal"><a href="#__codelineno-0-38">38</a></span>
 <span class="normal"><a href="#__codelineno-0-39">39</a></span>
 <span class="normal"><a href="#__codelineno-0-40">40</a></span>
@@ -4719,40 +4716,54 @@ to stop the agent.</p>
 <span class="normal"><a href="#__codelineno-0-57">57</a></span>
 <span class="normal"><a href="#__codelineno-0-58">58</a></span>
 <span class="normal"><a href="#__codelineno-0-59">59</a></span>
-<span class="normal"><a href="#__codelineno-0-60">60</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-27" name="__codelineno-0-27"></a><span class="k">def</span><span class="w"> </span><span class="nf">push_summary</span><span class="p">(</span>
-<a id="__codelineno-0-28" name="__codelineno-0-28"></a>    <span class="n">allocator_url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-<a id="__codelineno-0-29" name="__codelineno-0-29"></a>    <span class="n">hostname</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-<a id="__codelineno-0-30" name="__codelineno-0-30"></a>    <span class="n">client_secret</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-<a id="__codelineno-0-31" name="__codelineno-0-31"></a>    <span class="n">counters</span><span class="p">:</span> <span class="n">SessionCounters</span><span class="p">,</span>
-<a id="__codelineno-0-32" name="__codelineno-0-32"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-33" name="__codelineno-0-33"></a><span class="w">    </span><span class="sd">"""POST one summary. Returns the HTTP status code or None on network error."""</span>
-<a id="__codelineno-0-34" name="__codelineno-0-34"></a>    <span class="n">body</span> <span class="o">=</span> <span class="n">_serialise_counters</span><span class="p">(</span><span class="n">counters</span><span class="p">)</span>
-<a id="__codelineno-0-35" name="__codelineno-0-35"></a>    <span class="n">payload</span> <span class="o">=</span> <span class="p">{</span>
-<a id="__codelineno-0-36" name="__codelineno-0-36"></a>        <span class="s2">"session_started_at"</span><span class="p">:</span> <span class="n">body</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">"session_started_at"</span><span class="p">),</span>
-<a id="__codelineno-0-37" name="__codelineno-0-37"></a>        <span class="s2">"counters"</span><span class="p">:</span> <span class="n">body</span><span class="p">,</span>
-<a id="__codelineno-0-38" name="__codelineno-0-38"></a>    <span class="p">}</span>
-<a id="__codelineno-0-39" name="__codelineno-0-39"></a>    <span class="n">headers</span> <span class="o">=</span> <span class="p">{</span>
-<a id="__codelineno-0-40" name="__codelineno-0-40"></a>        <span class="s2">"Content-Type"</span><span class="p">:</span> <span class="s2">"application/json"</span><span class="p">,</span>
-<a id="__codelineno-0-41" name="__codelineno-0-41"></a>        <span class="s2">"Authorization"</span><span class="p">:</span> <span class="sa">f</span><span class="s2">"Bearer </span><span class="si">{</span><span class="n">client_secret</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
-<a id="__codelineno-0-42" name="__codelineno-0-42"></a>    <span class="p">}</span>
-<a id="__codelineno-0-43" name="__codelineno-0-43"></a>    <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">allocator_url</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s1">'/'</span><span class="p">)</span><span class="si">}</span><span class="s2">/api/session-metrics/</span><span class="si">{</span><span class="n">hostname</span><span class="si">}</span><span class="s2">"</span>
-<a id="__codelineno-0-44" name="__codelineno-0-44"></a>    <span class="k">try</span><span class="p">:</span>
-<a id="__codelineno-0-45" name="__codelineno-0-45"></a>        <span class="n">resp</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
-<a id="__codelineno-0-46" name="__codelineno-0-46"></a>            <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span>
-<a id="__codelineno-0-47" name="__codelineno-0-47"></a>            <span class="n">json</span><span class="o">=</span><span class="n">payload</span><span class="p">,</span>
-<a id="__codelineno-0-48" name="__codelineno-0-48"></a>            <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">,</span>
-<a id="__codelineno-0-49" name="__codelineno-0-49"></a>            <span class="n">timeout</span><span class="o">=</span><span class="n">POST_TIMEOUT_SECONDS</span><span class="p">,</span>
-<a id="__codelineno-0-50" name="__codelineno-0-50"></a>        <span class="p">)</span>
-<a id="__codelineno-0-51" name="__codelineno-0-51"></a>    <span class="k">except</span> <span class="n">requests</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">RequestException</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-<a id="__codelineno-0-52" name="__codelineno-0-52"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">"session-metrics push failed: </span><span class="si">%s</span><span class="s2">"</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
-<a id="__codelineno-0-53" name="__codelineno-0-53"></a>        <span class="k">return</span> <span class="kc">None</span>
-<a id="__codelineno-0-54" name="__codelineno-0-54"></a>    <span class="k">if</span> <span class="n">resp</span><span class="o">.</span><span class="n">status_code</span> <span class="o">&gt;=</span> <span class="mi">400</span><span class="p">:</span>
-<a id="__codelineno-0-55" name="__codelineno-0-55"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-<a id="__codelineno-0-56" name="__codelineno-0-56"></a>            <span class="s2">"session-metrics POST returned </span><span class="si">%s</span><span class="s2">: </span><span class="si">%s</span><span class="s2">"</span><span class="p">,</span>
-<a id="__codelineno-0-57" name="__codelineno-0-57"></a>            <span class="n">resp</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span>
-<a id="__codelineno-0-58" name="__codelineno-0-58"></a>            <span class="n">resp</span><span class="o">.</span><span class="n">text</span><span class="p">[:</span><span class="mi">200</span><span class="p">],</span>
-<a id="__codelineno-0-59" name="__codelineno-0-59"></a>        <span class="p">)</span>
-<a id="__codelineno-0-60" name="__codelineno-0-60"></a>    <span class="k">return</span> <span class="n">resp</span><span class="o">.</span><span class="n">status_code</span>
+<span class="normal"><a href="#__codelineno-0-60">60</a></span>
+<span class="normal"><a href="#__codelineno-0-61">61</a></span>
+<span class="normal"><a href="#__codelineno-0-62">62</a></span>
+<span class="normal"><a href="#__codelineno-0-63">63</a></span>
+<span class="normal"><a href="#__codelineno-0-64">64</a></span>
+<span class="normal"><a href="#__codelineno-0-65">65</a></span>
+<span class="normal"><a href="#__codelineno-0-66">66</a></span>
+<span class="normal"><a href="#__codelineno-0-67">67</a></span>
+<span class="normal"><a href="#__codelineno-0-68">68</a></span>
+<span class="normal"><a href="#__codelineno-0-69">69</a></span>
+<span class="normal"><a href="#__codelineno-0-70">70</a></span>
+<span class="normal"><a href="#__codelineno-0-71">71</a></span>
+<span class="normal"><a href="#__codelineno-0-72">72</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-37" name="__codelineno-0-37"></a><span class="k">def</span><span class="w"> </span><span class="nf">push_summary</span><span class="p">(</span>
+<a id="__codelineno-0-38" name="__codelineno-0-38"></a>    <span class="n">allocator_url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<a id="__codelineno-0-39" name="__codelineno-0-39"></a>    <span class="n">hostname</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<a id="__codelineno-0-40" name="__codelineno-0-40"></a>    <span class="n">client_secret</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<a id="__codelineno-0-41" name="__codelineno-0-41"></a>    <span class="n">counters</span><span class="p">:</span> <span class="n">SessionCounters</span><span class="p">,</span>
+<a id="__codelineno-0-42" name="__codelineno-0-42"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-43" name="__codelineno-0-43"></a><span class="w">    </span><span class="sd">"""POST one summary. Returns the HTTP status code or None on network error."""</span>
+<a id="__codelineno-0-44" name="__codelineno-0-44"></a>    <span class="n">body</span> <span class="o">=</span> <span class="n">_serialise_counters</span><span class="p">(</span><span class="n">counters</span><span class="p">)</span>
+<a id="__codelineno-0-45" name="__codelineno-0-45"></a>    <span class="n">payload</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-0-46" name="__codelineno-0-46"></a>        <span class="s2">"session_started_at"</span><span class="p">:</span> <span class="n">body</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">"session_started_at"</span><span class="p">),</span>
+<a id="__codelineno-0-47" name="__codelineno-0-47"></a>        <span class="s2">"counters"</span><span class="p">:</span> <span class="n">body</span><span class="p">,</span>
+<a id="__codelineno-0-48" name="__codelineno-0-48"></a>    <span class="p">}</span>
+<a id="__codelineno-0-49" name="__codelineno-0-49"></a>    <span class="n">headers</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-0-50" name="__codelineno-0-50"></a>        <span class="s2">"Content-Type"</span><span class="p">:</span> <span class="s2">"application/json"</span><span class="p">,</span>
+<a id="__codelineno-0-51" name="__codelineno-0-51"></a>        <span class="s2">"Authorization"</span><span class="p">:</span> <span class="sa">f</span><span class="s2">"Bearer </span><span class="si">{</span><span class="n">client_secret</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+<a id="__codelineno-0-52" name="__codelineno-0-52"></a>    <span class="p">}</span>
+<a id="__codelineno-0-53" name="__codelineno-0-53"></a>    <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">allocator_url</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s1">'/'</span><span class="p">)</span><span class="si">}</span><span class="s2">/api/session-metrics/</span><span class="si">{</span><span class="n">hostname</span><span class="si">}</span><span class="s2">"</span>
+<a id="__codelineno-0-54" name="__codelineno-0-54"></a>    <span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-0-55" name="__codelineno-0-55"></a>        <span class="n">resp</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
+<a id="__codelineno-0-56" name="__codelineno-0-56"></a>            <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span>
+<a id="__codelineno-0-57" name="__codelineno-0-57"></a>            <span class="n">json</span><span class="o">=</span><span class="n">payload</span><span class="p">,</span>
+<a id="__codelineno-0-58" name="__codelineno-0-58"></a>            <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">,</span>
+<a id="__codelineno-0-59" name="__codelineno-0-59"></a>            <span class="n">timeout</span><span class="o">=</span><span class="n">POST_TIMEOUT_SECONDS</span><span class="p">,</span>
+<a id="__codelineno-0-60" name="__codelineno-0-60"></a>        <span class="p">)</span>
+<a id="__codelineno-0-61" name="__codelineno-0-61"></a>    <span class="k">except</span> <span class="n">requests</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">RequestException</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<a id="__codelineno-0-62" name="__codelineno-0-62"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">"session-metrics push failed: </span><span class="si">%s</span><span class="s2">"</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+<a id="__codelineno-0-63" name="__codelineno-0-63"></a>        <span class="k">return</span> <span class="kc">None</span>
+<a id="__codelineno-0-64" name="__codelineno-0-64"></a>    <span class="k">if</span> <span class="n">resp</span><span class="o">.</span><span class="n">status_code</span> <span class="o">&gt;=</span> <span class="mi">400</span><span class="p">:</span>
+<a id="__codelineno-0-65" name="__codelineno-0-65"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+<a id="__codelineno-0-66" name="__codelineno-0-66"></a>            <span class="s2">"session-metrics POST returned </span><span class="si">%s</span><span class="s2">: </span><span class="si">%s</span><span class="s2">"</span><span class="p">,</span>
+<a id="__codelineno-0-67" name="__codelineno-0-67"></a>            <span class="n">resp</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span>
+<a id="__codelineno-0-68" name="__codelineno-0-68"></a>            <span class="n">resp</span><span class="o">.</span><span class="n">text</span><span class="p">[:</span><span class="mi">200</span><span class="p">],</span>
+<a id="__codelineno-0-69" name="__codelineno-0-69"></a>        <span class="p">)</span>
+<a id="__codelineno-0-70" name="__codelineno-0-70"></a>    <span class="k">elif</span> <span class="n">resp</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span>
+<a id="__codelineno-0-71" name="__codelineno-0-71"></a>        <span class="n">_adopt_echoed_anchor</span><span class="p">(</span><span class="n">resp</span><span class="p">)</span>
+<a id="__codelineno-0-72" name="__codelineno-0-72"></a>    <span class="k">return</span> <span class="n">resp</span><span class="o">.</span><span class="n">status_code</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
