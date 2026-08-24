@@ -111,3 +111,35 @@ def test_post_session_metrics_400_when_counters_missing(app):
     )
     assert resp.status_code == 400
     db.update_session_metrics.assert_not_called()
+
+
+def test_post_session_metrics_echoes_session_started_at(app):
+    from datetime import datetime, timezone
+
+    flask_app, db = app
+    db.update_session_metrics.return_value = datetime(
+        2026, 6, 11, 15, 21, 13, tzinfo=timezone.utc
+    )
+    client = flask_app.test_client()
+    resp = client.post(
+        "/api/session-metrics/vm-1",
+        data=json.dumps(_payload()),
+        content_type="application/json",
+        headers={"Authorization": "Bearer letmein"},
+    )
+    assert resp.status_code == 200
+    assert resp.get_json()["session_started_at"] == "2026-06-11T15:21:13+00:00"
+
+
+def test_post_session_metrics_echoes_null_when_unassigned(app):
+    flask_app, db = app
+    db.update_session_metrics.return_value = None
+    client = flask_app.test_client()
+    resp = client.post(
+        "/api/session-metrics/vm-1",
+        data=json.dumps(_payload()),
+        content_type="application/json",
+        headers={"Authorization": "Bearer letmein"},
+    )
+    assert resp.status_code == 200
+    assert resp.get_json()["session_started_at"] is None

@@ -25,6 +25,11 @@ def post_session_metrics(hostname):
     The client's monitoring sampler posts its accumulated per-session
     counters (time-in-software, GPU activity, training progress).
 
+    The 200 response echoes ``session_started_at`` — the VM's
+    authoritative assignment time (ISO-8601, null while the seat is
+    free) — which the client writes to its session anchor, healing an
+    anchor lost to a container restart mid-session.
+
     **Error Response:**
 
     - **Code:** `400 Bad Request` if `counters` is missing.
@@ -37,8 +42,17 @@ def post_session_metrics(hostname):
         data = request.get_json(silent=True) or {}
         if "counters" not in data:
             return jsonify({"error": "Missing 'counters' in payload."}), 400
-        main.metrics_db.update_session_metrics(hostname=hostname, payload=data)
-        return jsonify({"message": "Session metrics updated."}), 200
+        started = main.metrics_db.update_session_metrics(
+            hostname=hostname, payload=data
+        )
+        return jsonify(
+            {
+                "message": "Session metrics updated.",
+                "session_started_at": (
+                    started.isoformat() if isinstance(started, datetime) else None
+                ),
+            }
+        ), 200
     except LookupError:
         return jsonify({"error": "VM not found."}), 404
     except ValueError as e:

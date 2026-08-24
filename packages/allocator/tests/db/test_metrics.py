@@ -130,3 +130,19 @@ def test_summary_raises_loudly_on_missing_key(fake_db):
     fake_db._cursor_mock.fetchall.return_value = [row]
     with pytest.raises(KeyError, match="max_labeled_frames"):
         fake_db.get_session_metrics_summary()
+
+
+def test_update_session_metrics_returns_session_started_at(fake_db):
+    """The UPDATE RETURNs the row's authoritative SessionStartedAt so the
+    route can echo it back for client anchor healing."""
+    from datetime import datetime, timezone
+
+    started = datetime(2026, 6, 11, 15, 21, 13, tzinfo=timezone.utc)
+    fake_db._cursor_mock.rowcount = 1
+    fake_db._cursor_mock.fetchone.return_value = {"session_started_at": started}
+    result = fake_db.update_session_metrics(
+        "vm-1", {"session_started_at": None, "counters": {}}
+    )
+    assert result == started
+    update_sql = fake_db._cursor_mock.execute.call_args_list[0].args[0]
+    assert "RETURNING SessionStartedAt AS session_started_at" in update_sql
