@@ -16,7 +16,7 @@ def test_create_scheduled_destruction(schedule_db_instance):
     recurrence_rule = "FREQ=WEEKLY;BYDAY=FR"
     created_by = "admin@example.com"
 
-    schedule_db_instance.cursor.fetchone.return_value = (1,)
+    schedule_db_instance.cursor.fetchone.return_value = {"id": 1}
 
     schedule_id = schedule_db_instance.create_scheduled_destruction(
         schedule_name=schedule_name,
@@ -59,7 +59,7 @@ def test_create_scheduled_destruction_one_time(schedule_db_instance):
     schedule_name = "One-Time Cleanup"
     destruction_time = datetime(2025, 12, 6, 18, 0, 0, tzinfo=timezone.utc)
 
-    schedule_db_instance.cursor.fetchone.return_value = (2,)
+    schedule_db_instance.cursor.fetchone.return_value = {"id": 2}
 
     schedule_id = schedule_db_instance.create_scheduled_destruction(
         schedule_name=schedule_name,
@@ -107,26 +107,23 @@ def test_get_scheduled_destruction(schedule_db_instance):
     schedule_id = 1
 
     # Mock cursor.fetchone to return a tuple (as real PostgreSQL cursor does)
-    # Column order matches: id, schedule_name, destruction_time, recurrence_rule,
-    # created_by, status, execution_count, last_execution_time, last_execution_result,
-    # notification_enabled, notification_hours_before, created_at, updated_at
-    schedule_tuple = (
-        1,  # id
-        "Friday Tutorial End",  # schedule_name
-        "2025-12-05 17:30:00",  # destruction_time
-        "FREQ=WEEKLY;BYDAY=FR",  # recurrence_rule
-        "admin@example.com",  # created_by
-        "scheduled",  # status
-        0,  # execution_count
-        None,  # last_execution_time
-        None,  # last_execution_result
-        True,  # notification_enabled
-        1,  # notification_hours_before
-        None,  # created_at
-        None,  # updated_at
-    )
+    schedule_row = {
+        "id": 1,
+        "schedule_name": "Friday Tutorial End",
+        "destruction_time": "2025-12-05 17:30:00",
+        "recurrence_rule": "FREQ=WEEKLY;BYDAY=FR",
+        "created_by": "admin@example.com",
+        "status": "scheduled",
+        "execution_count": 0,
+        "last_execution_time": None,
+        "last_execution_result": None,
+        "notification_enabled": True,
+        "notification_hours_before": 1,
+        "created_at": None,
+        "updated_at": None,
+    }
 
-    schedule_db_instance.cursor.fetchone.return_value = schedule_tuple
+    schedule_db_instance.cursor.fetchone.return_value = schedule_row
 
     result = schedule_db_instance.get_scheduled_destruction(schedule_id)
 
@@ -156,14 +153,14 @@ def test_get_scheduled_destruction_not_found(schedule_db_instance):
 
 def test_get_all_scheduled_destructions(schedule_db_instance):
     """Test getting all scheduled destructions."""
-    # Mock cursor.fetchall to return tuples (as real PostgreSQL cursor does)
-    schedules_tuples = [
-        (1, "Schedule 1", None, None, None, "scheduled", 0, None, None, True, 1, None, None),
-        (2, "Schedule 2", None, None, None, "completed", 0, None, None, True, 1, None, None),
-        (3, "Schedule 3", None, None, None, "scheduled", 0, None, None, True, 1, None, None),
+    # Dict rows, as the RealDictCursor returns them.
+    schedule_rows = [
+        {"id": 1, "schedule_name": "Schedule 1", "status": "scheduled"},
+        {"id": 2, "schedule_name": "Schedule 2", "status": "completed"},
+        {"id": 3, "schedule_name": "Schedule 3", "status": "scheduled"},
     ]
 
-    schedule_db_instance.cursor.fetchall.return_value = schedules_tuples
+    schedule_db_instance.cursor.fetchall.return_value = schedule_rows
 
     result = schedule_db_instance.get_all_scheduled_destructions()
 
@@ -184,13 +181,13 @@ def test_get_all_scheduled_destructions(schedule_db_instance):
 
 def test_get_all_scheduled_destructions_with_status_filter(schedule_db_instance):
     """Test getting scheduled destructions filtered by status."""
-    # Mock cursor.fetchall to return tuples (as real PostgreSQL cursor does)
-    scheduled_tuples = [
-        (1, "Schedule 1", None, None, None, "scheduled", 0, None, None, True, 1, None, None),
-        (3, "Schedule 3", None, None, None, "scheduled", 0, None, None, True, 1, None, None),
+    # Dict rows, as the RealDictCursor returns them.
+    scheduled_rows = [
+        {"id": 1, "schedule_name": "Schedule 1", "status": "scheduled"},
+        {"id": 3, "schedule_name": "Schedule 3", "status": "scheduled"},
     ]
 
-    schedule_db_instance.cursor.fetchall.return_value = scheduled_tuples
+    schedule_db_instance.cursor.fetchall.return_value = scheduled_rows
 
     result = schedule_db_instance.get_all_scheduled_destructions(status="scheduled")
 
