@@ -139,7 +139,7 @@ instead of blocking on a long OpenTofu run.
 | `output` / `error` | TEXT | Captured result |
 | `resources_total` / `resources_completed` | INTEGER | Progress counters |
 
-Exposed via [`/api/operations`](api-endpoints.md#operations-api).
+Exposed via [`/api/operations`](api-endpoints.md#provisioning-and-operations).
 
 ### `scheduled_destructions` Table
 

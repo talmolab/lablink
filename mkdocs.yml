@@ -42,6 +42,7 @@ plugins:
       scripts:
         - docs/scripts/gen_ref_pages.py
         - docs/scripts/gen_changelog.py
+        - docs/scripts/gen_api_endpoints.py
   - literate-nav:
       nav_file: SUMMARY.md
   - section-index

@@ -21,11 +21,56 @@ logger = logging.getLogger(__name__)
 
 @bp.route("/")
 def home():
+    """Landing page.
+
+    Renders `index.html`, the email form a participant submits to claim a
+    seat.
+    """
     return render_template("index.html")
 
 
 @bp.route("/api/request_vm", methods=["POST"])
 def submit_vm_details():
+    """Claim a seat for a participant and redirect them to their desktop.
+
+    Auth: None — this is the only unauthenticated state-changing endpoint in the allocator.
+
+    **Request Body:** `application/x-www-form-urlencoded`
+
+    - `email` (string, required): The participant's email address.
+
+    **What it does:**
+
+    1. **Idempotent rejoin.** If this email already owns a running seat, it
+       keeps that seat rather than consuming a second one.
+    2. **Atomic claim.** Otherwise `assign_vm` claims a free seat with
+       `SELECT … FOR UPDATE SKIP LOCKED`, so concurrent requesters cannot
+       collide on one VM. An empty pool raises and returns `503` with
+       `no_seats.html`.
+    3. **Per-session prep.** Mints a `session_id` and `browser_token`, then
+       rotates the KasmVNC password on the assigned client through that
+       client's local agent. The claim has already committed by this point,
+       so a rotation failure is compensated for, not rolled back: the seat is
+       released and the VM flagged `Unhealthy`.
+    4. **Cookie + redirect.** Signs a `lablink_session` cookie bound to the
+       `session_id` and redirects to `GET /desktop`.
+
+    **Success Response:**
+
+    - **Code:** `303 See Other` → `/desktop`, with the `lablink_session`
+      cookie set.
+
+    **Error Response:**
+
+    - **Code:** `503 Service Unavailable` — `no_seats.html` when the pool is
+      empty, or `rotation_failed.html` when the assigned client could not be
+      reached. On a rotation failure the seat is released and the VM flagged
+      `Unhealthy` so the participant isn't wedged on a dead machine.
+    - **Code:** `200 OK` — `index.html` re-rendered with an error if `email`
+      is missing.
+
+    The participant supplies nothing but an email address.
+    """
     from lablink_allocator_service import main
 
     import uuid
@@ -113,7 +158,27 @@ def submit_vm_details():
 
 @bp.route("/api/unassigned_vms_count", methods=["GET"])
 def get_unassigned_instance_counts():
-    """Get the counts of all instance types."""
+    """Get the number of available (unassigned) VMs.
+
+    Returns the current count of VMs that are running and not yet assigned
+    to a user.
+
+    Auth: None (health/monitoring).
+
+    **Success Response:**
+
+    - **Code:** `200 OK`
+    - **Content:**
+      ```json
+      {
+        "count": 5
+      }
+      ```
+
+    **Client Usage:** Not used by the client service. Intended for external
+    monitoring or UI components on the allocator to display the number of
+    available VMs.
+    """
     from lablink_allocator_service import main
 
     instance_counts = len(main.database.get_unassigned_vms())

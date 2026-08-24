@@ -8,135 +8,34 @@ LabLink uses GitHub Actions for continuous integration and deployment. The workf
 
 - Python package publishing to PyPI
 - Docker image building and publishing to GHCR
-- Testing and validation (linting, unit tests, Docker builds)
+- Testing and validation (linting, unit tests)
 - Documentation deployment to GitHub Pages
 
-**Note**: Infrastructure deployment workflows (OpenTofu) have been moved to the [LabLink Template Repository](https://github.com/talmolab/lablink-template).
-
-### CI/CD Pipeline Overview
-
-```mermaid
-flowchart TB
-    subgraph Triggers["Workflow Triggers"]
-        PR[Pull Request]
-        Push[Push to Branch]
-        Tag[Git Tag Push]
-        Manual[Manual Dispatch]
-    end
-
-    subgraph CI["ci.yml - Continuous Integration"]
-        Lint[Lint Code<br/>ruff check]
-        Test[Run Tests<br/>pytest]
-        DockerTest[Docker Build Test<br/>Allocator only]
-        Lint --> Test --> DockerTest
-    end
-
-    subgraph Publish["publish-pip.yml - Package Publishing"]
-        Validate[Validate Version<br/>& Branch]
-        RunTests[Run Tests<br/>& Linting]
-        PyPI[Publish to PyPI]
-        ShowCommand[Display Docker<br/>Build Command]
-        Validate --> RunTests --> PyPI --> ShowCommand
-    end
-
-    subgraph Images["lablink-images.yml - Docker Images"]
-        SelectDockerfile{Select<br/>Dockerfile}
-        BuildDev[Build Dev Image<br/>Dockerfile.dev]
-        BuildProd[Build Prod Image<br/>Dockerfile]
-        VerifyDev[Verify Dev Image]
-        VerifyProd[Verify Prod Image]
-        PushDev[Push with -test tags]
-        PushProd[Push with version tags]
-
-        SelectDockerfile -->|PR/test/main| BuildDev
-        SelectDockerfile -->|prod + versions| BuildProd
-        BuildDev --> VerifyDev --> PushDev
-        BuildProd --> VerifyProd --> PushProd
-    end
-
-    subgraph Docs["docs.yml - Documentation"]
-        BuildDocs[Build MkDocs]
-        DeployPages[Deploy to<br/>GitHub Pages]
-        BuildDocs --> DeployPages
-    end
-
-    PR --> CI
-    Push --> CI
-    Push --> Images
-    Tag --> Publish
-    Manual --> Images
-    Publish -.->|Manual trigger needed| Images
-
-    style CI fill:#e3f2fd
-    style Publish fill:#fff3e0
-    style Images fill:#e8f5e9
-    style Docs fill:#f3e5f5
-```
+**Note**: Infrastructure deployment workflows (OpenTofu) live in the [LabLink Template Repository](https://github.com/talmolab/lablink-template).
 
 ## Workflow Files
 
 All workflows are located in `.github/workflows/`:
 
-| Workflow File                                     | Purpose                                 | Trigger                                |
-| ------------------------------------------------- | --------------------------------------- | -------------------------------------- |
-| [`ci.yml`](#continuous-integration-workflow)      | Unit tests, linting, Docker build tests | PRs, pushes                            |
-| [`publish-pip.yml`](#package-publishing-workflow) | Publish Python packages to PyPI         | Git tags, manual dispatch              |
-| [`lablink-images.yml`](#image-building-workflow)  | Build and push Docker images to GHCR    | Push to branches, PRs, package publish |
-| [`docs.yml`](#documentation-workflow)             | Build and deploy documentation          | Pushes to main, docs changes           |
+| Workflow File                                     | Purpose                                  | Trigger                                     |
+| ------------------------------------------------- | ---------------------------------------- | ------------------------------------------- |
+| [`ci.yml`](#continuous-integration-workflow)      | Linting and unit tests for all packages  | PRs touching `packages/**`                  |
+| [`publish-pip.yml`](#package-publishing-workflow) | Publish Python packages to PyPI          | GitHub Releases, git tags, manual dispatch  |
+| [`lablink-images.yml`](#image-building-workflow)  | Build and push Docker images to GHCR     | PRs, pushes to `main`/`test`, manual dispatch |
+| [`docs.yml`](#documentation-workflow)             | Build and deploy documentation           | Pushes to main, docs changes                |
 
 ## Continuous Integration Workflow
 
 **File**: `.github/workflows/ci.yml`
 
-### Purpose
+Runs on pull requests that touch `packages/**` (Markdown-only changes are ignored). Two matrix jobs cover all three packages — allocator, client, and CLI:
 
-Runs tests, linting, and Docker build verification on every pull request affecting service code.
+- **Lint** — `ruff check src tests` in each package.
+- **Test** — `pytest` with coverage in each package, against a real PostgreSQL service container. The allocator and client jobs enforce a **90% coverage gate**; the allocator job additionally installs OpenTofu and assumes an AWS role via OIDC so its Terraform tests run for real.
 
-### Triggers
+Each job syncs only its own package's dependencies, so a cross-package import that works in the local shared venv can still fail in CI.
 
-- Pull requests with changes to:
-  - `packages/client/**`
-  - `packages/allocator/**`
-  - `.github/workflows/ci.yml`
-
-### Jobs
-
-1. **Lint** - Checks code quality with `ruff`
-
-   - Allocator service: `uv run ruff check src tests`
-   - Client service: `uv run ruff check src tests`
-
-2. **Test** - Runs unit tests with `pytest`
-
-   - Allocator: `uv run pytest tests --cov=. --cov-report=xml`
-   - Client: `uv run pytest tests --cov=src/lablink_client_service --cov-report=xml`
-
-3. **Docker Build Test (Allocator Only)**
-   - Builds `packages/allocator/Dockerfile.dev` using `uv sync --extra dev`
-   - Verifies virtual environment activation
-   - Verifies console script entry points are importable and callable
-   - Verifies console scripts exist (`lablink-allocator`, `generate-init-sql`)
-   - Verifies dev dependencies installed (pytest, ruff, coverage with versions)
-   - Verifies package imports (main, database, get_config)
-   - Verifies `uv sync` installation
-   - **Note**: Client Docker build test skipped due to large image size (~6GB with CUDA)
-
-### Example Workflow Run
-
-```
-PR opened → ci.yml triggered
-  ├─ Lint allocator-service ✓
-  ├─ Lint client-service ✓
-  ├─ Test allocator-service ✓
-  ├─ Test client-service ✓
-  └─ Docker Build Test - Allocator ✓
-     ├─ Venv activated: /app/lablink-allocator-service/.venv
-     ├─ Entry points importable: main(), generate_init_sql.main() ✓
-     ├─ Console scripts: lablink-allocator, generate-init-sql ✓
-     ├─ Dev dependencies: pytest 8.4.2, ruff, coverage 7.10.7 ✓
-     ├─ Package imports: main.main, db.* classes, get_config ✓
-     └─ Installation: Package installed via uv sync ✓
-```
+Docker builds are exercised by `lablink-images.yml`, which also runs on PRs — not by `ci.yml`.
 
 ## Package Publishing Workflow
 
@@ -148,8 +47,11 @@ Publishes Python packages to PyPI with safety guardrails.
 
 ### Triggers
 
-- **Git tags** matching package name pattern (e.g., `lablink-allocator-service_v0.2.0`)
+- **GitHub Releases** (published)
+- **Git tags** matching a package name pattern (e.g., `lablink-allocator-service_v0.2.0`)
 - **Manual dispatch** with dry-run option
+
+A GitHub Release fires both a tag-push run and a release run for the same version; the workflow serializes them so the second run sees the package already on PyPI and skips cleanly.
 
 ### Features
 
@@ -157,15 +59,7 @@ Publishes Python packages to PyPI with safety guardrails.
 - Metadata validation
 - Linting and tests before publishing
 - Dry-run mode for testing
-- Per-package control (publish allocator/client independently)
-
-### Input Parameters (Manual Dispatch)
-
-| Parameter    | Description              | Options                                               | Default  |
-| ------------ | ------------------------ | ----------------------------------------------------- | -------- |
-| `package`    | Which package to publish | `lablink-allocator-service`, `lablink-client-service` | Required |
-| `dry_run`    | Test without publishing  | `true`, `false`                                       | `true`   |
-| `skip_tests` | Skip test suite          | `true`, `false`                                       | `false`  |
+- Per-package control (publish allocator, client, or CLI independently)
 
 ### Package Versioning
 
@@ -173,72 +67,7 @@ Publishes Python packages to PyPI with safety guardrails.
 - **Examples**:
   - `lablink-allocator-service_v0.2.0`
   - `lablink-client-service_v0.2.0`
-
-### Example: Publishing a Release
-
-```bash
-# 1. Create and push tags
-git tag lablink-allocator-service_v0.2.0
-git tag lablink-client-service_v0.2.0
-git push origin lablink-allocator-service_v0.2.0 lablink-client-service_v0.2.0
-
-# 2. Workflow automatically:
-#    - Detects tags
-#    - Runs tests for each package
-#    - Publishes to PyPI
-#    - Displays Docker build instructions
-
-# 3. Manually trigger Docker image build (see below)
-gh workflow run lablink-images.yml \
-  -f environment=prod \
-  -f allocator_version=0.2.0 \
-  -f client_version=0.2.0
-```
-
-### Building Docker Images After Publishing
-
-**CRITICAL**: After successfully publishing to PyPI, you **MUST** manually trigger Docker image builds to create production images with the new package version. This is NOT automatic.
-
-**Why manual?** Production images should only be built with explicit version numbers to ensure traceability. Automatic builds use local code and `-test` suffix - they are NOT production images.
-
-**Step-by-Step Process:**
-
-1. **Publish packages to PyPI** (either via git tags or manual dispatch of `publish-pip.yml`)
-2. **Wait for publish workflow to complete** - Verify packages are on PyPI
-3. **Manually trigger Docker image build** using one of the methods below
-
-**Option 1: Using GitHub CLI** (recommended):
-
-```bash
-# Build both images with their respective versions
-gh workflow run lablink-images.yml \
-  -f environment=prod \
-  -f allocator_version=0.2.0 \
-  -f client_version=0.2.0
-```
-
-**Option 2: Using GitHub UI**:
-
-1. Go to [Actions → Build and Push Docker Images](https://github.com/talmolab/lablink/actions/workflows/lablink-images.yml)
-2. Click "Run workflow"
-3. Select branch: `main`
-4. **Set environment: `prod`** (required!)
-5. **Enter allocator version: `0.2.0`** (required!)
-6. **Enter client version: `0.2.0`** (required!)
-7. Click "Run workflow"
-
-**What happens:**
-
-- Pulls packages from PyPI with specified versions
-- Builds Docker images using production `Dockerfile`
-- Tags images with version numbers (e.g., `:0.2.0`, `:linux-amd64-0.2.0`)
-- Tags images with `:latest` for convenience
-- Verifies images work correctly
-- **No `-test` suffix** on production images
-
-**Common mistake**: Forgetting this step means your packages exist on PyPI but there are no corresponding Docker images, causing deployment failures.
-
-**Important Note**: Pushing to `main` branch will NOT create production images. It will create development images with `-test` suffix using local code, not published packages.
+  - `lablink-cli_v0.1.0`
 
 ## Image Building Workflow
 
@@ -246,93 +75,24 @@ gh workflow run lablink-images.yml \
 
 ### Purpose
 
-Builds and publishes Docker images to GitHub Container Registry (ghcr.io) using either local code (dev) or published packages (prod), then verifies the images work correctly.
+Builds and publishes allocator and client Docker images to GitHub Container Registry (ghcr.io) using either local code (dev) or published packages (prod), then verifies the images work correctly.
 
-### Triggers
+### Dev vs. Prod Decision Logic
 
-- **Pull requests**: Build dev images with `-test` tag
-- **Push to `test` branch**: Build dev images with `-test` tag
-- **Push to `main`**: Build dev images with `-test` tag
-- **Manual dispatch with `environment=test` or `environment=ci-test`**: Build dev images with `-test` tag
-- **Manual dispatch with `environment=prod`**: Build production images from PyPI (REQUIRES version parameters)
+The workflow selects between the development Dockerfile (`Dockerfile.dev`, local code) and the production Dockerfile (`Dockerfile`, PyPI packages) based on the trigger:
 
-### Workflow Decision Logic
+| Trigger             | Environment Input | Dockerfile Used  | Package Source          | Version Required? | Tag Suffix | Use Case                   |
+| ------------------- | ----------------- | ---------------- | ----------------------- | ----------------- | ---------- | -------------------------- |
+| Pull request        | N/A               | `Dockerfile.dev` | Local code              | No                | `-test`    | CI validation              |
+| Push to `test`      | N/A               | `Dockerfile.dev` | Local code              | No                | `-test`    | Staging/testing            |
+| Push to `main`      | N/A               | `Dockerfile.dev` | Local code              | No                | `-test`    | Latest development         |
+| Manual dispatch     | `test`            | `Dockerfile.dev` | Local code              | No                | `-test`    | Test specific changes      |
+| Manual dispatch     | `ci-test`         | `Dockerfile.dev` | Local code              | No                | `-test`    | CI testing with S3 backend |
+| Manual dispatch     | `prod`            | `Dockerfile`     | PyPI (explicit version) | **Yes**           | none       | **Production releases**    |
 
-The workflow automatically selects between development (`Dockerfile.dev`) and production (`Dockerfile`) builds based on the trigger type and inputs.
+**Key principle**: Production images from PyPI are ONLY created via manual dispatch with `environment=prod` and explicit `allocator_version` and `client_version` inputs — the workflow fails with a clear error if they are missing. All automatic builds (PR, push to `test`/`main`) use local code, include dev dependencies, run verification tests, and always carry the `-test` suffix. Production builds skip tests (the package was tested before publishing) and get clean version tags for traceability.
 
-**Key Principle**: Production images from PyPI are ONLY created via manual dispatch with `environment=prod` and explicit version numbers. All automatic builds (PR, push to test/main) use local code.
-
-#### Decision Flow Diagram
-
-```mermaid
-flowchart TD
-    Start[How was the workflow triggered?]
-    Start --> PR[Pull Request]
-    Start --> Push{Push to branch}
-    Start --> Manual{Manual Dispatch<br/>workflow_dispatch}
-
-    PR --> DevBuild
-    Push -->|main branch| DevBuild
-    Push -->|test branch| DevBuild
-
-    Manual -->|environment=test| DevBuild
-    Manual -->|environment=ci-test| DevBuild
-    Manual -->|environment=prod| ProdBuild
-
-    DevBuild[Use Dockerfile.dev<br/>Local Code]
-    ProdBuild[Use Dockerfile<br/>PyPI Package]
-
-    DevBuild --> DevDetails["✓ dev dependencies<br/>✓ -test suffix<br/>✓ runs tests"]
-    ProdBuild --> ProdDetails["✓ REQUIRES version params<br/>✓ version tag<br/>✓ no tests (already tested)"]
-
-    DevDetails --> DevEnd[Push to ghcr.io with -test tags]
-    ProdDetails --> ProdEnd[Push to ghcr.io with version tags]
-
-    style DevBuild fill:#e1f5ff
-    style ProdBuild fill:#fff4e1
-    style DevDetails fill:#e1f5ff
-    style ProdDetails fill:#fff4e1
-```
-
-#### Complete Decision Table
-
-| Trigger Type        | Branch/Ref | Environment Input | Dockerfile Used  | Package Source          | Version Required? | Tag Suffix | Dev Tests Run? | Use Case                   |
-| ------------------- | ---------- | ----------------- | ---------------- | ----------------------- | ----------------- | ---------- | -------------- | -------------------------- |
-| **Pull Request**    | any        | N/A               | `Dockerfile.dev` | Local code              | No                | `-test`    | Yes            | CI validation              |
-| **Push**            | `test`     | N/A               | `Dockerfile.dev` | Local code              | No                | `-test`    | Yes            | Staging/testing            |
-| **Push**            | `main`     | N/A               | `Dockerfile.dev` | Local code              | No                | `-test`    | Yes            | Latest development         |
-| **Manual Dispatch** | any        | `test`            | `Dockerfile.dev` | Local code              | No                | `-test`    | Yes            | Test specific changes      |
-| **Manual Dispatch** | any        | `ci-test`         | `Dockerfile.dev` | Local code              | No                | `-test`    | Yes            | CI testing with S3 backend |
-| **Manual Dispatch** | any        | `prod`            | `Dockerfile`     | PyPI (explicit version) | **YES**           | none       | No             | **Production releases**    |
-
-#### Key Points
-
-- **Development builds** (`Dockerfile.dev`):
-
-  - Copy local source code into image
-  - Install with `uv sync --extra dev` from lockfile
-  - Include dev dependencies (pytest, ruff)
-  - Run verification tests in CI
-  - **Always** have `-test` suffix
-  - Fast iteration, reproducible via lockfile
-
-- **Production builds** (`Dockerfile`):
-
-  - Install packages from PyPI using `uv pip install`
-  - **ONLY** created via manual dispatch with `environment=prod`
-  - **REQUIRES** explicit `allocator_version` and `client_version`
-  - No dev dependencies (smaller image)
-  - No tests run (package already tested before publishing)
-  - Tagged with version number for traceability
-  - **No suffix** - clean version tags
-  - Directly traceable to specific package release
-
-- **Version Validation**:
-  - Manual dispatch with `environment=prod` **requires** both `allocator_version` and `client_version`
-  - Workflow fails with clear error if versions are missing
-  - Prevents untrackable production images
-
-#### Production Release Workflow
+### Production Release Workflow
 
 **IMPORTANT**: Production Docker images must be built AFTER publishing packages to PyPI. This is a **manual two-step process**:
 
@@ -371,7 +131,7 @@ sequenceDiagram
 **Step 1: Publish packages to PyPI**
 
 ```bash
-# Create and push git tags
+# Create and push git tags (or publish a GitHub Release)
 git tag lablink-allocator-service_v0.2.0
 git tag lablink-client-service_v0.2.0
 git push origin lablink-allocator-service_v0.2.0 lablink-client-service_v0.2.0
@@ -392,29 +152,9 @@ gh workflow run lablink-images.yml \
   -f client_version=0.2.0
 ```
 
-**Critical**: Do NOT skip Step 2. Without it, your published packages won't have corresponding Docker images, and deployments will fail.
+Or via the GitHub UI: [Actions → Build and Push Docker Images](https://github.com/talmolab/lablink/actions/workflows/lablink-images.yml) → "Run workflow" → set environment `prod` and both version inputs.
 
-#### Development/Testing Workflows
-
-**Automatic (no action needed):**
-
-```bash
-# Push to test branch → automatically builds dev images with -test suffix
-git push origin test
-
-# Push to main → automatically builds dev images with -test suffix
-git push origin main
-```
-
-**Manual testing:**
-
-```bash
-# Test specific changes without pushing
-gh workflow run lablink-images.yml -f environment=test
-
-# For CI testing with S3 backend (e.g., testing OpenTofu configurations)
-gh workflow run lablink-images.yml -f environment=ci-test
-```
+**Critical**: Do NOT skip Step 2. Without it, your published packages won't have corresponding Docker images, and deployments will fail. Pushing to `main` does NOT create production images — it creates development images with the `-test` suffix from local code.
 
 #### Common Mistakes
 
@@ -448,135 +188,24 @@ gh workflow run lablink-images.yml \
   -f client_version=0.2.0
 ```
 
-### Smart Dockerfile Selection
-
-The workflow uses different Dockerfiles depending on whether you're building for development/testing or production:
-
-| Trigger                      | Dockerfile Used  | Package Source              | Installation Method   | Tests Run? | Suffix  | Version Tagged? |
-| ---------------------------- | ---------------- | --------------------------- | --------------------- | ---------- | ------- | --------------- |
-| PR                           | `Dockerfile.dev` | Local code (copied)         | `uv sync --extra dev` | Yes        | `-test` | No              |
-| Push to `test`               | `Dockerfile.dev` | Local code (copied)         | `uv sync --extra dev` | Yes        | `-test` | No              |
-| Push to `main`               | `Dockerfile.dev` | Local code (copied)         | `uv sync --extra dev` | Yes        | `-test` | No              |
-| Manual `environment=test`    | `Dockerfile.dev` | Local code (copied)         | `uv sync --extra dev` | Yes        | `-test` | No              |
-| Manual `environment=ci-test` | `Dockerfile.dev` | Local code (copied)         | `uv sync --extra dev` | Yes        | `-test` | No              |
-| Manual `environment=prod`    | `Dockerfile`     | **PyPI (explicit version)** | `uv pip install`      | No         | none    | **Yes**         |
-
-**Key Distinction**:
-
-- All automatic builds = Development images with `-test` suffix
-- Manual production builds = Production images without suffix, with version tags
-
 ### Image Tagging Strategy
 
-Docker images are tagged differently based on how they are triggered. This allows you to reference specific versions, latest development builds, or stable releases.
+Images are `ghcr.io/talmolab/lablink-allocator-image` and `ghcr.io/talmolab/lablink-client-base-image`. Every build pushes a set of tags:
 
-#### Allocator Image Tags
+- **Version tags** (`:0.2.0`, `:linux-amd64-0.2.0`) — production builds only. This is what you pin in deployments.
+- **`-test` suffix** (`:linux-amd64-test`, `:<sha>-test`) — every automatic/dev build. Never a production image.
+- **Git SHA tags** (`:<sha>`) — trace an image back to its commit.
+- **Rolling tags** (`:latest`, `:linux-amd64-latest`) — convenience pointers to the most recent build.
+- **Metadata tags** — encode the platform and key base-component versions (OpenTofu, PostgreSQL, CUDA) for provenance.
 
-**Manual trigger with package version (recommended for production):**
-
-```bash
-gh workflow run lablink-images.yml \
-  -f environment=prod \
-  -f allocator_version=0.2.0 \
-  -f client_version=0.2.0
-```
-
-Creates images tagged with:
-
-- `ghcr.io/talmolab/lablink-allocator-image:0.2.0` - **Version-specific tag**
-- `ghcr.io/talmolab/lablink-allocator-image:linux-amd64-0.2.0` - Platform + version
-- `ghcr.io/talmolab/lablink-allocator-image:linux-amd64-latest` - Latest for platform
-- `ghcr.io/talmolab/lablink-allocator-image:linux-amd64` - Platform tag
-- `ghcr.io/talmolab/lablink-allocator-image:linux-amd64-tofu-1.12.5` - Metadata tag
-- `ghcr.io/talmolab/lablink-allocator-image:linux-amd64-postgres-15` - Metadata tag
-- `ghcr.io/talmolab/lablink-allocator-image:<sha>` - Git commit SHA
-- `ghcr.io/talmolab/lablink-allocator-image:latest` - Latest stable
-
-**Push to main branch (automatic):**
-
-```bash
-git push origin main
-```
-
-Creates images tagged with (no version-specific tags):
-
-- `ghcr.io/talmolab/lablink-allocator-image:linux-amd64-latest`
-- `ghcr.io/talmolab/lablink-allocator-image:linux-amd64`
-- `ghcr.io/talmolab/lablink-allocator-image:<sha>`
-- `ghcr.io/talmolab/lablink-allocator-image:latest`
-- Plus metadata tags
-
-**Pull requests / test branch (automatic):**
-
-```bash
-git push origin test
-```
-
-Creates images tagged with `-test` suffix:
-
-- `ghcr.io/talmolab/lablink-allocator-image:linux-amd64-test`
-- `ghcr.io/talmolab/lablink-allocator-image:<sha>-test`
-- Plus metadata tags with `-test` suffix
-
-#### Client Image Tags
-
-**Manual trigger with package version (recommended for production):**
-
-```bash
-gh workflow run lablink-images.yml \
-  -f environment=prod \
-  -f allocator_version=0.2.0 \
-  -f client_version=0.2.0
-```
-
-Creates images tagged with:
-
-- `ghcr.io/talmolab/lablink-client-base-image:0.2.0` - **Version-specific tag**
-- `ghcr.io/talmolab/lablink-client-base-image:linux-amd64-0.2.0` - Platform + version
-- `ghcr.io/talmolab/lablink-client-base-image:linux-amd64-latest` - Latest for platform
-- `ghcr.io/talmolab/lablink-client-base-image:linux-amd64-nvidia-cuda-11.6.1-cudnn8-runtime-ubuntu20.04`
-- `ghcr.io/talmolab/lablink-client-base-image:linux-amd64-ubuntu20.04-nvm-0.40.2-uv-0.6.8-miniforge3-24.11.3`
-- `ghcr.io/talmolab/lablink-client-base-image:<sha>` - Git commit SHA
-- `ghcr.io/talmolab/lablink-client-base-image:latest` - Latest stable
-
-**Push to main branch (automatic):**
-
-Creates same tags as manual trigger except without version-specific tags (`0.2.0`, `linux-amd64-0.2.0`)
-
-**Pull requests / test branch (automatic):**
-
-Creates same tags as main but with `-test` suffix
-
-#### Tag Usage in OpenTofu
-
-For production deployments, always use version-specific tags in your OpenTofu configuration:
+For production deployments, always pin version-specific tags in your OpenTofu configuration:
 
 ```hcl
-# terraform.tfvars or -var flags
 allocator_image_tag = "0.2.0"  # Pin to specific version
-client_image_tag    = "0.2.0"  # Pin to specific version
+client_image_tag    = "0.2.0"
 ```
 
-For development/testing, you can use environment-specific tags:
-
-```hcl
-# Development
-allocator_image_tag = "linux-amd64-test"
-
-# Latest main branch
-allocator_image_tag = "latest"
-```
-
-#### Summary Table
-
-| Trigger Type      | Environment | Version Tag? | Suffix  | Use Case                   |
-| ----------------- | ----------- | ------------ | ------- | -------------------------- |
-| Manual w/ version | `prod`      | ✅ Yes       | None    | Production releases        |
-| Push to main      | N/A         | ❌ No        | `-test` | Latest development         |
-| Push to test      | N/A         | ❌ No        | `-test` | Staging/testing            |
-| Pull request      | N/A         | ❌ No        | `-test` | CI/CD validation           |
-| Manual dispatch   | `test`      | ❌ No        | `-test` | Test specific changes      |
-| Manual dispatch   | `ci-test`   | ❌ No        | `-test` | CI testing with S3 backend |
+For development/testing, use `linux-amd64-test` (dev builds) or `latest`.
 
 ## Documentation Workflow
 

@@ -31,6 +31,15 @@ def _unauth():
 
 @bp.route("/internal/proxy_auth", methods=["GET", "POST"])
 def proxy_auth():
+    """nginx `auth_request` gate for the desktop WebSocket proxy.
+
+    Auth: None — an `auth_request` subrequest target for the allocator's own nginx, never routed publicly.
+
+    nginx calls this before proxying desktop bytes, to check that the
+    requesting session is entitled to the client it is asking for: the
+    signed `lablink_session` cookie must resolve to the VM whose
+    `browser_token` appears in the original URI.
+    """
     raw_cookie = request.cookies.get("lablink_session")
     original_uri = request.headers.get("X-Original-URI", "")
     if not raw_cookie:
