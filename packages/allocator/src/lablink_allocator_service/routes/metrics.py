@@ -20,12 +20,21 @@ logger = logging.getLogger(__name__)
 @bp.route("/api/session-metrics/<hostname>", methods=["POST"])
 @require_client_secret
 def post_session_metrics(hostname):
-    """Receive a Tier 1 monitoring summary push from a client VM.
+    """Report session metrics.
+
+    The client's monitoring sampler posts its accumulated per-session
+    counters (time-in-software, GPU activity, training progress).
 
     The 200 response echoes ``session_started_at`` — the VM's
     authoritative assignment time (ISO-8601, null while the seat is
     free) — which the client writes to its session anchor, healing an
     anchor lost to a container restart mid-session.
+
+    **Error Response:**
+
+    - **Code:** `400 Bad Request` if `counters` is missing.
+    - **Code:** `404 Not Found` if the VM does not exist.
+    - **Code:** `409 Conflict` if the session's row is already sealed.
     """
     from lablink_allocator_service import main
 
@@ -123,14 +132,23 @@ def admin_session_metrics():
 @bp.route("/api/session-metrics/summary", methods=["GET"])
 @auth.login_required
 def get_session_metrics_summary_json():
-    """JSON cohort summary — same view model as /admin/session-metrics."""
+    """Get the cohort summary.
+
+    Returns the aggregate view model — participation funnel plus cohort
+    totals. Both the admin **Session Metrics** page and `lablink stats`
+    render this same payload, so the two can never disagree.
+    """
     return jsonify(_session_metrics_view_model()), 200
 
 
 @bp.route("/api/export-metrics", methods=["GET"])
 @auth.login_required
 def export_metrics():
-    """Export VM metrics as JSON or CSV (controlled by ?format=)."""
+    """Export metrics.
+
+    Per-VM metrics as CSV or JSON (controlled by `?format=`). Backs
+    `lablink export-metrics --client`.
+    """
     from lablink_allocator_service import main
 
     try:

@@ -20,25 +20,6 @@ from lablink_allocator_service.db.pool import PooledCursor
 
 logger = logging.getLogger(__name__)
 
-# Named-key contract for rows returned by the SELECT * queries below. Every
-# query in this class must emit columns in this order (matches the
-# CREATE TABLE column order in generate_init_sql.py).
-_SCHEDULE_COLUMNS = (
-    "id",
-    "schedule_name",
-    "destruction_time",
-    "recurrence_rule",
-    "created_by",
-    "status",
-    "execution_count",
-    "last_execution_time",
-    "last_execution_result",
-    "notification_enabled",
-    "notification_hours_before",
-    "created_at",
-    "updated_at",
-)
-
 
 def _naive_utc(dt: datetime) -> datetime:
     """Convert a datetime to naive UTC.
@@ -65,8 +46,9 @@ class ScheduleDatabase:
     @property
     def _cursor(self):
         """Return a context manager that checks out a pooled connection
-        and yields a cursor. See db.pool.PooledCursor."""
-        return PooledCursor(self._pool)
+        and yields a dict-rows cursor (rows keyed by the database's own
+        column names). See db.pool.PooledCursor."""
+        return PooledCursor(self._pool, dict_rows=True)
 
     def create_scheduled_destruction(
         self,
@@ -103,7 +85,7 @@ class ScheduleDatabase:
                         notification_hours_before,
                     ),
                 )
-                destruction_id = cursor.fetchone()[0]
+                destruction_id = cursor.fetchone()["id"]
                 logger.info(
                     f"Created scheduled destruction "
                     f"'{schedule_name}' "
@@ -145,9 +127,7 @@ class ScheduleDatabase:
         with self._cursor as cursor:
             cursor.execute(query, (schedule_id,))
             row = cursor.fetchone()
-        if row:
-            return dict(zip(_SCHEDULE_COLUMNS, row))
-        return None
+        return dict(row) if row else None
 
     def get_all_scheduled_destructions(
         self, status: Optional[str] = None
@@ -168,10 +148,7 @@ class ScheduleDatabase:
                 )
                 cursor.execute(query)
 
-            return [
-                dict(zip(_SCHEDULE_COLUMNS, row))
-                for row in cursor.fetchall()
-            ]
+            return [dict(row) for row in cursor.fetchall()]
 
     def update_scheduled_destruction_status(
         self,

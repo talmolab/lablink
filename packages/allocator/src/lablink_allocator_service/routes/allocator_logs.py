@@ -26,12 +26,38 @@ _MISSING_LOG_MSG = (
 @bp.route("/api/allocator-logs", methods=["GET"])
 @auth.login_required
 def allocator_logs_api():
-    """Return a redacted tail of the allocator's own log file.
+    """Get the allocator's own logs.
 
-    Mirrors /api/vm-logs/<hostname>'s response keys so the shared logs
-    template's JavaScript works unchanged. cloud_init_logs is always None:
-    the allocator's cloud-init output lives on the EC2 host, outside this
-    container, and is deliberately out of scope.
+    Returns a redacted tail (last 2000 lines) of the allocator's own
+    container output, read from the file `start.sh` writes at
+    `/var/log/lablink/allocator.log`. Backs the `/admin/allocator-logs`
+    page. Values of `PASSWORD`/`TOKEN`/`SECRET`/`KEY` assignments are masked
+    before the response leaves the process.
+
+    **Query Parameters:**
+
+    - `errors_only` (boolean, optional, default `false`): As on
+      `GET /api/vm-logs/<hostname>` — reduces `docker_logs` to its error
+      lines. `error` still reports only a genuinely missing log file; a log
+      with no error lines returns `docker_logs: ""` with `error: null`.
+
+    **Success Response:**
+
+    - **Code:** `200 OK`
+    - **Content:**
+      ```json
+      {
+        "cloud_init_logs": null,
+        "docker_logs": "2026-08-03 12:00:00 - Starting nginx on :5000...",
+        "error": null
+      }
+      ```
+
+    The response mirrors `/api/vm-logs/<hostname>`'s keys so the shared logs
+    template's JavaScript works unchanged. `cloud_init_logs` is always
+    `null`: the allocator host's cloud-init output lives outside the
+    container and is out of scope. When no log file exists, `docker_logs` is
+    `null` and `error` explains why — the response is still `200`.
     """
     logs = read_allocator_log()
     # Capture missing-ness *before* filtering: a log with no error lines

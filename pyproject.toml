@@ -64,3 +64,6 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401", "E402"]
 "tests/*" = ["F403", "F405"]
+# Generated-page templates embed Markdown tables that cannot be wrapped.
+"docs/scripts/*" = ["E501"]
+"packages/allocator/src/lablink_allocator_service/routes/*" = ["E501"]
