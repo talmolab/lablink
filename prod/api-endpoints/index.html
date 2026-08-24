@@ -1391,22 +1391,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#student-endpoint" class="md-nav__link">
+  <a href="#participant-endpoints" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Student Endpoint
+        Participant Endpoints
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Student Endpoint">
+    <nav class="md-nav" aria-label="Participant Endpoints">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#landing-page" class="md-nav__link">
+  <a href="#get" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Landing Page
+        GET /
       
     </span>
   </a>
@@ -1414,10 +1414,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#request-a-vm" class="md-nav__link">
+  <a href="#post-apirequest_vm" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Request a VM
+        POST /api/request_vm
       
     </span>
   </a>
@@ -1425,21 +1425,77 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#the-participant-desktop" class="md-nav__link">
+  <a href="#get-apiunassigned_vms_count" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The participant desktop
+        GET /api/unassigned_vms_count
       
     </span>
   </a>
   
 </li>
         
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#participant-desktop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Participant Desktop
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Participant Desktop">
+      <ul class="md-nav__list">
+        
           <li class="md-nav__item">
+  <a href="#get-desktop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /desktop
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#internal-proxy-authorization" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Internal proxy authorization
+        Internal Proxy Authorization
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Internal Proxy Authorization">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#getpost-internalproxy_auth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET|POST /internal/proxy_auth
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#getpost-internaltunnel_auth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET|POST /internal/tunnel_auth
       
     </span>
   </a>
@@ -1464,10 +1520,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#readiness-check" class="md-nav__link">
+  <a href="#get-apihealth" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Readiness Check
+        GET /api/health
       
     </span>
   </a>
@@ -1475,10 +1531,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#connection-usage" class="md-nav__link">
+  <a href="#get-apihealthconnections" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Connection Usage
+        GET /api/health/connections
       
     </span>
   </a>
@@ -1491,22 +1547,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#client-vm-api-endpoints" class="md-nav__link">
+  <a href="#client-vm-telemetry" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Client VM API Endpoints
+        Client VM Telemetry
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Client VM API Endpoints">
+    <nav class="md-nav" aria-label="Client VM Telemetry">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#get-unassigned-vm-count" class="md-nav__link">
+  <a href="#post-apiupdate_inuse_status" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Get Unassigned VM Count
+        POST /api/update_inuse_status
       
     </span>
   </a>
@@ -1514,10 +1570,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#update-vm-in-use-status" class="md-nav__link">
+  <a href="#post-apigpu_health" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Update VM In-Use Status
+        POST /api/gpu_health
       
     </span>
   </a>
@@ -1525,10 +1581,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#update-gpu-health" class="md-nav__link">
+  <a href="#post-apiheartbeat" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Update GPU Health
+        POST /api/heartbeat
       
     </span>
   </a>
@@ -1536,10 +1592,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#update-vm-status" class="md-nav__link">
+  <a href="#post-apivm-status" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Update VM Status
+        POST /api/vm-status
       
     </span>
   </a>
@@ -1547,10 +1603,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#receive-vm-metrics" class="md-nav__link">
+  <a href="#get-apivm-status" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Receive VM Metrics
+        GET /api/vm-status
       
     </span>
   </a>
@@ -1558,10 +1614,32 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#receive-vm-logs" class="md-nav__link">
+  <a href="#post-apivm-logshostname" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Receive VM Logs
+        POST /api/vm-logs/&lt;hostname&gt;
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-apivm-logshostname" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /api/vm-logs/&lt;hostname&gt;
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#post-apivm-metricshostname" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /api/vm-metrics/&lt;hostname&gt;
       
     </span>
   </a>
@@ -1574,22 +1652,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#admin-api-endpoints" class="md-nav__link">
+  <a href="#provisioning-and-operations" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Admin API Endpoints
+        Provisioning and Operations
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Admin API Endpoints">
+    <nav class="md-nav" aria-label="Provisioning and Operations">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#launch-vms" class="md-nav__link">
+  <a href="#post-apilaunch" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Launch VMs
+        POST /api/launch
       
     </span>
   </a>
@@ -1597,10 +1675,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#destroy-all-vms" class="md-nav__link">
+  <a href="#post-destroy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Destroy All VMs
+        POST /destroy
       
     </span>
   </a>
@@ -1608,10 +1686,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#get-status-of-all-vms" class="md-nav__link">
+  <a href="#get-apioperations" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Get Status of All VMs
+        GET /api/operations
       
     </span>
   </a>
@@ -1619,32 +1697,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#get-logs-for-a-specific-vm" class="md-nav__link">
+  <a href="#get-apioperationsintoperation_id" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Get Logs for a Specific VM
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#get-the-allocators-own-logs" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Get the Allocator's Own Logs
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#heartbeat" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Heartbeat
+        GET /api/operations/&lt;int:operation_id&gt;
       
     </span>
   </a>
@@ -1669,10 +1725,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#register-a-client" class="md-nav__link">
+  <a href="#post-apiv1clientsregister" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Register a Client
+        POST /api/v1/clients/register
       
     </span>
   </a>
@@ -1680,10 +1736,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#get-client-status" class="md-nav__link">
+  <a href="#get-apiv1clientsclient_idstatus" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Get Client Status
+        GET /api/v1/clients/&lt;client_id&gt;/status
       
     </span>
   </a>
@@ -1691,10 +1747,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#unregister-a-client" class="md-nav__link">
+  <a href="#delete-apiv1clientsclient_id" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Unregister a Client
+        DELETE /api/v1/clients/&lt;client_id&gt;
       
     </span>
   </a>
@@ -1702,10 +1758,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#list-clients" class="md-nav__link">
+  <a href="#get-apiv1clients" class="md-nav__link">
     <span class="md-ellipsis">
       
-        List Clients
+        GET /api/v1/clients
       
     </span>
   </a>
@@ -1713,49 +1769,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#report-overlay-hostname" class="md-nav__link">
+  <a href="#post-apioverlay-hostname" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Report Overlay Hostname
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#operations-api" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Operations API
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Operations API">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#list-operations" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        List Operations
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#get-an-operation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Get an Operation
+        POST /api/overlay-hostname
       
     </span>
   </a>
@@ -1776,6 +1793,56 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Scheduled Destruction API">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#post-apischedule-destruction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /api/schedule-destruction
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-apischedule-destructionintschedule_id" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /api/schedule-destruction/&lt;int:schedule_id&gt;
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-apischedule-destruction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /api/schedule-destruction
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#delete-apischedule-destructionintschedule_id" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DELETE /api/schedule-destruction/&lt;int:schedule_id&gt;
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1791,10 +1858,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#report-session-metrics" class="md-nav__link">
+  <a href="#post-apisession-metricshostname" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Report Session Metrics
+        POST /api/session-metrics/&lt;hostname&gt;
       
     </span>
   </a>
@@ -1802,10 +1869,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#get-the-cohort-summary" class="md-nav__link">
+  <a href="#get-adminsession-metrics" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Get the Cohort Summary
+        GET /admin/session-metrics
       
     </span>
   </a>
@@ -1813,10 +1880,121 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#export-metrics" class="md-nav__link">
+  <a href="#get-apisession-metricssummary" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Export Metrics
+        GET /api/session-metrics/summary
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-apiexport-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /api/export-metrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#allocator-logs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Allocator Logs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Allocator Logs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#get-apiallocator-logs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /api/allocator-logs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-adminallocator-logs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /admin/allocator-logs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#admin-session-actions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Admin Session Actions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Admin Session Actions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#get-admininstanceshostnamepeek" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /admin/instances/&lt;hostname&gt;/peek
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#post-admininstanceshostnameconnect" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /admin/instances/&lt;hostname&gt;/connect
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#post-admininstanceshostnamerelease" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /admin/instances/&lt;hostname&gt;/release
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#post-admininstanceshostnameclear-unhealthy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /admin/instances/&lt;hostname&gt;/clear-unhealthy
       
     </span>
   </a>
@@ -1836,6 +2014,100 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Admin Pages">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#get-admincreate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /admin/create
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-admin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /admin
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-adminbyo-onboarding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /admin/byo-onboarding
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-admininstances" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /admin/instances
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-admininstancesfragment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /admin/instances/fragment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-admininstancesdelete" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /admin/instances/delete
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-adminlogshostname" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /admin/logs/&lt;hostname&gt;
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-adminscheduled-destruction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /admin/scheduled-destruction
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -4845,22 +5117,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#student-endpoint" class="md-nav__link">
+  <a href="#participant-endpoints" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Student Endpoint
+        Participant Endpoints
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Student Endpoint">
+    <nav class="md-nav" aria-label="Participant Endpoints">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#landing-page" class="md-nav__link">
+  <a href="#get" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Landing Page
+        GET /
       
     </span>
   </a>
@@ -4868,10 +5140,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#request-a-vm" class="md-nav__link">
+  <a href="#post-apirequest_vm" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Request a VM
+        POST /api/request_vm
       
     </span>
   </a>
@@ -4879,21 +5151,77 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#the-participant-desktop" class="md-nav__link">
+  <a href="#get-apiunassigned_vms_count" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The participant desktop
+        GET /api/unassigned_vms_count
       
     </span>
   </a>
   
 </li>
         
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#participant-desktop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Participant Desktop
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Participant Desktop">
+      <ul class="md-nav__list">
+        
           <li class="md-nav__item">
+  <a href="#get-desktop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /desktop
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#internal-proxy-authorization" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Internal proxy authorization
+        Internal Proxy Authorization
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Internal Proxy Authorization">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#getpost-internalproxy_auth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET|POST /internal/proxy_auth
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#getpost-internaltunnel_auth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET|POST /internal/tunnel_auth
       
     </span>
   </a>
@@ -4918,10 +5246,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#readiness-check" class="md-nav__link">
+  <a href="#get-apihealth" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Readiness Check
+        GET /api/health
       
     </span>
   </a>
@@ -4929,10 +5257,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#connection-usage" class="md-nav__link">
+  <a href="#get-apihealthconnections" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Connection Usage
+        GET /api/health/connections
       
     </span>
   </a>
@@ -4945,22 +5273,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#client-vm-api-endpoints" class="md-nav__link">
+  <a href="#client-vm-telemetry" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Client VM API Endpoints
+        Client VM Telemetry
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Client VM API Endpoints">
+    <nav class="md-nav" aria-label="Client VM Telemetry">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#get-unassigned-vm-count" class="md-nav__link">
+  <a href="#post-apiupdate_inuse_status" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Get Unassigned VM Count
+        POST /api/update_inuse_status
       
     </span>
   </a>
@@ -4968,10 +5296,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#update-vm-in-use-status" class="md-nav__link">
+  <a href="#post-apigpu_health" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Update VM In-Use Status
+        POST /api/gpu_health
       
     </span>
   </a>
@@ -4979,10 +5307,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#update-gpu-health" class="md-nav__link">
+  <a href="#post-apiheartbeat" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Update GPU Health
+        POST /api/heartbeat
       
     </span>
   </a>
@@ -4990,10 +5318,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#update-vm-status" class="md-nav__link">
+  <a href="#post-apivm-status" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Update VM Status
+        POST /api/vm-status
       
     </span>
   </a>
@@ -5001,10 +5329,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#receive-vm-metrics" class="md-nav__link">
+  <a href="#get-apivm-status" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Receive VM Metrics
+        GET /api/vm-status
       
     </span>
   </a>
@@ -5012,10 +5340,32 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#receive-vm-logs" class="md-nav__link">
+  <a href="#post-apivm-logshostname" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Receive VM Logs
+        POST /api/vm-logs/&lt;hostname&gt;
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-apivm-logshostname" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /api/vm-logs/&lt;hostname&gt;
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#post-apivm-metricshostname" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /api/vm-metrics/&lt;hostname&gt;
       
     </span>
   </a>
@@ -5028,22 +5378,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#admin-api-endpoints" class="md-nav__link">
+  <a href="#provisioning-and-operations" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Admin API Endpoints
+        Provisioning and Operations
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Admin API Endpoints">
+    <nav class="md-nav" aria-label="Provisioning and Operations">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#launch-vms" class="md-nav__link">
+  <a href="#post-apilaunch" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Launch VMs
+        POST /api/launch
       
     </span>
   </a>
@@ -5051,10 +5401,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#destroy-all-vms" class="md-nav__link">
+  <a href="#post-destroy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Destroy All VMs
+        POST /destroy
       
     </span>
   </a>
@@ -5062,10 +5412,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#get-status-of-all-vms" class="md-nav__link">
+  <a href="#get-apioperations" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Get Status of All VMs
+        GET /api/operations
       
     </span>
   </a>
@@ -5073,32 +5423,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#get-logs-for-a-specific-vm" class="md-nav__link">
+  <a href="#get-apioperationsintoperation_id" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Get Logs for a Specific VM
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#get-the-allocators-own-logs" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Get the Allocator's Own Logs
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#heartbeat" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Heartbeat
+        GET /api/operations/&lt;int:operation_id&gt;
       
     </span>
   </a>
@@ -5123,10 +5451,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#register-a-client" class="md-nav__link">
+  <a href="#post-apiv1clientsregister" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Register a Client
+        POST /api/v1/clients/register
       
     </span>
   </a>
@@ -5134,10 +5462,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#get-client-status" class="md-nav__link">
+  <a href="#get-apiv1clientsclient_idstatus" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Get Client Status
+        GET /api/v1/clients/&lt;client_id&gt;/status
       
     </span>
   </a>
@@ -5145,10 +5473,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#unregister-a-client" class="md-nav__link">
+  <a href="#delete-apiv1clientsclient_id" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Unregister a Client
+        DELETE /api/v1/clients/&lt;client_id&gt;
       
     </span>
   </a>
@@ -5156,10 +5484,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#list-clients" class="md-nav__link">
+  <a href="#get-apiv1clients" class="md-nav__link">
     <span class="md-ellipsis">
       
-        List Clients
+        GET /api/v1/clients
       
     </span>
   </a>
@@ -5167,49 +5495,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#report-overlay-hostname" class="md-nav__link">
+  <a href="#post-apioverlay-hostname" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Report Overlay Hostname
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#operations-api" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Operations API
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Operations API">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#list-operations" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        List Operations
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#get-an-operation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Get an Operation
+        POST /api/overlay-hostname
       
     </span>
   </a>
@@ -5230,6 +5519,56 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Scheduled Destruction API">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#post-apischedule-destruction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /api/schedule-destruction
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-apischedule-destructionintschedule_id" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /api/schedule-destruction/&lt;int:schedule_id&gt;
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-apischedule-destruction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /api/schedule-destruction
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#delete-apischedule-destructionintschedule_id" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DELETE /api/schedule-destruction/&lt;int:schedule_id&gt;
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -5245,10 +5584,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#report-session-metrics" class="md-nav__link">
+  <a href="#post-apisession-metricshostname" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Report Session Metrics
+        POST /api/session-metrics/&lt;hostname&gt;
       
     </span>
   </a>
@@ -5256,10 +5595,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#get-the-cohort-summary" class="md-nav__link">
+  <a href="#get-adminsession-metrics" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Get the Cohort Summary
+        GET /admin/session-metrics
       
     </span>
   </a>
@@ -5267,10 +5606,121 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#export-metrics" class="md-nav__link">
+  <a href="#get-apisession-metricssummary" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Export Metrics
+        GET /api/session-metrics/summary
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-apiexport-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /api/export-metrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#allocator-logs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Allocator Logs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Allocator Logs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#get-apiallocator-logs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /api/allocator-logs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-adminallocator-logs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /admin/allocator-logs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#admin-session-actions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Admin Session Actions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Admin Session Actions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#get-admininstanceshostnamepeek" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /admin/instances/&lt;hostname&gt;/peek
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#post-admininstanceshostnameconnect" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /admin/instances/&lt;hostname&gt;/connect
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#post-admininstanceshostnamerelease" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /admin/instances/&lt;hostname&gt;/release
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#post-admininstanceshostnameclear-unhealthy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /admin/instances/&lt;hostname&gt;/clear-unhealthy
       
     </span>
   </a>
@@ -5291,6 +5741,100 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Admin Pages">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#get-admincreate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /admin/create
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-admin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /admin
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-adminbyo-onboarding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /admin/byo-onboarding
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-admininstances" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /admin/instances
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-admininstancesfragment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /admin/instances/fragment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-admininstancesdelete" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /admin/instances/delete
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-adminlogshostname" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /admin/logs/&lt;hostname&gt;
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-adminscheduled-destruction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /admin/scheduled-destruction
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
     </ul>
@@ -5309,14 +5853,15 @@
                   
 
 
-  
-  
-
 
 <h1 id="api-endpoints">API Endpoints<a class="headerlink" href="#api-endpoints" title="Permanent link">&para;</a></h1>
-<p>This document outlines the API endpoints provided by the LabLink Allocator service.</p>
+<p>This page is generated at build time from the route handlers in
+<code>packages/allocator/src/lablink_allocator_service/routes/</code> — the docstring on
+each handler is the documentation you read here. To change it, edit the
+docstring.</p>
 <h2 id="authentication">Authentication<a class="headerlink" href="#authentication" title="Permanent link">&para;</a></h2>
-<p>LabLink uses four gates. All bearer credentials go in <code>Authorization: Bearer &lt;token&gt;</code>.</p>
+<p>LabLink uses four gates. All bearer credentials go in
+<code>Authorization: Bearer &lt;token&gt;</code>.</p>
 <table>
 <thead>
 <tr>
@@ -5350,155 +5895,180 @@
 </table>
 <p>A handful of endpoints are deliberately unauthenticated: <code>/</code> and
 <code>/api/request_vm</code> (participant-facing), <code>/api/health</code> and
-<code>/api/unassigned_vms_count</code> (health/monitoring), and <code>/internal/*</code> (reachable only
-from the allocator's own nginx, never exposed publicly).</p>
-<p>Secrets are per-client, so a leaked one compromises a single machine. The register
-token is the only deployment-wide credential, and it can do nothing but register.</p>
-<h2 id="student-endpoint">Student Endpoint<a class="headerlink" href="#student-endpoint" title="Permanent link">&para;</a></h2>
-<h3 id="landing-page">Landing Page<a class="headerlink" href="#landing-page" title="Permanent link">&para;</a></h3>
-<p><strong>Endpoint:</strong> <code>GET /</code></p>
-<p><strong>Authentication:</strong> None.</p>
-<p>Renders <code>index.html</code>, the email form a participant submits to claim a seat.</p>
-<h3 id="request-a-vm">Request a VM<a class="headerlink" href="#request-a-vm" title="Permanent link">&para;</a></h3>
-<p>Claims a seat for a participant and redirects them to their desktop.</p>
-<p><strong>Endpoint:</strong> <code>POST /api/request_vm</code></p>
+<code>/api/unassigned_vms_count</code> (health/monitoring), and <code>/internal/*</code> (reachable
+only from the allocator's own nginx, never exposed publicly).</p>
+<p>Secrets are per-client, so a leaked one compromises a single machine. The
+register token is the only deployment-wide credential, and it can do nothing
+but register.</p>
+<h2 id="participant-endpoints">Participant Endpoints<a class="headerlink" href="#participant-endpoints" title="Permanent link">&para;</a></h2>
+<p>What a workshop participant touches: the landing page and the seat-claim endpoint. The participant supplies nothing but an email address.</p>
+<h3 id="get"><code>GET /</code><a class="headerlink" href="#get" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> None</p>
+<p>Landing page.</p>
+<p>Renders <code>index.html</code>, the email form a participant submits to claim a
+seat.</p>
+<h3 id="post-apirequest_vm"><code>POST /api/request_vm</code><a class="headerlink" href="#post-apirequest_vm" title="Permanent link">&para;</a></h3>
 <p><strong>Authentication:</strong> None — this is the only unauthenticated state-changing endpoint in the allocator.</p>
+<p>Claim a seat for a participant and redirect them to their desktop.</p>
 <p><strong>Request Body:</strong> <code>application/x-www-form-urlencoded</code></p>
 <ul>
 <li><code>email</code> (string, required): The participant's email address.</li>
 </ul>
 <p><strong>What it does:</strong></p>
 <ol>
-<li><strong>Idempotent rejoin.</strong> If this email already owns a running seat, it keeps that seat rather than consuming a second one.</li>
-<li><strong>Atomic claim.</strong> Otherwise <code>assign_vm</code> claims a free seat with <code>SELECT … FOR UPDATE SKIP LOCKED</code>, so concurrent requesters cannot collide on one VM. An empty pool raises and returns <code>503</code> with <code>no_seats.html</code>.</li>
-<li><strong>Per-session prep.</strong> Mints a <code>session_id</code> and <code>browser_token</code>, then rotates the KasmVNC password on the assigned client through that client's local agent. This runs inside the assignment transaction, so a rotation failure rolls the assignment back.</li>
-<li><strong>Cookie + redirect.</strong> Signs a <code>lablink_session</code> cookie bound to the <code>session_id</code> and redirects to <a href="#the-participant-desktop"><code>/desktop</code></a>.</li>
+<li><strong>Idempotent rejoin.</strong> If this email already owns a running seat, it
+   keeps that seat rather than consuming a second one.</li>
+<li><strong>Atomic claim.</strong> Otherwise <code>assign_vm</code> claims a free seat with
+   <code>SELECT … FOR UPDATE SKIP LOCKED</code>, so concurrent requesters cannot
+   collide on one VM. An empty pool raises and returns <code>503</code> with
+   <code>no_seats.html</code>.</li>
+<li><strong>Per-session prep.</strong> Mints a <code>session_id</code> and <code>browser_token</code>, then
+   rotates the KasmVNC password on the assigned client through that
+   client's local agent. The claim has already committed by this point,
+   so a rotation failure is compensated for, not rolled back: the seat is
+   released and the VM flagged <code>Unhealthy</code>.</li>
+<li><strong>Cookie + redirect.</strong> Signs a <code>lablink_session</code> cookie bound to the
+   <code>session_id</code> and redirects to <code>GET /desktop</code>.</li>
 </ol>
 <p><strong>Success Response:</strong></p>
 <ul>
-<li><strong>Code:</strong> <code>302 Found</code> → <code>/desktop</code>, with the <code>lablink_session</code> cookie set.</li>
+<li><strong>Code:</strong> <code>303 See Other</code> → <code>/desktop</code>, with the <code>lablink_session</code>
+  cookie set.</li>
 </ul>
 <p><strong>Error Response:</strong></p>
 <ul>
-<li><strong>Code:</strong> <code>503 Service Unavailable</code> — <code>no_seats.html</code> when the pool is empty, or <code>rotation_failed.html</code> when the assigned client could not be reached. On a rotation failure the seat is released and the VM flagged <code>Unhealthy</code> so the participant isn't wedged on a dead machine.</li>
-<li><strong>Code:</strong> <code>200 OK</code> — <code>index.html</code> re-rendered with an error if <code>email</code> is missing.</li>
+<li><strong>Code:</strong> <code>503 Service Unavailable</code> — <code>no_seats.html</code> when the pool is
+  empty, or <code>rotation_failed.html</code> when the assigned client could not be
+  reached. On a rotation failure the seat is released and the VM flagged
+  <code>Unhealthy</code> so the participant isn't wedged on a dead machine.</li>
+<li><strong>Code:</strong> <code>200 OK</code> — <code>index.html</code> re-rendered with an error if <code>email</code>
+  is missing.</li>
 </ul>
-<p>The participant supplies nothing but an email address — the old <code>crd_command</code> and
-PIN contract is gone, along with the mechanism behind it
-(<a href="../database/#triggers">Database</a>).</p>
-<h3 id="the-participant-desktop">The participant desktop<a class="headerlink" href="#the-participant-desktop" title="Permanent link">&para;</a></h3>
-<p><strong>Endpoint:</strong> <code>GET /desktop</code></p>
-<p><strong>Authentication:</strong> The signed <code>lablink_session</code> cookie.</p>
-<p>Renders the noVNC viewer page. Reads the cookie minted by <code>/api/request_vm</code>, looks
-up the assigned VM by <code>session_id</code>, and configures the viewer from the persisted
-<code>browser_ws_url</code> and <code>browser_credential</code>. If the cookie is missing, invalid, or the
-bound VM is no longer running, it redirects to <code>/</code> so the participant can submit
-their email again.</p>
-<h3 id="internal-proxy-authorization">Internal proxy authorization<a class="headerlink" href="#internal-proxy-authorization" title="Permanent link">&para;</a></h3>
-<p><strong>Endpoints:</strong> <code>GET|POST /internal/proxy_auth</code>, <code>GET|POST /internal/tunnel_auth</code></p>
-<p><strong>Authentication:</strong> None — these are <code>auth_request</code> subrequest targets for the
-allocator's own nginx and are never routed publicly.</p>
-<p>nginx calls these before proxying desktop bytes, to check that the requesting
-session is entitled to the client it is asking for. <code>tunnel_auth</code> is the
-equivalent gate for reverse-tunnel clients.</p>
-<h2 id="health">Health<a class="headerlink" href="#health" title="Permanent link">&para;</a></h2>
-<h3 id="readiness-check">Readiness Check<a class="headerlink" href="#readiness-check" title="Permanent link">&para;</a></h3>
-<p><strong>Endpoint:</strong> <code>GET /api/health</code></p>
-<p><strong>Authentication:</strong> None — this is what load balancers, <code>lablink deploy</code> and
-<code>lablink status</code> poll.</p>
-<p>Returns a structured readiness report rather than a bare 200. The <code>checks</code> map
-always covers <code>database</code>, <code>scheduler</code> and <code>reboot_service</code>, and gains a <code>tailscale</code>
-entry when the configured connectivity needs one, or a <code>tunnel</code> entry for
-reverse-tunnel deployments.</p>
-<p><strong>Success Response:</strong></p>
-<ul>
-<li><strong>Code:</strong> <code>200 OK</code> when every gating check is <code>ok</code></li>
-<li><strong>Content:</strong>
-  <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="p">{</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nt">"status"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ready"</span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="nt">"checks"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="nt">"database"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ok"</span><span class="p">,</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="nt">"scheduler"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ok"</span><span class="p">,</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="nt">"reboot_service"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ok"</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">  </span><span class="p">}</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">}</span>
-</code></pre></div></li>
-</ul>
-<p><strong>Error Response:</strong></p>
-<ul>
-<li><strong>Code:</strong> <code>503 Service Unavailable</code> when a gating check fails.</li>
-</ul>
-<div class="admonition note">
-<p class="admonition-title">A dead client tunnel does not make the allocator unready</p>
-<p>Unattached client tunnels are reported but deliberately don't gate readiness — a
-registering client is unattached until its tunnel comes up. The allocator's own
-dependencies (tunnel server, database) do gate.</p>
-</div>
-<h3 id="connection-usage">Connection Usage<a class="headerlink" href="#connection-usage" title="Permanent link">&para;</a></h3>
-<p><strong>Endpoint:</strong> <code>GET /api/health/connections</code></p>
-<p><strong>Authentication:</strong> Admin (HTTP Basic) — the same gate as <code>/admin/*</code>.</p>
-<p>Reports PostgreSQL connection usage against the server's configured maximum,
-for checking headroom before scaling a deployment up.</p>
-<p><code>active_connections</code> counts client backends only — the things <code>max_connections</code>
-bounds — excluding the background-worker rows <code>pg_stat_activity</code> also carries.
-It includes the connection serving this request. <code>max_connections</code> is read from
-PostgreSQL, so it tracks whatever is actually configured.</p>
-<p><code>idle_in_transaction</code> distinguishes a leaked pooled connection from ordinary
-load; a non-zero value that doesn't fall back to zero is worth investigating.
-It counts <code>idle in transaction (aborted)</code> too — an aborted-but-open transaction
-pins locks just like a live one.</p>
-<p>The same numbers appear on the <a href="#admin-pages"><code>/admin</code> panel</a>, which escalates
-to a banner above 90%.</p>
+<p>The participant supplies nothing but an email address.</p>
+<h3 id="get-apiunassigned_vms_count"><code>GET /api/unassigned_vms_count</code><a class="headerlink" href="#get-apiunassigned_vms_count" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> None (health/monitoring).</p>
+<p>Get the number of available (unassigned) VMs.</p>
+<p>Returns the current count of VMs that are running and not yet assigned
+to a user.</p>
 <p><strong>Success Response:</strong></p>
 <ul>
 <li><strong>Code:</strong> <code>200 OK</code></li>
 <li><strong>Content:</strong>
-  <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="p">{</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">"status"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ok"</span><span class="p">,</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">"active_connections"</span><span class="p">:</span><span class="w"> </span><span class="mi">61</span><span class="p">,</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span><span class="nt">"idle_in_transaction"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span><span class="nt">"max_connections"</span><span class="p">:</span><span class="w"> </span><span class="mi">300</span><span class="p">,</span>
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">  </span><span class="nt">"utilization_percent"</span><span class="p">:</span><span class="w"> </span><span class="mf">20.3</span><span class="p">,</span>
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">  </span><span class="nt">"level"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ok"</span>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="p">}</span>
+  <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="p">{</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nt">"count"</span><span class="p">:</span><span class="w"> </span><span class="mi">5</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="p">}</span>
 </code></pre></div></li>
 </ul>
-<p><code>level</code> is <code>ok</code>, <code>warning</code> above 80% utilization, or <code>critical</code> above 90%. High
-utilization still answers <code>200</code> — busy is not broken.</p>
+<p><strong>Client Usage:</strong> Not used by the client service. Intended for external
+monitoring or UI components on the allocator to display the number of
+available VMs.</p>
+<h2 id="participant-desktop">Participant Desktop<a class="headerlink" href="#participant-desktop" title="Permanent link">&para;</a></h2>
+<h3 id="get-desktop"><code>GET /desktop</code><a class="headerlink" href="#get-desktop" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> The signed <code>lablink_session</code> cookie.</p>
+<p>The participant desktop.</p>
+<p>Renders the noVNC viewer page. Reads the cookie minted by
+<code>POST /api/request_vm</code>, looks up the assigned VM by <code>session_id</code>, and
+configures the viewer from the persisted <code>browser_ws_url</code> and
+<code>browser_credential</code>. If the cookie is missing, invalid, or the bound VM
+is no longer running, it redirects to <code>/</code> so the participant can submit
+their email again.</p>
+<h2 id="internal-proxy-authorization">Internal Proxy Authorization<a class="headerlink" href="#internal-proxy-authorization" title="Permanent link">&para;</a></h2>
+<p><code>auth_request</code> subrequest targets for the allocator's own nginx. Never routed publicly.</p>
+<h3 id="getpost-internalproxy_auth"><code>GET|POST /internal/proxy_auth</code><a class="headerlink" href="#getpost-internalproxy_auth" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> None — an <code>auth_request</code> subrequest target for the allocator's own nginx, never routed publicly.</p>
+<p>nginx <code>auth_request</code> gate for the desktop WebSocket proxy.</p>
+<p>nginx calls this before proxying desktop bytes, to check that the
+requesting session is entitled to the client it is asking for: the
+signed <code>lablink_session</code> cookie must resolve to the VM whose
+<code>browser_token</code> appears in the original URI.</p>
+<h3 id="getpost-internaltunnel_auth"><code>GET|POST /internal/tunnel_auth</code><a class="headerlink" href="#getpost-internaltunnel_auth" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> None</p>
+<p>nginx auth_request gate for the reverse-tunnel WebSocket upgrade.</p>
+<p>The path prefix identifies which client is attaching; the bearer token
+is what authenticates it. Both must agree, so a client cannot attach
+under another client's prefix even holding a valid secret of its own.</p>
+<p>This check is the ONLY binding between a secret and an identity.
+tunnel_manager's restrictions are keyed by path prefix, so they grant
+whatever alias the presented path claims -- they constrain a client to
+one alias, they do not prove who the client is. Do not describe them as
+a second authentication layer.</p>
+<h2 id="health">Health<a class="headerlink" href="#health" title="Permanent link">&para;</a></h2>
+<h3 id="get-apihealth"><code>GET /api/health</code><a class="headerlink" href="#get-apihealth" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> None — this is what load balancers, <code>lablink deploy</code> and <code>lablink status</code> poll.</p>
+<p>Readiness check.</p>
+<p>Returns a structured readiness report rather than a bare 200. The
+<code>checks</code> map always covers <code>database</code>, <code>scheduler</code> and <code>reboot_service</code>,
+and gains a <code>tailscale</code> entry when the configured connectivity needs
+one, or a <code>tunnel</code> entry for reverse-tunnel deployments.</p>
+<p><strong>Success Response:</strong></p>
+<ul>
+<li><strong>Code:</strong> <code>200 OK</code> when every gating check is <code>ok</code></li>
+<li><strong>Content:</strong>
+  <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="p">{</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">"status"</span><span class="p">:</span><span class="w"> </span><span class="s2">"healthy"</span><span class="p">,</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">"checks"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="nt">"database"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ok"</span><span class="p">,</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="nt">"scheduler"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ok"</span><span class="p">,</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span><span class="nt">"reboot_service"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ok"</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">  </span><span class="p">},</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">  </span><span class="nt">"uptime_seconds"</span><span class="p">:</span><span class="w"> </span><span class="mf">123.4</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="p">}</span>
+</code></pre></div></li>
+</ul>
 <p><strong>Error Response:</strong></p>
 <ul>
-<li><strong>Code:</strong> <code>503 Service Unavailable</code> with <code>{"status": "unavailable"}</code> when the
-  numbers can't be read — the database isn't initialized yet, or the query
-  failed (including a pool with no free connections).</li>
+<li><strong>Code:</strong> <code>503 Service Unavailable</code> with <code>"status": "starting"</code> when a
+  gating check fails.</li>
 </ul>
-<h2 id="client-vm-api-endpoints">Client VM API Endpoints<a class="headerlink" href="#client-vm-api-endpoints" title="Permanent link">&para;</a></h2>
-<p>These endpoints are used by client VMs to report to the allocator. They require that
-client's own secret as a bearer token — see <a href="#authentication">Authentication</a>.</p>
-<p>Clients only ever <em>report upward</em> through these; they are never told about an
-assignment. The allocator pushes that the other way, by calling the client's local
-agent (see <a href="#request-a-vm"><code>/api/request_vm</code></a> and
-<a href="../database/#triggers">Database</a>).</p>
-<h3 id="get-unassigned-vm-count">Get Unassigned VM Count<a class="headerlink" href="#get-unassigned-vm-count" title="Permanent link">&para;</a></h3>
-<p>Retrieves the number of available (unassigned) VMs.</p>
-<p><strong>Endpoint:</strong> <code>GET /api/unassigned_vms_count</code></p>
-<p><strong>Description:</strong> Returns the current count of VMs that are running and not yet assigned to a user.</p>
-<p><strong>Authentication:</strong> None (health/monitoring)</p>
-<p><strong>Request Body:</strong> None</p>
+<p>A dead client tunnel does not make the allocator unready: unattached
+client tunnels are reported but deliberately don't gate readiness — a
+registering client is unattached until its tunnel comes up. The
+allocator's own dependencies (tunnel server, database) do gate.</p>
+<h3 id="get-apihealthconnections"><code>GET /api/health/connections</code><a class="headerlink" href="#get-apihealthconnections" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> Admin (HTTP Basic)</p>
+<p>Report PostgreSQL connection usage.</p>
+<p>Reports usage against the server's configured maximum, for checking
+headroom before scaling a deployment up.</p>
+<p><code>active_connections</code> counts client backends only — the things
+<code>max_connections</code> bounds — excluding the background-worker rows
+<code>pg_stat_activity</code> also carries. It includes the connection serving this
+request. <code>max_connections</code> is read from PostgreSQL, so it tracks
+whatever is actually configured.</p>
+<p><code>idle_in_transaction</code> distinguishes a leaked pooled connection from
+ordinary load; a non-zero value that doesn't fall back to zero is worth
+investigating. It counts <code>idle in transaction (aborted)</code> too — an
+aborted-but-open transaction pins locks just like a live one.</p>
+<p>The same numbers appear on the <code>/admin</code> panel, which escalates to a
+banner above 90%.</p>
 <p><strong>Success Response:</strong></p>
 <ul>
 <li><strong>Code:</strong> <code>200 OK</code></li>
 <li><strong>Content:</strong>
   <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="p">{</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="nt">"count"</span><span class="p">:</span><span class="w"> </span><span class="mi">5</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="p">}</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="nt">"status"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ok"</span><span class="p">,</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="nt">"active_connections"</span><span class="p">:</span><span class="w"> </span><span class="mi">61</span><span class="p">,</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="nt">"idle_in_transaction"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">  </span><span class="nt">"max_connections"</span><span class="p">:</span><span class="w"> </span><span class="mi">300</span><span class="p">,</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">  </span><span class="nt">"utilization_percent"</span><span class="p">:</span><span class="w"> </span><span class="mf">20.3</span><span class="p">,</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">  </span><span class="nt">"level"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ok"</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="p">}</span>
 </code></pre></div></li>
 </ul>
-<p><strong>Client Usage:</strong> This endpoint is not used by the client service. It is intended for external monitoring or UI components on the allocator to display the number of available VMs.</p>
-<h3 id="update-vm-in-use-status">Update VM In-Use Status<a class="headerlink" href="#update-vm-in-use-status" title="Permanent link">&para;</a></h3>
-<p>Updates the "in-use" status of a VM.</p>
-<p><strong>Endpoint:</strong> <code>POST /api/update_inuse_status</code></p>
-<p><strong>Description:</strong> Called by the client VM to indicate whether a user is actively using it.</p>
-<p><strong>Authentication:</strong> Client secret</p>
+<p><code>level</code> is <code>ok</code>, <code>warning</code> above 80% utilization, or <code>critical</code> above
+90%. High utilization still answers <code>200</code> — busy is not broken.</p>
+<p><strong>Error Response:</strong></p>
+<ul>
+<li><strong>Code:</strong> <code>503 Service Unavailable</code> with <code>{"status": "unavailable"}</code>
+  when the numbers can't be read — the database isn't initialized yet,
+  or the query failed (including a pool with no free connections). Never
+  means the pool is merely busy.</li>
+</ul>
+<h2 id="client-vm-telemetry">Client VM Telemetry<a class="headerlink" href="#client-vm-telemetry" title="Permanent link">&para;</a></h2>
+<p>Client VMs <em>report upward</em> through these; they are never told about an assignment. The allocator pushes assignments the other way, by calling the client's local agent (see <code>POST /api/request_vm</code> and <a href="../database/#triggers">Database</a>). All telemetry writes require that client's own secret as a bearer token — see <a href="#authentication">Authentication</a>.</p>
+<h3 id="post-apiupdate_inuse_status"><code>POST /api/update_inuse_status</code><a class="headerlink" href="#post-apiupdate_inuse_status" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> Client secret (Bearer)</p>
+<p>Update the in-use status of a VM.</p>
+<p>Called by the client VM to indicate whether a user is actively using it.</p>
 <p><strong>Request Body:</strong> <code>application/json</code></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="p">{</span>
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">"hostname"</span><span class="p">:</span><span class="w"> </span><span class="s2">"lablink-vm-prod-1"</span><span class="p">,</span>
@@ -5508,187 +6078,101 @@ agent (see <a href="#request-a-vm"><code>/api/request_vm</code></a> and
 <p><strong>Success Response:</strong></p>
 <ul>
 <li><strong>Code:</strong> <code>200 OK</code></li>
-<li><strong>Content:</strong>
-  <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="p">{</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">"message"</span><span class="p">:</span><span class="w"> </span><span class="s2">"In-use status updated successfully."</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="p">}</span>
-</code></pre></div></li>
+<li><strong>Content:</strong> <code>{"message": "In-use status updated successfully."}</code></li>
 </ul>
 <p><strong>Error Response:</strong></p>
 <ul>
 <li><strong>Code:</strong> <code>400 Bad Request</code> if <code>hostname</code> or <code>status</code> is missing.</li>
 <li><strong>Code:</strong> <code>500 Internal Server Error</code> on failure.</li>
 </ul>
-<p><strong>Client Usage:</strong></p>
-<ul>
-<li><strong>When:</strong> Called by the <code>update_inuse_status</code> service, which is started by <code>start.sh</code> and runs continuously.</li>
-<li><strong>How:</strong> The service monitors for the presence of the research software process (e.g., <code>sleap</code>). When the process starts, it sends a POST request with <code>status: true</code>. When the process stops, it sends <code>status: false</code>. This allows the allocator to know if a user is actively using the VM.</li>
-</ul>
-<h3 id="update-gpu-health">Update GPU Health<a class="headerlink" href="#update-gpu-health" title="Permanent link">&para;</a></h3>
-<p>Updates the GPU health status of a VM.</p>
-<p><strong>Endpoint:</strong> <code>POST /api/gpu_health</code></p>
-<p><strong>Description:</strong> Called by the client VM to report its GPU health status.</p>
-<p><strong>Authentication:</strong> Client secret</p>
+<p><strong>Client Usage:</strong> Called by the <code>update_inuse_status</code> service, which is
+started by <code>start.sh</code> and runs continuously. The service monitors for the
+presence of the research software process (e.g., <code>sleap</code>). When the
+process starts, it sends <code>status: true</code>; when it stops, <code>status: false</code>.
+This lets the allocator know if a user is actively using the VM.</p>
+<h3 id="post-apigpu_health"><code>POST /api/gpu_health</code><a class="headerlink" href="#post-apigpu_health" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> Client secret (Bearer)</p>
+<p>Update the GPU health status of a VM.</p>
 <p><strong>Request Body:</strong> <code>application/json</code></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="p">{</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="nt">"hostname"</span><span class="p">:</span><span class="w"> </span><span class="s2">"lablink-vm-prod-1"</span><span class="p">,</span>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="nt">"gpu_status"</span><span class="p">:</span><span class="w"> </span><span class="s2">"healthy"</span>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="p">{</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">"hostname"</span><span class="p">:</span><span class="w"> </span><span class="s2">"lablink-vm-prod-1"</span><span class="p">,</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="nt">"gpu_status"</span><span class="p">:</span><span class="w"> </span><span class="s2">"healthy"</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="p">}</span>
 </code></pre></div>
 <p><strong>Success Response:</strong></p>
 <ul>
 <li><strong>Code:</strong> <code>200 OK</code></li>
-<li><strong>Content:</strong>
-  <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="p">{</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="nt">"message"</span><span class="p">:</span><span class="w"> </span><span class="s2">"GPU health status updated successfully."</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="p">}</span>
-</code></pre></div></li>
+<li><strong>Content:</strong> <code>{"message": "GPU health status updated successfully."}</code></li>
 </ul>
 <p><strong>Error Response:</strong></p>
 <ul>
 <li><strong>Code:</strong> <code>400 Bad Request</code> if <code>hostname</code> or <code>gpu_status</code> is missing.</li>
-<li><strong>Code:</strong> <code>500 Internal Server Error</code> on failure.
-  <strong>Client Usage:</strong></li>
-<li><strong>When:</strong> Called by the <code>check_gpu</code> service, which is started by <code>start.sh</code> and runs continuously.</li>
-<li><strong>How:</strong> The service periodically runs <code>nvidia-smi</code>. Based on the output, it determines the GPU status (<code>Healthy</code>, <code>Unhealthy</code>, or <code>N/A</code>) and sends a POST request to the allocator whenever the status changes.</li>
+<li><strong>Code:</strong> <code>500 Internal Server Error</code> on failure.</li>
 </ul>
-<h3 id="update-vm-status">Update VM Status<a class="headerlink" href="#update-vm-status" title="Permanent link">&para;</a></h3>
-<p>Updates the overall status of a VM (e.g., <code>initializing</code>, <code>running</code>, <code>error</code>, <code>rebooting</code>).</p>
-<p><strong>Endpoint:</strong> <code>POST /api/vm-status</code></p>
-<p><strong>Description:</strong> Called by the client VM during its startup sequence to report its current status.</p>
-<p><strong>Authentication:</strong> Client secret</p>
+<p><strong>Client Usage:</strong> Called by the <code>check_gpu</code> service, which is started by
+<code>start.sh</code> and runs continuously. The service periodically runs
+<code>nvidia-smi</code>, determines the GPU status (<code>Healthy</code>, <code>Unhealthy</code>, or
+<code>N/A</code>), and reports whenever the status changes. The value lands in the
+<code>Healthy</code> column — the auto-reboot service decides what to do about an
+unhealthy VM.</p>
+<h3 id="post-apiheartbeat"><code>POST /api/heartbeat</code><a class="headerlink" href="#post-apiheartbeat" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> Client secret (resolved from the <code>vm_id</code> field).</p>
+<p>Record a client-VM liveness heartbeat.</p>
+<p>Periodic liveness ping. Lets the allocator detect silent failures — a
+dead container, a broken network, a hung host, an OOM, or an out-of-band
+VM termination — that no other endpoint would reveal. The body also
+carries cheap health signals for early warning.</p>
 <p><strong>Request Body:</strong> <code>application/json</code></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="p">{</span>
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span><span class="nt">"hostname"</span><span class="p">:</span><span class="w"> </span><span class="s2">"lablink-vm-prod-1"</span><span class="p">,</span>
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span><span class="nt">"status"</span><span class="p">:</span><span class="w"> </span><span class="s2">"running"</span>
-<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="p">{</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="nt">"vm_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"lablink-vm-prod-1"</span><span class="p">,</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="nt">"boot_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"…"</span><span class="p">,</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span><span class="nt">"disk_free_pct"</span><span class="p">:</span><span class="w"> </span><span class="mi">62</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="p">}</span>
+</code></pre></div>
+<p><strong>Client Usage:</strong> Sent by the client's <code>heartbeat</code> service every
+<code>HEARTBEAT_INTERVAL_SECONDS</code>. A client that stops heartbeating for longer
+than the staleness window becomes eligible for automatic recovery.</p>
+<h3 id="post-apivm-status"><code>POST /api/vm-status</code><a class="headerlink" href="#post-apivm-status" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> Client secret (Bearer)</p>
+<p>Update the overall status of a VM.</p>
+<p>Called by the client VM during its startup sequence to report its
+current status (<code>initializing</code>, <code>running</code>, <code>error</code>, <code>rebooting</code>).</p>
+<p><strong>Request Body:</strong> <code>application/json</code></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="p">{</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="nt">"hostname"</span><span class="p">:</span><span class="w"> </span><span class="s2">"lablink-vm-prod-1"</span><span class="p">,</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span><span class="nt">"status"</span><span class="p">:</span><span class="w"> </span><span class="s2">"running"</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="p">}</span>
 </code></pre></div>
 <p><strong>Success Response:</strong></p>
 <ul>
 <li><strong>Code:</strong> <code>200 OK</code></li>
-<li><strong>Content:</strong>
-  <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="p">{</span>
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span><span class="nt">"message"</span><span class="p">:</span><span class="w"> </span><span class="s2">"VM status updated successfully."</span>
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="p">}</span>
-</code></pre></div></li>
+<li><strong>Content:</strong> <code>{"message": "VM status updated successfully."}</code></li>
 </ul>
 <p><strong>Error Response:</strong></p>
 <ul>
 <li><strong>Code:</strong> <code>400 Bad Request</code> if <code>hostname</code> or <code>status</code> is missing.</li>
-<li><strong>Code:</strong> <code>500 Internal Server Error</code> on failure.
-  <strong>Client Usage:</strong> This endpoint is not called from the <code>packages/client</code> code. Instead, it is called by the <code>user_data.sh</code> script during the client VM's initial boot sequence (cloud-init). This script reports <code>initializing</code>, <code>running</code>, and <code>error</code> statuses to the allocator, allowing it to track the VM's progress before the client service container has started. An error trap in <code>user_data.sh</code> automatically sends an <code>error</code> status if any command fails, which can then trigger the auto-reboot service.</li>
-</ul>
-<h3 id="receive-vm-metrics">Receive VM Metrics<a class="headerlink" href="#receive-vm-metrics" title="Permanent link">&para;</a></h3>
-<p>Receives and stores startup metrics from a VM.</p>
-<p><strong>Endpoint:</strong> <code>POST /api/vm-metrics/&lt;hostname&gt;</code></p>
-<p><strong>Description:</strong> Called by the client VM's <code>user_data.sh</code> script to post timing metrics for <code>cloud-init</code> and container startup.</p>
-<p><strong>Authentication:</strong> Client secret</p>
-<p><strong>URL Parameters:</strong></p>
-<ul>
-<li><code>hostname</code> (string, required): The hostname of the VM reporting metrics.</li>
-</ul>
-<p><strong>Request Body:</strong> <code>application/json</code></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="p">{</span>
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">  </span><span class="nt">"cloud_init_start"</span><span class="p">:</span><span class="w"> </span><span class="mi">1678886400</span><span class="p">,</span>
-<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">  </span><span class="nt">"cloud_init_end"</span><span class="p">:</span><span class="w"> </span><span class="mi">1678886460</span><span class="p">,</span>
-<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">  </span><span class="nt">"cloud_init_duration_seconds"</span><span class="p">:</span><span class="w"> </span><span class="mi">60</span>
-<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="p">}</span>
-</code></pre></div>
-<p><strong>Success Response:</strong></p>
-<ul>
-<li><strong>Code:</strong> <code>200 OK</code></li>
-<li><strong>Content:</strong>
-  <div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="p">{</span>
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">  </span><span class="nt">"message"</span><span class="p">:</span><span class="w"> </span><span class="s2">"VM metrics posted successfully."</span>
-<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="p">}</span>
-</code></pre></div></li>
-</ul>
-<p><strong>Error Response:</strong></p>
-<ul>
-<li><strong>Code:</strong> <code>404 Not Found</code> if the VM does not exist.</li>
 <li><strong>Code:</strong> <code>500 Internal Server Error</code> on failure.</li>
 </ul>
-<p><strong>Client Usage:</strong></p>
-<ul>
-<li><strong>When:</strong> At the end of the client container's startup sequence.</li>
-<li><strong>How:</strong> The <code>start.sh</code> script, which is the container's entrypoint, records its start and end times. It then sends a <code>curl</code> POST request with these timing metrics to the allocator. This helps in monitoring the duration of container startup.</li>
-</ul>
-<h3 id="receive-vm-logs">Receive VM Logs<a class="headerlink" href="#receive-vm-logs" title="Permanent link">&para;</a></h3>
-<p>Receives and stores logs pushed from a VM.</p>
-<p><strong>Endpoint:</strong> <code>POST /api/vm-logs/&lt;hostname&gt;</code></p>
-<p><strong>Description:</strong> Receives batched log lines pushed from a VM by the <code>log_shipper.sh</code> script, which tails the VM's <code>cloud-init</code> output and the client container's Docker logs.</p>
-<p><strong>Authentication:</strong> Client secret</p>
-<p><strong>Request Body:</strong> <code>application/json</code></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="p">{</span>
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span><span class="nt">"log_group"</span><span class="p">:</span><span class="w"> </span><span class="s2">"/aws/ec2/lablink"</span><span class="p">,</span>
-<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">  </span><span class="nt">"log_stream"</span><span class="p">:</span><span class="w"> </span><span class="s2">"lablink-vm-prod-1"</span><span class="p">,</span>
-<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">  </span><span class="nt">"messages"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"log line 1"</span><span class="p">,</span><span class="w"> </span><span class="s2">"log line 2"</span><span class="p">]</span>
-<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="p">}</span>
-</code></pre></div>
+<p><strong>Client Usage:</strong> Not called from the <code>packages/client</code> code. It is
+called by the <code>user_data.sh</code> script during the client VM's initial boot
+sequence (cloud-init), which reports <code>initializing</code>, <code>running</code>, and
+<code>error</code> statuses so the allocator can track the VM's progress before the
+client service container has started. An error trap in <code>user_data.sh</code>
+automatically sends an <code>error</code> status if any command fails, which can
+then trigger the auto-reboot service.</p>
+<h3 id="get-apivm-status"><code>GET /api/vm-status</code><a class="headerlink" href="#get-apivm-status" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> Admin (HTTP Basic)</p>
+<p>Get the status of all VMs.</p>
+<p>Returns a JSON object mapping each VM hostname to its current status.
+Used by the admin dashboard.</p>
 <p><strong>Success Response:</strong></p>
 <ul>
 <li><strong>Code:</strong> <code>200 OK</code></li>
 <li><strong>Content:</strong>
-  <div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="p">{</span>
-<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="w">  </span><span class="nt">"message"</span><span class="p">:</span><span class="w"> </span><span class="s2">"VM logs posted successfully."</span>
-<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="p">}</span>
-</code></pre></div></li>
-</ul>
-<p><strong>Error Response:</strong></p>
-<ul>
-<li><strong>Code:</strong> <code>400 Bad Request</code> if required fields are missing.</li>
-<li><strong>Code:</strong> <code>404 Not Found</code> if the VM does not exist.</li>
-<li><strong>Code:</strong> <code>500 Internal Server Error</code> on failure.</li>
-</ul>
-<p><strong>Client Usage:</strong> This endpoint is not called directly from any code in <code>packages/client</code>. The <code>log_shipper.sh</code> script, installed on each VM by the OpenTofu user-data script, tails the VM's <code>cloud-init</code> output log and the client container's Docker logs, batches new lines, and POSTs them to this endpoint using the API token as a Bearer credential.</p>
-<h2 id="admin-api-endpoints">Admin API Endpoints<a class="headerlink" href="#admin-api-endpoints" title="Permanent link">&para;</a></h2>
-<p>These endpoints require HTTP Basic Authentication and are intended for administrators to manage the VM pool.</p>
-<h3 id="launch-vms">Launch VMs<a class="headerlink" href="#launch-vms" title="Permanent link">&para;</a></h3>
-<p><strong>Endpoint:</strong> <code>POST /api/launch</code></p>
-<p><strong>Description:</strong> Takes a number of VMs to create, generates a OpenTofu variables file, and runs <code>tofu apply</code> to provision the new instances.</p>
-<p><strong>Authentication:</strong> HTTP Basic Auth</p>
-<p><strong>Request Body:</strong> <code>application/x-www-form-urlencoded</code></p>
-<ul>
-<li><code>num_vms</code> (integer, required): The number of new VMs to launch.</li>
-</ul>
-<p><strong>Success Response:</strong></p>
-<ul>
-<li><strong>Code:</strong> <code>200 OK</code></li>
-<li><strong>Content:</strong> An HTML page (<code>dashboard.html</code>) displaying the OpenTofu output and a real-time status monitor for the VMs.</li>
-</ul>
-<p><strong>Error Response:</strong></p>
-<ul>
-<li><strong>Code:</strong> <code>200 OK</code></li>
-<li><strong>Content:</strong> An HTML page (<code>dashboard.html</code>) displaying the OpenTofu error output.</li>
-</ul>
-<h3 id="destroy-all-vms">Destroy All VMs<a class="headerlink" href="#destroy-all-vms" title="Permanent link">&para;</a></h3>
-<p><strong>Endpoint:</strong> <code>POST /destroy</code></p>
-<p><strong>Description:</strong> Runs <code>tofu destroy</code> to terminate all EC2 instances and associated resources created by LabLink. It also clears all records from the <code>vms</code> table in the database. <strong>This is a destructive action.</strong> Driven by <code>lablink client destroy</code>, and by <code>lablink destroy</code> as its first teardown step.</p>
-<p><strong>Authentication:</strong> HTTP Basic Auth</p>
-<p><strong>Request Body:</strong> None</p>
-<p><strong>Success Response:</strong></p>
-<ul>
-<li><strong>Code:</strong> <code>200 OK</code></li>
-<li><strong>Content:</strong> An HTML page (<code>delete-dashboard.html</code>) displaying the OpenTofu output.</li>
-</ul>
-<p><strong>Error Response:</strong></p>
-<ul>
-<li><strong>Code:</strong> <code>200 OK</code></li>
-<li><strong>Content:</strong> An HTML page (<code>delete-dashboard.html</code>) displaying the OpenTofu error output.</li>
-</ul>
-<h3 id="get-status-of-all-vms">Get Status of All VMs<a class="headerlink" href="#get-status-of-all-vms" title="Permanent link">&para;</a></h3>
-<p><strong>Endpoint:</strong> <code>GET /api/vm-status</code></p>
-<p><strong>Description:</strong> Returns a JSON object mapping each VM hostname to its current status. Used by the admin dashboard.</p>
-<p><strong>Authentication:</strong> HTTP Basic Auth</p>
-<p><strong>Request Body:</strong> None</p>
-<p><strong>Success Response:</strong></p>
-<ul>
-<li><strong>Code:</strong> <code>200 OK</code></li>
-<li><strong>Content:</strong>
-  <div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="p">{</span>
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="w">  </span><span class="nt">"lablink-vm-prod-1"</span><span class="p">:</span><span class="w"> </span><span class="s2">"running"</span><span class="p">,</span>
-<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">  </span><span class="nt">"lablink-vm-prod-2"</span><span class="p">:</span><span class="w"> </span><span class="s2">"initializing"</span>
-<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="p">}</span>
+  <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="p">{</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span><span class="nt">"lablink-vm-prod-1"</span><span class="p">:</span><span class="w"> </span><span class="s2">"running"</span><span class="p">,</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span><span class="nt">"lablink-vm-prod-2"</span><span class="p">:</span><span class="w"> </span><span class="s2">"initializing"</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="p">}</span>
 </code></pre></div></li>
 </ul>
 <p><strong>Error Response:</strong></p>
@@ -5696,10 +6180,43 @@ agent (see <a href="#request-a-vm"><code>/api/request_vm</code></a> and
 <li><strong>Code:</strong> <code>404 Not Found</code> if no VMs are found in the database.</li>
 <li><strong>Code:</strong> <code>500 Internal Server Error</code> on failure.</li>
 </ul>
-<h3 id="get-logs-for-a-specific-vm">Get Logs for a Specific VM<a class="headerlink" href="#get-logs-for-a-specific-vm" title="Permanent link">&para;</a></h3>
-<p><strong>Endpoint:</strong> <code>GET /api/vm-logs/&lt;hostname&gt;</code></p>
-<p><strong>Description:</strong> Returns the stored logs for a specific VM. Used by the admin log viewer page.</p>
-<p><strong>Authentication:</strong> HTTP Basic Auth</p>
+<h3 id="post-apivm-logshostname"><code>POST /api/vm-logs/&lt;hostname&gt;</code><a class="headerlink" href="#post-apivm-logshostname" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> Client secret (Bearer)</p>
+<p>Receive and store logs pushed from a VM.</p>
+<p>Receives batched log lines pushed from a VM by the <code>log_shipper.sh</code>
+script, which tails the VM's <code>cloud-init</code> output and the client
+container's Docker logs.</p>
+<p><strong>URL Parameters:</strong></p>
+<ul>
+<li><code>hostname</code> (string, required): The hostname of the VM.</li>
+</ul>
+<p><strong>Request Body:</strong> <code>application/json</code></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="p">{</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span><span class="nt">"log_group"</span><span class="p">:</span><span class="w"> </span><span class="s2">"/aws/ec2/lablink"</span><span class="p">,</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">  </span><span class="nt">"log_stream"</span><span class="p">:</span><span class="w"> </span><span class="s2">"lablink-vm-prod-1"</span><span class="p">,</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">  </span><span class="nt">"messages"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"log line 1"</span><span class="p">,</span><span class="w"> </span><span class="s2">"log line 2"</span><span class="p">]</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="p">}</span>
+</code></pre></div>
+<p><strong>Success Response:</strong></p>
+<ul>
+<li><strong>Code:</strong> <code>200 OK</code></li>
+<li><strong>Content:</strong> <code>{"message": "VM logs posted successfully."}</code></li>
+</ul>
+<p><strong>Error Response:</strong></p>
+<ul>
+<li><strong>Code:</strong> <code>400 Bad Request</code> if required fields are missing.</li>
+<li><strong>Code:</strong> <code>404 Not Found</code> if the VM does not exist.</li>
+<li><strong>Code:</strong> <code>500 Internal Server Error</code> on failure.</li>
+</ul>
+<p><strong>Client Usage:</strong> Not called directly from <code>packages/client</code> code. The
+<code>log_shipper.sh</code> script, installed on each VM by the OpenTofu user-data
+script, tails the VM's <code>cloud-init</code> output log and the client
+container's Docker logs, batches new lines, and POSTs them here. ANSI
+escapes are stripped and each log type is capped at 1MB.</p>
+<h3 id="get-apivm-logshostname"><code>GET /api/vm-logs/&lt;hostname&gt;</code><a class="headerlink" href="#get-apivm-logshostname" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> Admin (HTTP Basic)</p>
+<p>Get the stored logs for a specific VM.</p>
+<p>Used by the admin log viewer page.</p>
 <p><strong>URL Parameters:</strong></p>
 <ul>
 <li><code>hostname</code> (string, required): The hostname of the VM.</li>
@@ -5708,88 +6225,135 @@ agent (see <a href="#request-a-vm"><code>/api/request_vm</code></a> and
 <ul>
 <li><code>errors_only</code> (boolean, optional, default <code>false</code>): When <code>true</code>, both
   <code>cloud_init_logs</code> and <code>docker_logs</code> are reduced to their error lines —
-  lines carrying an uppercase level token (<code>ERROR</code>, <code>CRITICAL</code>, <code>FATAL</code>, plus
-  cloudflared's <code>ERR</code>/<code>FTL</code> and postgres' <code>PANIC</code>), together with any
-  traceback that follows them. Matching is case-sensitive so the client
-  startup script's <code>--retry-all-errors</code> and <code>status=error</code> lines are not
-  treated as errors, and a short denylist suppresses client reporting-path
-  failures that do not affect the VM's usability (GPU-health and
-  in-use-status report failures, and session-metrics push failures). A stream
-  with no error lines becomes <code>""</code>, not <code>null</code>.</li>
+  lines carrying an uppercase level token (<code>ERROR</code>, <code>CRITICAL</code>, <code>FATAL</code>,
+  plus cloudflared's <code>ERR</code>/<code>FTL</code> and postgres' <code>PANIC</code>), together with
+  any traceback that follows them. Matching is case-sensitive so the
+  client startup script's <code>--retry-all-errors</code> and <code>status=error</code> lines
+  are not treated as errors, and a short denylist suppresses client
+  reporting-path failures that do not affect the VM's usability
+  (GPU-health and in-use-status report failures, and session-metrics
+  push failures). A stream with no error lines becomes <code>""</code>, not <code>null</code>.</li>
 </ul>
-<p><strong>Request Body:</strong> None</p>
 <p><strong>Success Response:</strong></p>
 <ul>
 <li><strong>Code:</strong> <code>200 OK</code></li>
 <li><strong>Content:</strong>
-  <div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="p">{</span>
-<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="w">  </span><span class="nt">"hostname"</span><span class="p">:</span><span class="w"> </span><span class="s2">"lablink-vm-prod-1"</span><span class="p">,</span>
-<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">  </span><span class="nt">"cloud_init_logs"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Starting cloud-init...\n..."</span><span class="p">,</span>
-<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">  </span><span class="nt">"docker_logs"</span><span class="p">:</span><span class="w"> </span><span class="s2">"[start] ALLOCATOR_HOST: ...\n..."</span><span class="p">,</span>
-<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="w">  </span><span class="nt">"logs"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Starting cloud-init...\n...\n[start] ALLOCATOR_HOST: ...\n..."</span>
-<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="p">}</span>
+  <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="p">{</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">  </span><span class="nt">"hostname"</span><span class="p">:</span><span class="w"> </span><span class="s2">"lablink-vm-prod-1"</span><span class="p">,</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">  </span><span class="nt">"cloud_init_logs"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Starting cloud-init...\n..."</span><span class="p">,</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">  </span><span class="nt">"docker_logs"</span><span class="p">:</span><span class="w"> </span><span class="s2">"[start] ALLOCATOR_HOST: ...\n..."</span><span class="p">,</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">  </span><span class="nt">"logs"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Starting cloud-init...\n..."</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="p">}</span>
 </code></pre></div></li>
 </ul>
 <p><strong>Error Response:</strong></p>
 <ul>
 <li><strong>Code:</strong> <code>404 Not Found</code> if the VM is not found.</li>
-<li><strong>Code:</strong> <code>503 Service Unavailable</code> if the logs are not yet available because the VM's log shipper has not started reporting yet.</li>
+<li><strong>Code:</strong> <code>503 Service Unavailable</code> if the logs are not yet available
+  because the VM's log shipper has not started reporting yet.</li>
 <li><strong>Code:</strong> <code>500 Internal Server Error</code> on failure.</li>
 </ul>
-<h3 id="get-the-allocators-own-logs">Get the Allocator's Own Logs<a class="headerlink" href="#get-the-allocators-own-logs" title="Permanent link">&para;</a></h3>
-<p><strong>Endpoint:</strong> <code>GET /api/allocator-logs</code></p>
-<p><strong>Description:</strong> Returns a redacted tail (last 2000 lines) of the allocator's own container output, read from the file <code>start.sh</code> writes at <code>/var/log/lablink/allocator.log</code>. Backs the <code>/admin/allocator-logs</code> page. Values of <code>PASSWORD</code>/<code>TOKEN</code>/<code>SECRET</code>/<code>KEY</code> assignments are masked before the response leaves the process.</p>
-<p><strong>Authentication:</strong> Admin HTTP Basic</p>
-<p><strong>URL Parameters:</strong> None</p>
-<p><strong>Query Parameters:</strong></p>
+<h3 id="post-apivm-metricshostname"><code>POST /api/vm-metrics/&lt;hostname&gt;</code><a class="headerlink" href="#post-apivm-metricshostname" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> Client secret (Bearer)</p>
+<p>Receive and store startup metrics from a VM.</p>
+<p>Called by the client VM to post timing metrics for <code>cloud-init</code> and
+container startup.</p>
+<p><strong>URL Parameters:</strong></p>
 <ul>
-<li><code>errors_only</code> (boolean, optional, default <code>false</code>): As on
-  <code>GET /api/vm-logs/&lt;hostname&gt;</code> — reduces <code>docker_logs</code> to its error lines.
-  <code>error</code> still reports only a genuinely missing log file; a log with no
-  error lines returns <code>docker_logs: ""</code> with <code>error: null</code>.</li>
+<li><code>hostname</code> (string, required): The hostname of the VM reporting
+  metrics.</li>
 </ul>
-<p><strong>Request Body:</strong> None</p>
+<p><strong>Request Body:</strong> <code>application/json</code></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="p">{</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">  </span><span class="nt">"cloud_init_start"</span><span class="p">:</span><span class="w"> </span><span class="mi">1678886400</span><span class="p">,</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">  </span><span class="nt">"cloud_init_end"</span><span class="p">:</span><span class="w"> </span><span class="mi">1678886460</span><span class="p">,</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">  </span><span class="nt">"cloud_init_duration_seconds"</span><span class="p">:</span><span class="w"> </span><span class="mi">60</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="p">}</span>
+</code></pre></div>
 <p><strong>Success Response:</strong></p>
 <ul>
 <li><strong>Code:</strong> <code>200 OK</code></li>
-<li><strong>Content:</strong>
-  <div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="p">{</span>
-<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="w">  </span><span class="nt">"cloud_init_logs"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
-<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">  </span><span class="nt">"docker_logs"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2026-08-03 12:00:00 - Starting nginx on :5000..."</span><span class="p">,</span>
-<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="w">  </span><span class="nt">"error"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span>
-<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="p">}</span>
-</code></pre></div></li>
+<li><strong>Content:</strong> <code>{"message": "VM metrics posted successfully."}</code></li>
 </ul>
-<p><code>cloud_init_logs</code> is always <code>null</code>: the allocator host's cloud-init output lives outside the container and is out of scope. When no log file exists, <code>docker_logs</code> is <code>null</code> and <code>error</code> explains why — the response is still <code>200</code>.</p>
 <p><strong>Error Response:</strong></p>
 <ul>
-<li><strong>Code:</strong> <code>401 Unauthorized</code> without admin credentials.</li>
+<li><strong>Code:</strong> <code>404 Not Found</code> if the VM does not exist.</li>
+<li><strong>Code:</strong> <code>500 Internal Server Error</code> on failure.</li>
 </ul>
-<h3 id="heartbeat">Heartbeat<a class="headerlink" href="#heartbeat" title="Permanent link">&para;</a></h3>
-<p><strong>Endpoint:</strong> <code>POST /api/heartbeat</code></p>
-<p><strong>Description:</strong> Periodic liveness ping. Lets the allocator detect silent failures — a dead container, a broken network, a hung host, an OOM, or an out-of-band VM termination — that no other endpoint would reveal. The body also carries cheap health signals for early warning.</p>
-<p><strong>Authentication:</strong> Client secret (resolved from the <code>vm_id</code> field)</p>
-<p><strong>Request Body:</strong> <code>application/json</code></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="p">{</span>
-<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="w">  </span><span class="nt">"vm_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"lablink-vm-prod-1"</span><span class="p">,</span>
-<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="w">  </span><span class="nt">"boot_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"…"</span><span class="p">,</span>
-<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="w">  </span><span class="nt">"disk_free_pct"</span><span class="p">:</span><span class="w"> </span><span class="mi">62</span>
-<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="p">}</span>
-</code></pre></div>
-<p><strong>Client Usage:</strong> Sent by the client's <code>heartbeat</code> service every <code>HEARTBEAT_INTERVAL_SECONDS</code>. A client that stops heartbeating for longer than the staleness window becomes eligible for automatic recovery — see <a href="../troubleshooting/#client-vms-aws-provider">Troubleshooting</a>.</p>
-<hr />
+<p><strong>Client Usage:</strong> <code>user_data.sh</code> posts cloud-init timings during boot,
+and the client container's <code>start.sh</code> entrypoint posts its own start/end
+times at the end of its startup sequence. This helps in monitoring
+startup duration.</p>
+<h2 id="provisioning-and-operations">Provisioning and Operations<a class="headerlink" href="#provisioning-and-operations" title="Permanent link">&para;</a></h2>
+<p>Creating and destroying the VM pool. Long-running OpenTofu work runs asynchronously: launch/destroy enqueue a job in the <a href="../database/#operations-table"><code>operations</code> table</a> and the operations endpoints expose its progress.</p>
+<h3 id="post-apilaunch"><code>POST /api/launch</code><a class="headerlink" href="#post-apilaunch" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> Admin (HTTP Basic)</p>
+<p>Launch new client VMs.</p>
+<p>Takes a number of VMs to create and enqueues an async <code>apply</code> operation;
+the background worker generates an OpenTofu variables file and runs
+<code>tofu apply</code> to provision the new instances. Poll <code>GET /api/operations</code>
+for progress. Rejected with <code>405</code> when the provider cannot provision
+hosts (<code>manual</code>).</p>
+<p><strong>Request Body:</strong> <code>application/x-www-form-urlencoded</code></p>
+<ul>
+<li><code>num_vms</code> (integer, required): The number of new VMs to launch.</li>
+</ul>
+<p><strong>Success Response:</strong></p>
+<ul>
+<li><strong>Code:</strong> <code>202 Accepted</code> with <code>{"job_id": 7, "status": "queued"}</code> for
+  JSON clients; browsers get <code>302</code> → <code>/admin/instances?job=&lt;id&gt;</code>.</li>
+</ul>
+<p><strong>Error Response:</strong></p>
+<ul>
+<li><strong>Code:</strong> <code>409 Conflict</code> when another operation is already in
+  progress; the body carries the in-flight <code>job_id</code>.</li>
+<li><strong>Code:</strong> <code>400 Bad Request</code> for a missing or non-positive <code>num_vms</code>.</li>
+</ul>
+<h3 id="post-destroy"><code>POST /destroy</code><a class="headerlink" href="#post-destroy" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> Admin (HTTP Basic)</p>
+<p>Destroy all client VMs.</p>
+<p>Enqueues an async <code>destroy</code> operation: the background worker runs
+<code>tofu destroy</code> to terminate all client EC2 instances and associated
+resources, then clears all records from the <code>vms</code> table. <strong>This is a
+destructive action.</strong> Driven by <code>lablink client destroy</code>, and by
+<code>lablink destroy</code> as its first teardown step. Open session-metrics rows
+are sealed (best-effort) before teardown so final sessions keep a
+duration.</p>
+<p><strong>Request Body:</strong> None</p>
+<p><strong>Success Response:</strong></p>
+<ul>
+<li><strong>Code:</strong> <code>202 Accepted</code> with <code>{"job_id": 8, "status": "queued"}</code> for
+  JSON clients; browsers get <code>302</code> → <code>/admin/instances?job=&lt;id&gt;</code>.</li>
+</ul>
+<p><strong>Error Response:</strong></p>
+<ul>
+<li><strong>Code:</strong> <code>409 Conflict</code> when another operation is already in
+  progress.</li>
+<li><strong>Code:</strong> <code>405 Method Not Allowed</code> when the provider cannot destroy
+  hosts (<code>manual</code>).</li>
+</ul>
+<h3 id="get-apioperations"><code>GET /api/operations</code><a class="headerlink" href="#get-apioperations" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> Admin (HTTP Basic)</p>
+<p>List recent operations.</p>
+<p>Returns recent operations with their <code>op_type</code>, <code>status</code>, timestamps,
+and <code>resources_completed</code> / <code>resources_total</code> progress counters.
+<code>?status=in_progress</code> returns just the currently running operation, if
+any.</p>
+<h3 id="get-apioperationsintoperation_id"><code>GET /api/operations/&lt;int:operation_id&gt;</code><a class="headerlink" href="#get-apioperationsintoperation_id" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> Admin (HTTP Basic)</p>
+<p>Get one operation.</p>
+<p>Returns one operation, including its captured <code>output</code> and <code>error</code>.
+This is what the CLI polls while <code>client launch</code> runs.</p>
+<p><strong>Error Response:</strong></p>
+<ul>
+<li><strong>Code:</strong> <code>404 Not Found</code> if the operation does not exist.</li>
+</ul>
 <h2 id="client-registration-api">Client Registration API<a class="headerlink" href="#client-registration-api" title="Permanent link">&para;</a></h2>
-<p>Used by bring-your-own (BYO) client machines to enrol themselves under the
-<code>manual</code> provider. AWS-provisioned clients do not use these endpoints — OpenTofu
-supplies their credentials directly.</p>
-<p>Registration is what the CLI's <code>lablink client register</code> drives — see
-<a href="../cli/byo-clients/#step-4-register-each-box">Bring-Your-Own Clients</a> for the
-operator-facing walkthrough, and
-<a href="../configuration/#manual-provider-options-manual">Configuration</a> for the <code>manual.*</code>
-settings it depends on.</p>
-<h3 id="register-a-client">Register a Client<a class="headerlink" href="#register-a-client" title="Permanent link">&para;</a></h3>
-<p><strong>Endpoint:</strong> <code>POST /api/v1/clients/register</code></p>
-<p><strong>Authentication:</strong> Register token (the one deployment-wide bearer credential)</p>
+<p>Used by bring-your-own (BYO) client machines to enrol themselves under the <code>manual</code> provider. AWS-provisioned clients also register, with credentials supplied by OpenTofu.</p>
+<p>Registration is what the CLI's <code>lablink client register</code> drives — see <a href="../cli/byo-clients/#step-4-register-each-box">Bring-Your-Own Clients</a> for the operator-facing walkthrough, and <a href="../configuration/#manual-provider-options-manual">Configuration</a> for the <code>manual.*</code> settings it depends on.</p>
+<h3 id="post-apiv1clientsregister"><code>POST /api/v1/clients/register</code><a class="headerlink" href="#post-apiv1clientsregister" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> Register token (the one deployment-wide bearer credential).</p>
+<p>Register a client machine and mint its credentials.</p>
 <p><strong>Request Body:</strong> <code>application/json</code></p>
 <table>
 <thead>
@@ -5830,129 +6394,228 @@ settings it depends on.</p>
 <p><strong>Success Response:</strong></p>
 <ul>
 <li><strong>Code:</strong> <code>200 OK</code></li>
-<li><strong>Content:</strong> the client's credentials and the configuration it needs to start:</li>
+<li><strong>Content:</strong> the client's credentials and the configuration it needs
+  to start:</li>
 </ul>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="p">{</span>
-<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="w">  </span><span class="nt">"client_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"gpu-box-3"</span><span class="p">,</span>
-<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="w">  </span><span class="nt">"client_secret"</span><span class="p">:</span><span class="w"> </span><span class="s2">"…"</span><span class="p">,</span>
-<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="w">  </span><span class="nt">"agent_token"</span><span class="p">:</span><span class="w"> </span><span class="s2">"…"</span><span class="p">,</span>
-<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="w">  </span><span class="nt">"allocator_url"</span><span class="p">:</span><span class="w"> </span><span class="s2">"https://lab.example.org"</span><span class="p">,</span>
-<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a><span class="w">  </span><span class="nt">"connectivity"</span><span class="p">:</span><span class="w"> </span><span class="s2">"lan_direct"</span><span class="p">,</span>
-<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="w">  </span><span class="nt">"client_image"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ghcr.io/talmolab/lablink-client-base-image:latest"</span><span class="p">,</span>
-<a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a><span class="w">  </span><span class="nt">"repository"</span><span class="p">:</span><span class="w"> </span><span class="s2">"https://github.com/talmolab/sleap-tutorial-data.git"</span><span class="p">,</span>
-<a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a><span class="w">  </span><span class="nt">"subject_software"</span><span class="p">:</span><span class="w"> </span><span class="s2">"sleap"</span><span class="p">,</span>
-<a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a><span class="w">  </span><span class="nt">"register_token"</span><span class="p">:</span><span class="w"> </span><span class="s2">"…"</span><span class="p">,</span>
-<a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a><span class="w">  </span><span class="nt">"startup_script_b64"</span><span class="p">:</span><span class="w"> </span><span class="s2">""</span><span class="p">,</span>
-<a id="__codelineno-17-12" name="__codelineno-17-12" href="#__codelineno-17-12"></a><span class="w">  </span><span class="nt">"startup_on_error"</span><span class="p">:</span><span class="w"> </span><span class="s2">"continue"</span><span class="p">,</span>
-<a id="__codelineno-17-13" name="__codelineno-17-13" href="#__codelineno-17-13"></a><span class="w">  </span><span class="nt">"startup_max_attempts"</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span>
-<a id="__codelineno-17-14" name="__codelineno-17-14" href="#__codelineno-17-14"></a><span class="w">  </span><span class="nt">"startup_base_delay_seconds"</span><span class="p">:</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span>
-<a id="__codelineno-17-15" name="__codelineno-17-15" href="#__codelineno-17-15"></a><span class="w">  </span><span class="nt">"startup_success_check_b64"</span><span class="p">:</span><span class="w"> </span><span class="s2">""</span><span class="p">,</span>
-<a id="__codelineno-17-16" name="__codelineno-17-16" href="#__codelineno-17-16"></a><span class="w">  </span><span class="nt">"monitoring"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"enabled"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="w"> </span><span class="p">}</span>
-<a id="__codelineno-17-17" name="__codelineno-17-17" href="#__codelineno-17-17"></a><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="p">{</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span><span class="nt">"client_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"gpu-box-3"</span><span class="p">,</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">  </span><span class="nt">"client_secret"</span><span class="p">:</span><span class="w"> </span><span class="s2">"…"</span><span class="p">,</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">  </span><span class="nt">"agent_token"</span><span class="p">:</span><span class="w"> </span><span class="s2">"…"</span><span class="p">,</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">  </span><span class="nt">"allocator_url"</span><span class="p">:</span><span class="w"> </span><span class="s2">"https://lab.example.org"</span><span class="p">,</span>
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">  </span><span class="nt">"connectivity"</span><span class="p">:</span><span class="w"> </span><span class="s2">"lan_direct"</span><span class="p">,</span>
+<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="w">  </span><span class="nt">"client_image"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ghcr.io/talmolab/lablink-client-base-image:latest"</span><span class="p">,</span>
+<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="w">  </span><span class="nt">"repository"</span><span class="p">:</span><span class="w"> </span><span class="s2">"https://github.com/talmolab/sleap-tutorial-data.git"</span><span class="p">,</span>
+<a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="w">  </span><span class="nt">"subject_software"</span><span class="p">:</span><span class="w"> </span><span class="s2">"sleap"</span><span class="p">,</span>
+<a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a><span class="w">  </span><span class="nt">"register_token"</span><span class="p">:</span><span class="w"> </span><span class="s2">"…"</span><span class="p">,</span>
+<a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a><span class="w">  </span><span class="nt">"startup_script_b64"</span><span class="p">:</span><span class="w"> </span><span class="s2">""</span><span class="p">,</span>
+<a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a><span class="w">  </span><span class="nt">"startup_on_error"</span><span class="p">:</span><span class="w"> </span><span class="s2">"continue"</span><span class="p">,</span>
+<a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a><span class="w">  </span><span class="nt">"startup_max_attempts"</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span>
+<a id="__codelineno-11-14" name="__codelineno-11-14" href="#__codelineno-11-14"></a><span class="w">  </span><span class="nt">"startup_base_delay_seconds"</span><span class="p">:</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span>
+<a id="__codelineno-11-15" name="__codelineno-11-15" href="#__codelineno-11-15"></a><span class="w">  </span><span class="nt">"startup_success_check_b64"</span><span class="p">:</span><span class="w"> </span><span class="s2">""</span><span class="p">,</span>
+<a id="__codelineno-11-16" name="__codelineno-11-16" href="#__codelineno-11-16"></a><span class="w">  </span><span class="nt">"monitoring"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"enabled"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-11-17" name="__codelineno-11-17" href="#__codelineno-11-17"></a><span class="p">}</span>
 </code></pre></div>
-<p><code>client_secret</code> is returned <strong>once</strong> and stored only as an argon2 hash. Reverse-tunnel
-registrations additionally receive <code>tunnel_url</code>, <code>tunnel_path_prefix</code> and
-<code>tunnel_bind_addr</code>, all minted by the allocator.</p>
+<p><code>client_secret</code> is returned <strong>once</strong> and stored only as an argon2 hash.
+Reverse-tunnel registrations additionally receive <code>tunnel_url</code>,
+<code>tunnel_path_prefix</code> and <code>tunnel_bind_addr</code>, all minted by the
+allocator.</p>
 <p><strong>Error Response:</strong></p>
 <ul>
-<li><strong>Code:</strong> <code>400 Bad Request</code> — missing/invalid <code>hostname</code> or <code>machine_identity</code>, or a <code>provider_metadata</code> shape that doesn't match the configured connectivity.</li>
+<li><strong>Code:</strong> <code>400 Bad Request</code> — missing/invalid <code>hostname</code> or
+  <code>machine_identity</code>, or a <code>provider_metadata</code> shape that doesn't match
+  the configured connectivity.</li>
 <li><strong>Code:</strong> <code>401 Unauthorized</code> — bad or missing register token.</li>
 </ul>
-<h3 id="get-client-status">Get Client Status<a class="headerlink" href="#get-client-status" title="Permanent link">&para;</a></h3>
-<p><strong>Endpoint:</strong> <code>GET /api/v1/clients/&lt;client_id&gt;/status</code></p>
-<p><strong>Authentication:</strong> That client's own secret.</p>
+<h3 id="get-apiv1clientsclient_idstatus"><code>GET /api/v1/clients/&lt;client_id&gt;/status</code><a class="headerlink" href="#get-apiv1clientsclient_idstatus" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> Bearer client_secret (that client's own secret).</p>
+<p>Get one client's status.</p>
 <p>Lets a registered client confirm the allocator still knows about it.</p>
-<h3 id="unregister-a-client">Unregister a Client<a class="headerlink" href="#unregister-a-client" title="Permanent link">&para;</a></h3>
-<p><strong>Endpoint:</strong> <code>DELETE /api/v1/clients/&lt;client_id&gt;</code></p>
-<p><strong>Authentication:</strong> That client's own secret.</p>
-<p>Removes the client's row. Driven by <code>lablink client unregister</code>, which calls this
-best-effort — a client whose allocator is already gone still tears itself down
-locally.</p>
-<h3 id="list-clients">List Clients<a class="headerlink" href="#list-clients" title="Permanent link">&para;</a></h3>
-<p><strong>Endpoint:</strong> <code>GET /api/v1/clients</code></p>
-<p><strong>Authentication:</strong> HTTP Basic Auth</p>
-<p>Operator view of every registered client.</p>
-<h3 id="report-overlay-hostname">Report Overlay Hostname<a class="headerlink" href="#report-overlay-hostname" title="Permanent link">&para;</a></h3>
-<p><strong>Endpoint:</strong> <code>POST /api/overlay-hostname</code></p>
-<p><strong>Authentication:</strong> Client secret</p>
-<p>A mesh-overlay client reports the tailnet hostname it actually joined under. This
-matters because MagicDNS appends a numeric suffix when a name is already held by an
-offline node, so the name the client <em>asked</em> for and the name it <em>got</em> can differ.</p>
-<hr />
-<h2 id="operations-api">Operations API<a class="headerlink" href="#operations-api" title="Permanent link">&para;</a></h2>
-<p>Long-running provisioning work runs asynchronously; these endpoints expose it.</p>
-<h3 id="list-operations">List Operations<a class="headerlink" href="#list-operations" title="Permanent link">&para;</a></h3>
-<p><strong>Endpoint:</strong> <code>GET /api/operations</code></p>
-<p><strong>Authentication:</strong> HTTP Basic Auth</p>
-<p>Returns recent operations with their <code>op_type</code>, <code>status</code>, timestamps, and
-<code>resources_completed</code> / <code>resources_total</code> progress counters.</p>
-<h3 id="get-an-operation">Get an Operation<a class="headerlink" href="#get-an-operation" title="Permanent link">&para;</a></h3>
-<p><strong>Endpoint:</strong> <code>GET /api/operations/&lt;operation_id&gt;</code></p>
-<p><strong>Authentication:</strong> HTTP Basic Auth</p>
-<p>Returns one operation, including its captured <code>output</code> and <code>error</code>. This is what
-the CLI polls while <code>client launch</code> runs.</p>
-<hr />
+<h3 id="delete-apiv1clientsclient_id"><code>DELETE /api/v1/clients/&lt;client_id&gt;</code><a class="headerlink" href="#delete-apiv1clientsclient_id" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> Bearer client_secret (the secret minted at register time).</p>
+<p>Best-effort caller-driven deregistration.</p>
+<p>Hard-deletes the row, even when <code>useremail</code> is set — the BYO
+operator is voluntarily withdrawing the box, and the student's
+session is already broken because the local container is going
+away.</p>
+<h3 id="get-apiv1clients"><code>GET /api/v1/clients</code><a class="headerlink" href="#get-apiv1clients" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> admin HTTP Basic — same gate as <code>/admin/instances</code>.</p>
+<p>List registered clients for operator status views.</p>
+<p>Returns only operator-safe columns (no secrets, no log blobs).</p>
+<h3 id="post-apioverlay-hostname"><code>POST /api/overlay-hostname</code><a class="headerlink" href="#post-apioverlay-hostname" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> Client secret (Bearer)</p>
+<p>Record the overlay hostname Tailscale actually assigned this client.</p>
+<p>The name captured at registration is only what the client <em>asked</em> for.
+<code>tailscale up --hostname=X</code> exits 0 even when an existing (possibly
+offline) node already holds X, in which case Tailscale appends a numeric
+suffix instead. The allocator dials the recorded name, so an
+unreconciled rename sends every call to a dead node and the client is
+marked Unhealthy forever (lablink#404).</p>
+<p>Deliberately its own endpoint rather than a field on <code>/api/vm-status</code>:
+that handler and the client's <code>send_status</code> are shared with the AWS
+path, where a lost status POST is unrecoverable (see start.sh's own
+comment and assign_vm's status='running' requirement). Nothing here runs
+for an AWS or lan_direct client — start.sh only calls it inside its
+<code>TAILSCALE_AUTHKEY</code> gate.</p>
+<p>Lives in this module rather than vm_telemetry because this is where the
+<code>overlay_hostname</code> contract is already enforced (see register_client's
+expects_overlay check). Flat <code>/api/</code> prefix to match the sibling
+client-VM writes (<code>/api/vm-status</code>, <code>/api/gpu_health</code>,
+<code>/api/heartbeat</code>) and to stay out of <code>/api/v1/clients/&lt;client_id&gt;</code>'s
+path space.</p>
 <h2 id="scheduled-destruction-api">Scheduled Destruction API<a class="headerlink" href="#scheduled-destruction-api" title="Permanent link">&para;</a></h2>
-<p>Lets an operator schedule tear-down ahead of time — useful for capping the cost of
-a workshop deployment.</p>
-<table>
-<thead>
-<tr>
-<th>Endpoint</th>
-<th>Method</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>/api/schedule-destruction</code></td>
-<td><code>POST</code></td>
-<td>Create a schedule.</td>
-</tr>
-<tr>
-<td><code>/api/schedule-destruction</code></td>
-<td><code>GET</code></td>
-<td>List schedules.</td>
-</tr>
-<tr>
-<td><code>/api/schedule-destruction/&lt;schedule_id&gt;</code></td>
-<td><code>GET</code></td>
-<td>Fetch one schedule.</td>
-</tr>
-<tr>
-<td><code>/api/schedule-destruction/&lt;schedule_id&gt;</code></td>
-<td><code>DELETE</code></td>
-<td>Cancel a schedule.</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Authentication:</strong> HTTP Basic Auth on all four.</p>
-<p>Schedules are persisted in the <code>scheduled_destructions</code> table — see
-<a href="../database/#scheduled_destructions-table">Database</a>.</p>
-<hr />
+<p>Lets an operator schedule tear-down ahead of time — useful for capping the cost of a workshop deployment. Schedules are persisted in the <a href="../database/#scheduled_destructions-table"><code>scheduled_destructions</code> table</a>.</p>
+<h3 id="post-apischedule-destruction"><code>POST /api/schedule-destruction</code><a class="headerlink" href="#post-apischedule-destruction" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> Admin (HTTP Basic)</p>
+<p>Create a new scheduled destruction.</p>
+<p>Request JSON:
+{
+    "schedule_name": "Friday Tutorial End",
+    "destruction_time": "2025-12-05T17:30:00Z",
+    "recurrence_rule": null  // or "FREQ=WEEKLY;BYDAY=FR;BYHOUR=17;BYMINUTE=30"
+}</p>
+<p>Returns:
+    Response: JSON with schedule_id and success status, or error with status code.</p>
+<h3 id="get-apischedule-destructionintschedule_id"><code>GET /api/schedule-destruction/&lt;int:schedule_id&gt;</code><a class="headerlink" href="#get-apischedule-destructionintschedule_id" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> Admin (HTTP Basic)</p>
+<p>Get details of a scheduled destruction.</p>
+<h3 id="get-apischedule-destruction"><code>GET /api/schedule-destruction</code><a class="headerlink" href="#get-apischedule-destruction" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> Admin (HTTP Basic)</p>
+<p>List all scheduled destructions.</p>
+<p>Query parameters:
+    status (optional): Filter by status (scheduled, executing, completed,
+        failed, cancelled)</p>
+<p>Returns:
+    Response: JSON with list of schedules, or error with status code.</p>
+<h3 id="delete-apischedule-destructionintschedule_id"><code>DELETE /api/schedule-destruction/&lt;int:schedule_id&gt;</code><a class="headerlink" href="#delete-apischedule-destructionintschedule_id" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> Admin (HTTP Basic)</p>
+<p>Cancel a scheduled destruction.</p>
 <h2 id="session-metrics-api">Session Metrics API<a class="headerlink" href="#session-metrics-api" title="Permanent link">&para;</a></h2>
 <p>Populated only when <code>monitoring.enabled</code> is true.</p>
-<h3 id="report-session-metrics">Report Session Metrics<a class="headerlink" href="#report-session-metrics" title="Permanent link">&para;</a></h3>
-<p><strong>Endpoint:</strong> <code>POST /api/session-metrics/&lt;hostname&gt;</code></p>
-<p><strong>Authentication:</strong> Client secret</p>
-<p>The client's monitoring sampler posts its accumulated per-session counters
-(time-in-software, GPU activity, training progress).</p>
-<h3 id="get-the-cohort-summary">Get the Cohort Summary<a class="headerlink" href="#get-the-cohort-summary" title="Permanent link">&para;</a></h3>
-<p><strong>Endpoint:</strong> <code>GET /api/session-metrics/summary</code></p>
-<p><strong>Authentication:</strong> HTTP Basic Auth</p>
-<p>Returns the aggregate view model — participation funnel plus cohort totals. Both
-the admin <strong>Session Metrics</strong> page and <code>lablink stats</code> render this same payload, so
-the two can never disagree.</p>
-<h3 id="export-metrics">Export Metrics<a class="headerlink" href="#export-metrics" title="Permanent link">&para;</a></h3>
-<p><strong>Endpoint:</strong> <code>GET /api/export-metrics</code></p>
-<p><strong>Authentication:</strong> HTTP Basic Auth</p>
-<p>Per-VM metrics as CSV or JSON. Backs <code>lablink export-metrics --client</code>.</p>
-<hr />
+<h3 id="post-apisession-metricshostname"><code>POST /api/session-metrics/&lt;hostname&gt;</code><a class="headerlink" href="#post-apisession-metricshostname" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> Client secret (Bearer)</p>
+<p>Report session metrics.</p>
+<p>The client's monitoring sampler posts its accumulated per-session
+counters (time-in-software, GPU activity, training progress).</p>
+<p><strong>Error Response:</strong></p>
+<ul>
+<li><strong>Code:</strong> <code>400 Bad Request</code> if <code>counters</code> is missing.</li>
+<li><strong>Code:</strong> <code>404 Not Found</code> if the VM does not exist.</li>
+<li><strong>Code:</strong> <code>409 Conflict</code> if the session's row is already sealed.</li>
+</ul>
+<h3 id="get-adminsession-metrics"><code>GET /admin/session-metrics</code><a class="headerlink" href="#get-adminsession-metrics" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> Admin (HTTP Basic)</p>
+<p>Render the cohort summary + per-VM table for Tier 1 monitoring.</p>
+<h3 id="get-apisession-metricssummary"><code>GET /api/session-metrics/summary</code><a class="headerlink" href="#get-apisession-metricssummary" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> Admin (HTTP Basic)</p>
+<p>Get the cohort summary.</p>
+<p>Returns the aggregate view model — participation funnel plus cohort
+totals. Both the admin <strong>Session Metrics</strong> page and <code>lablink stats</code>
+render this same payload, so the two can never disagree.</p>
+<h3 id="get-apiexport-metrics"><code>GET /api/export-metrics</code><a class="headerlink" href="#get-apiexport-metrics" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> Admin (HTTP Basic)</p>
+<p>Export metrics.</p>
+<p>Per-VM metrics as CSV or JSON (controlled by <code>?format=</code>). Backs
+<code>lablink export-metrics --client</code>.</p>
+<h2 id="allocator-logs">Allocator Logs<a class="headerlink" href="#allocator-logs" title="Permanent link">&para;</a></h2>
+<h3 id="get-apiallocator-logs"><code>GET /api/allocator-logs</code><a class="headerlink" href="#get-apiallocator-logs" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> Admin (HTTP Basic)</p>
+<p>Get the allocator's own logs.</p>
+<p>Returns a redacted tail (last 2000 lines) of the allocator's own
+container output, read from the file <code>start.sh</code> writes at
+<code>/var/log/lablink/allocator.log</code>. Backs the <code>/admin/allocator-logs</code>
+page. Values of <code>PASSWORD</code>/<code>TOKEN</code>/<code>SECRET</code>/<code>KEY</code> assignments are masked
+before the response leaves the process.</p>
+<p><strong>Query Parameters:</strong></p>
+<ul>
+<li><code>errors_only</code> (boolean, optional, default <code>false</code>): As on
+  <code>GET /api/vm-logs/&lt;hostname&gt;</code> — reduces <code>docker_logs</code> to its error
+  lines. <code>error</code> still reports only a genuinely missing log file; a log
+  with no error lines returns <code>docker_logs: ""</code> with <code>error: null</code>.</li>
+</ul>
+<p><strong>Success Response:</strong></p>
+<ul>
+<li><strong>Code:</strong> <code>200 OK</code></li>
+<li><strong>Content:</strong>
+  <div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="p">{</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="w">  </span><span class="nt">"cloud_init_logs"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">  </span><span class="nt">"docker_logs"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2026-08-03 12:00:00 - Starting nginx on :5000..."</span><span class="p">,</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">  </span><span class="nt">"error"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="p">}</span>
+</code></pre></div></li>
+</ul>
+<p>The response mirrors <code>/api/vm-logs/&lt;hostname&gt;</code>'s keys so the shared logs
+template's JavaScript works unchanged. <code>cloud_init_logs</code> is always
+<code>null</code>: the allocator host's cloud-init output lives outside the
+container and is out of scope. When no log file exists, <code>docker_logs</code> is
+<code>null</code> and <code>error</code> explains why — the response is still <code>200</code>.</p>
+<h3 id="get-adminallocator-logs"><code>GET /admin/allocator-logs</code><a class="headerlink" href="#get-adminallocator-logs" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> Admin (HTTP Basic)</p>
+<p>Render the shared logs page pointed at this blueprint's API.</p>
+<h2 id="admin-session-actions">Admin Session Actions<a class="headerlink" href="#admin-session-actions" title="Permanent link">&para;</a></h2>
+<p>Per-VM operator actions on the <strong>Instances</strong> page: preview a desktop, join a participant's session, release a seat, clear a health lockout.</p>
+<h3 id="get-admininstanceshostnamepeek"><code>GET /admin/instances/&lt;hostname&gt;/peek</code><a class="headerlink" href="#get-admininstanceshostnamepeek" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> Admin (HTTP Basic)</p>
+<p>View (read-only) a VM already assigned to a participant, without
+touching useremail or rotating credentials — opens a second WS
+viewer onto the same live KasmVNC session.</p>
+<h3 id="post-admininstanceshostnameconnect"><code>POST /admin/instances/&lt;hostname&gt;/connect</code><a class="headerlink" href="#post-admininstanceshostnameconnect" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> Admin (HTTP Basic)</p>
+<p>Connect (full control) to a VM not currently assigned to anyone,
+for admin troubleshooting. Reserves the VM out of the assignable
+pool (AdminReservedAt) and mints a real session via the same
+prepare_browser_session path /api/request_vm uses — but never sets
+useremail.</p>
+<h3 id="post-admininstanceshostnamerelease"><code>POST /admin/instances/&lt;hostname&gt;/release</code><a class="headerlink" href="#post-admininstanceshostnamerelease" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> Admin (HTTP Basic)</p>
+<p>End an admin troubleshooting session, returning the VM to the
+assignable pool. Posted to by both the dashboard row's Release
+button and the /desktop wrapper page's Release form.</p>
+<h3 id="post-admininstanceshostnameclear-unhealthy"><code>POST /admin/instances/&lt;hostname&gt;/clear-unhealthy</code><a class="headerlink" href="#post-admininstanceshostnameclear-unhealthy" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> Admin (HTTP Basic)</p>
+<p>Clear an allocator-set Unhealthy flag by hand.</p>
+<p>A rotation timeout marks a client Unhealthy and assign_vm skips those
+rows, so the pool can read as empty while the client is perfectly fine.
+The client cannot clear it itself: check_gpu only reports on <em>change</em>,
+and on a GPU-less box it posts 'N/A' once and then exits its loop
+entirely. A successful Admin Connect clears it automatically (see
+admin_connect_vm); this is the escape hatch for when the box is known
+good but connecting to it isn't wanted. Before either existed, raw SQL
+was the only way out (lablink#404).</p>
 <h2 id="admin-pages">Admin Pages<a class="headerlink" href="#admin-pages" title="Permanent link">&para;</a></h2>
-<p>The allocator also serves operator HTML pages under <code>/admin</code>, all behind HTTP Basic
-Auth. They are walked through in the <a href="../workshop-guide/">Workshop Guide</a>, and
-<code>/admin/byo-onboarding</code> in <a href="../cli/byo-clients/#step-4-register-each-box">Bring-Your-Own Clients</a>.
-Only the JSON APIs above are documented here.</p>
+<p>Operator HTML pages, all behind HTTP Basic Auth. They are walked through in the <a href="../workshop-guide/">Workshop Guide</a>, and <code>/admin/byo-onboarding</code> in <a href="../cli/byo-clients/#step-4-register-each-box">Bring-Your-Own Clients</a>.</p>
+<h3 id="get-admincreate"><code>GET /admin/create</code><a class="headerlink" href="#get-admincreate" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> Admin (HTTP Basic)</p>
+<p>Render the VM creation page (drives <code>POST /api/launch</code>).</p>
+<h3 id="get-admin"><code>GET /admin</code><a class="headerlink" href="#get-admin" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> Admin (HTTP Basic)</p>
+<p>Render the admin panel: entry links, pool counts, connection usage.</p>
+<h3 id="get-adminbyo-onboarding"><code>GET /admin/byo-onboarding</code><a class="headerlink" href="#get-adminbyo-onboarding" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> Admin (HTTP Basic)</p>
+<p>Render the ready-to-copy <code>lablink client register</code> command for BYO clients.</p>
+<p>The register token rotates on each allocator restart, so this page is
+dynamic — re-render to get the current token. Behind admin Basic auth
+(same gate as the rest of /admin); no new privilege boundary.</p>
+<p>The rendered flags depend on the configured connectivity, because
+<code>register_client</code> rejects a shape that doesn't match it with a 400 (see
+its <code>expects_overlay</code>/<code>expects_tunnel</code> checks) — a single lan_direct
+command would be guaranteed-broken copy-paste on the other two modes.
+Read off <code>client_connectivity.name</code> rather than
+<code>cfg.manual.connectivity</code> so this page and that check can never disagree.</p>
+<h3 id="get-admininstances"><code>GET /admin/instances</code><a class="headerlink" href="#get-admininstances" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> Admin (HTTP Basic)</p>
+<p>Render the instances table with per-VM session actions.</p>
+<h3 id="get-admininstancesfragment"><code>GET /admin/instances/fragment</code><a class="headerlink" href="#get-admininstancesfragment" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> Admin (HTTP Basic)</p>
+<p>Instances table as an HTML fragment, for the page's auto-refresh.</p>
+<h3 id="get-admininstancesdelete"><code>GET /admin/instances/delete</code><a class="headerlink" href="#get-admininstancesdelete" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> Admin (HTTP Basic)</p>
+<p>Render the destroy-confirmation page (drives <code>POST /destroy</code>).</p>
+<h3 id="get-adminlogshostname"><code>GET /admin/logs/&lt;hostname&gt;</code><a class="headerlink" href="#get-adminlogshostname" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> Admin (HTTP Basic)</p>
+<p>Get the logs for a specific VM.</p>
+<h3 id="get-adminscheduled-destruction"><code>GET /admin/scheduled-destruction</code><a class="headerlink" href="#get-adminscheduled-destruction" title="Permanent link">&para;</a></h3>
+<p><strong>Authentication:</strong> Admin (HTTP Basic)</p>
+<p>Render scheduled destruction management page.</p>
 
 
 

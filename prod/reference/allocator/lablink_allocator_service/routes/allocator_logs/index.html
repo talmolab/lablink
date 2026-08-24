@@ -4681,11 +4681,35 @@ therefore cannot run <code>docker logs</code> on itself.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Return a redacted tail of the allocator's own log file.</p>
-<p>Mirrors /api/vm-logs/<hostname>'s response keys so the shared logs
-template's JavaScript works unchanged. cloud_init_logs is always None:
-the allocator's cloud-init output lives on the EC2 host, outside this
-container, and is deliberately out of scope.</p>
+        <p>Get the allocator's own logs.</p>
+<p>Returns a redacted tail (last 2000 lines) of the allocator's own
+container output, read from the file <code>start.sh</code> writes at
+<code>/var/log/lablink/allocator.log</code>. Backs the <code>/admin/allocator-logs</code>
+page. Values of <code>PASSWORD</code>/<code>TOKEN</code>/<code>SECRET</code>/<code>KEY</code> assignments are masked
+before the response leaves the process.</p>
+<p><strong>Query Parameters:</strong></p>
+<ul>
+<li><code>errors_only</code> (boolean, optional, default <code>false</code>): As on
+  <code>GET /api/vm-logs/&lt;hostname&gt;</code> — reduces <code>docker_logs</code> to its error
+  lines. <code>error</code> still reports only a genuinely missing log file; a log
+  with no error lines returns <code>docker_logs: ""</code> with <code>error: null</code>.</li>
+</ul>
+<p><strong>Success Response:</strong></p>
+<ul>
+<li><strong>Code:</strong> <code>200 OK</code></li>
+<li><strong>Content:</strong>
+  <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="p">{</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nt">"cloud_init_logs"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="nt">"docker_logs"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2026-08-03 12:00:00 - Starting nginx on :5000..."</span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span><span class="nt">"error"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="p">}</span>
+</code></pre></div></li>
+</ul>
+<p>The response mirrors <code>/api/vm-logs/&lt;hostname&gt;</code>'s keys so the shared logs
+template's JavaScript works unchanged. <code>cloud_init_logs</code> is always
+<code>null</code>: the allocator host's cloud-init output lives outside the
+container and is out of scope. When no log file exists, <code>docker_logs</code> is
+<code>null</code> and <code>error</code> explains why — the response is still <code>200</code>.</p>
 
 
             <details class="mkdocstrings-source">
@@ -4713,30 +4737,82 @@ container, and is deliberately out of scope.</p>
 <span class="normal"><a href="#__codelineno-0-46">46</a></span>
 <span class="normal"><a href="#__codelineno-0-47">47</a></span>
 <span class="normal"><a href="#__codelineno-0-48">48</a></span>
-<span class="normal"><a href="#__codelineno-0-49">49</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-26" name="__codelineno-0-26"></a><span class="nd">@bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">"/api/allocator-logs"</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s2">"GET"</span><span class="p">])</span>
+<span class="normal"><a href="#__codelineno-0-49">49</a></span>
+<span class="normal"><a href="#__codelineno-0-50">50</a></span>
+<span class="normal"><a href="#__codelineno-0-51">51</a></span>
+<span class="normal"><a href="#__codelineno-0-52">52</a></span>
+<span class="normal"><a href="#__codelineno-0-53">53</a></span>
+<span class="normal"><a href="#__codelineno-0-54">54</a></span>
+<span class="normal"><a href="#__codelineno-0-55">55</a></span>
+<span class="normal"><a href="#__codelineno-0-56">56</a></span>
+<span class="normal"><a href="#__codelineno-0-57">57</a></span>
+<span class="normal"><a href="#__codelineno-0-58">58</a></span>
+<span class="normal"><a href="#__codelineno-0-59">59</a></span>
+<span class="normal"><a href="#__codelineno-0-60">60</a></span>
+<span class="normal"><a href="#__codelineno-0-61">61</a></span>
+<span class="normal"><a href="#__codelineno-0-62">62</a></span>
+<span class="normal"><a href="#__codelineno-0-63">63</a></span>
+<span class="normal"><a href="#__codelineno-0-64">64</a></span>
+<span class="normal"><a href="#__codelineno-0-65">65</a></span>
+<span class="normal"><a href="#__codelineno-0-66">66</a></span>
+<span class="normal"><a href="#__codelineno-0-67">67</a></span>
+<span class="normal"><a href="#__codelineno-0-68">68</a></span>
+<span class="normal"><a href="#__codelineno-0-69">69</a></span>
+<span class="normal"><a href="#__codelineno-0-70">70</a></span>
+<span class="normal"><a href="#__codelineno-0-71">71</a></span>
+<span class="normal"><a href="#__codelineno-0-72">72</a></span>
+<span class="normal"><a href="#__codelineno-0-73">73</a></span>
+<span class="normal"><a href="#__codelineno-0-74">74</a></span>
+<span class="normal"><a href="#__codelineno-0-75">75</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-26" name="__codelineno-0-26"></a><span class="nd">@bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">"/api/allocator-logs"</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s2">"GET"</span><span class="p">])</span>
 <a id="__codelineno-0-27" name="__codelineno-0-27"></a><span class="nd">@auth</span><span class="o">.</span><span class="n">login_required</span>
 <a id="__codelineno-0-28" name="__codelineno-0-28"></a><span class="k">def</span><span class="w"> </span><span class="nf">allocator_logs_api</span><span class="p">():</span>
-<a id="__codelineno-0-29" name="__codelineno-0-29"></a><span class="w">    </span><span class="sd">"""Return a redacted tail of the allocator's own log file.</span>
+<a id="__codelineno-0-29" name="__codelineno-0-29"></a><span class="w">    </span><span class="sd">"""Get the allocator's own logs.</span>
 <a id="__codelineno-0-30" name="__codelineno-0-30"></a>
-<a id="__codelineno-0-31" name="__codelineno-0-31"></a><span class="sd">    Mirrors /api/vm-logs/&lt;hostname&gt;'s response keys so the shared logs</span>
-<a id="__codelineno-0-32" name="__codelineno-0-32"></a><span class="sd">    template's JavaScript works unchanged. cloud_init_logs is always None:</span>
-<a id="__codelineno-0-33" name="__codelineno-0-33"></a><span class="sd">    the allocator's cloud-init output lives on the EC2 host, outside this</span>
-<a id="__codelineno-0-34" name="__codelineno-0-34"></a><span class="sd">    container, and is deliberately out of scope.</span>
-<a id="__codelineno-0-35" name="__codelineno-0-35"></a><span class="sd">    """</span>
-<a id="__codelineno-0-36" name="__codelineno-0-36"></a>    <span class="n">logs</span> <span class="o">=</span> <span class="n">read_allocator_log</span><span class="p">()</span>
-<a id="__codelineno-0-37" name="__codelineno-0-37"></a>    <span class="c1"># Capture missing-ness *before* filtering: a log with no error lines</span>
-<a id="__codelineno-0-38" name="__codelineno-0-38"></a>    <span class="c1"># filters down to "", which is falsy, and would otherwise be reported</span>
-<a id="__codelineno-0-39" name="__codelineno-0-39"></a>    <span class="c1"># as a missing log file.</span>
-<a id="__codelineno-0-40" name="__codelineno-0-40"></a>    <span class="n">missing</span> <span class="o">=</span> <span class="n">logs</span> <span class="ow">is</span> <span class="kc">None</span>
-<a id="__codelineno-0-41" name="__codelineno-0-41"></a>    <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"errors_only"</span><span class="p">,</span> <span class="s2">"false"</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">"true"</span><span class="p">:</span>
-<a id="__codelineno-0-42" name="__codelineno-0-42"></a>        <span class="n">logs</span> <span class="o">=</span> <span class="n">filter_errors</span><span class="p">(</span><span class="n">logs</span><span class="p">)</span>
-<a id="__codelineno-0-43" name="__codelineno-0-43"></a>    <span class="k">return</span> <span class="n">jsonify</span><span class="p">(</span>
-<a id="__codelineno-0-44" name="__codelineno-0-44"></a>        <span class="p">{</span>
-<a id="__codelineno-0-45" name="__codelineno-0-45"></a>            <span class="s2">"cloud_init_logs"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-46" name="__codelineno-0-46"></a>            <span class="s2">"docker_logs"</span><span class="p">:</span> <span class="n">logs</span><span class="p">,</span>
-<a id="__codelineno-0-47" name="__codelineno-0-47"></a>            <span class="s2">"error"</span><span class="p">:</span> <span class="n">_MISSING_LOG_MSG</span> <span class="k">if</span> <span class="n">missing</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-48" name="__codelineno-0-48"></a>        <span class="p">}</span>
-<a id="__codelineno-0-49" name="__codelineno-0-49"></a>    <span class="p">)</span>
+<a id="__codelineno-0-31" name="__codelineno-0-31"></a><span class="sd">    Returns a redacted tail (last 2000 lines) of the allocator's own</span>
+<a id="__codelineno-0-32" name="__codelineno-0-32"></a><span class="sd">    container output, read from the file `start.sh` writes at</span>
+<a id="__codelineno-0-33" name="__codelineno-0-33"></a><span class="sd">    `/var/log/lablink/allocator.log`. Backs the `/admin/allocator-logs`</span>
+<a id="__codelineno-0-34" name="__codelineno-0-34"></a><span class="sd">    page. Values of `PASSWORD`/`TOKEN`/`SECRET`/`KEY` assignments are masked</span>
+<a id="__codelineno-0-35" name="__codelineno-0-35"></a><span class="sd">    before the response leaves the process.</span>
+<a id="__codelineno-0-36" name="__codelineno-0-36"></a>
+<a id="__codelineno-0-37" name="__codelineno-0-37"></a><span class="sd">    **Query Parameters:**</span>
+<a id="__codelineno-0-38" name="__codelineno-0-38"></a>
+<a id="__codelineno-0-39" name="__codelineno-0-39"></a><span class="sd">    - `errors_only` (boolean, optional, default `false`): As on</span>
+<a id="__codelineno-0-40" name="__codelineno-0-40"></a><span class="sd">      `GET /api/vm-logs/&lt;hostname&gt;` — reduces `docker_logs` to its error</span>
+<a id="__codelineno-0-41" name="__codelineno-0-41"></a><span class="sd">      lines. `error` still reports only a genuinely missing log file; a log</span>
+<a id="__codelineno-0-42" name="__codelineno-0-42"></a><span class="sd">      with no error lines returns `docker_logs: ""` with `error: null`.</span>
+<a id="__codelineno-0-43" name="__codelineno-0-43"></a>
+<a id="__codelineno-0-44" name="__codelineno-0-44"></a><span class="sd">    **Success Response:**</span>
+<a id="__codelineno-0-45" name="__codelineno-0-45"></a>
+<a id="__codelineno-0-46" name="__codelineno-0-46"></a><span class="sd">    - **Code:** `200 OK`</span>
+<a id="__codelineno-0-47" name="__codelineno-0-47"></a><span class="sd">    - **Content:**</span>
+<a id="__codelineno-0-48" name="__codelineno-0-48"></a><span class="sd">      ```json</span>
+<a id="__codelineno-0-49" name="__codelineno-0-49"></a><span class="sd">      {</span>
+<a id="__codelineno-0-50" name="__codelineno-0-50"></a><span class="sd">        "cloud_init_logs": null,</span>
+<a id="__codelineno-0-51" name="__codelineno-0-51"></a><span class="sd">        "docker_logs": "2026-08-03 12:00:00 - Starting nginx on :5000...",</span>
+<a id="__codelineno-0-52" name="__codelineno-0-52"></a><span class="sd">        "error": null</span>
+<a id="__codelineno-0-53" name="__codelineno-0-53"></a><span class="sd">      }</span>
+<a id="__codelineno-0-54" name="__codelineno-0-54"></a><span class="sd">      ```</span>
+<a id="__codelineno-0-55" name="__codelineno-0-55"></a>
+<a id="__codelineno-0-56" name="__codelineno-0-56"></a><span class="sd">    The response mirrors `/api/vm-logs/&lt;hostname&gt;`'s keys so the shared logs</span>
+<a id="__codelineno-0-57" name="__codelineno-0-57"></a><span class="sd">    template's JavaScript works unchanged. `cloud_init_logs` is always</span>
+<a id="__codelineno-0-58" name="__codelineno-0-58"></a><span class="sd">    `null`: the allocator host's cloud-init output lives outside the</span>
+<a id="__codelineno-0-59" name="__codelineno-0-59"></a><span class="sd">    container and is out of scope. When no log file exists, `docker_logs` is</span>
+<a id="__codelineno-0-60" name="__codelineno-0-60"></a><span class="sd">    `null` and `error` explains why — the response is still `200`.</span>
+<a id="__codelineno-0-61" name="__codelineno-0-61"></a><span class="sd">    """</span>
+<a id="__codelineno-0-62" name="__codelineno-0-62"></a>    <span class="n">logs</span> <span class="o">=</span> <span class="n">read_allocator_log</span><span class="p">()</span>
+<a id="__codelineno-0-63" name="__codelineno-0-63"></a>    <span class="c1"># Capture missing-ness *before* filtering: a log with no error lines</span>
+<a id="__codelineno-0-64" name="__codelineno-0-64"></a>    <span class="c1"># filters down to "", which is falsy, and would otherwise be reported</span>
+<a id="__codelineno-0-65" name="__codelineno-0-65"></a>    <span class="c1"># as a missing log file.</span>
+<a id="__codelineno-0-66" name="__codelineno-0-66"></a>    <span class="n">missing</span> <span class="o">=</span> <span class="n">logs</span> <span class="ow">is</span> <span class="kc">None</span>
+<a id="__codelineno-0-67" name="__codelineno-0-67"></a>    <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"errors_only"</span><span class="p">,</span> <span class="s2">"false"</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">"true"</span><span class="p">:</span>
+<a id="__codelineno-0-68" name="__codelineno-0-68"></a>        <span class="n">logs</span> <span class="o">=</span> <span class="n">filter_errors</span><span class="p">(</span><span class="n">logs</span><span class="p">)</span>
+<a id="__codelineno-0-69" name="__codelineno-0-69"></a>    <span class="k">return</span> <span class="n">jsonify</span><span class="p">(</span>
+<a id="__codelineno-0-70" name="__codelineno-0-70"></a>        <span class="p">{</span>
+<a id="__codelineno-0-71" name="__codelineno-0-71"></a>            <span class="s2">"cloud_init_logs"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-72" name="__codelineno-0-72"></a>            <span class="s2">"docker_logs"</span><span class="p">:</span> <span class="n">logs</span><span class="p">,</span>
+<a id="__codelineno-0-73" name="__codelineno-0-73"></a>            <span class="s2">"error"</span><span class="p">:</span> <span class="n">_MISSING_LOG_MSG</span> <span class="k">if</span> <span class="n">missing</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-74" name="__codelineno-0-74"></a>        <span class="p">}</span>
+<a id="__codelineno-0-75" name="__codelineno-0-75"></a>    <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -4759,31 +4835,31 @@ container, and is deliberately out of scope.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/allocator/src/lablink_allocator_service/routes/allocator_logs.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-52">52</a></span>
-<span class="normal"><a href="#__codelineno-0-53">53</a></span>
-<span class="normal"><a href="#__codelineno-0-54">54</a></span>
-<span class="normal"><a href="#__codelineno-0-55">55</a></span>
-<span class="normal"><a href="#__codelineno-0-56">56</a></span>
-<span class="normal"><a href="#__codelineno-0-57">57</a></span>
-<span class="normal"><a href="#__codelineno-0-58">58</a></span>
-<span class="normal"><a href="#__codelineno-0-59">59</a></span>
-<span class="normal"><a href="#__codelineno-0-60">60</a></span>
-<span class="normal"><a href="#__codelineno-0-61">61</a></span>
-<span class="normal"><a href="#__codelineno-0-62">62</a></span>
-<span class="normal"><a href="#__codelineno-0-63">63</a></span>
-<span class="normal"><a href="#__codelineno-0-64">64</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-52" name="__codelineno-0-52"></a><span class="nd">@bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">"/admin/allocator-logs"</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s2">"GET"</span><span class="p">])</span>
-<a id="__codelineno-0-53" name="__codelineno-0-53"></a><span class="nd">@auth</span><span class="o">.</span><span class="n">login_required</span>
-<a id="__codelineno-0-54" name="__codelineno-0-54"></a><span class="k">def</span><span class="w"> </span><span class="nf">allocator_logs_page</span><span class="p">():</span>
-<a id="__codelineno-0-55" name="__codelineno-0-55"></a><span class="w">    </span><span class="sd">"""Render the shared logs page pointed at this blueprint's API."""</span>
-<a id="__codelineno-0-56" name="__codelineno-0-56"></a>    <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span>
-<a id="__codelineno-0-57" name="__codelineno-0-57"></a>        <span class="s2">"instance-logs.html"</span><span class="p">,</span>
-<a id="__codelineno-0-58" name="__codelineno-0-58"></a>        <span class="n">log_title</span><span class="o">=</span><span class="s2">"Allocator Logs"</span><span class="p">,</span>
-<a id="__codelineno-0-59" name="__codelineno-0-59"></a>        <span class="n">log_endpoint</span><span class="o">=</span><span class="s2">"/api/allocator-logs"</span><span class="p">,</span>
-<a id="__codelineno-0-60" name="__codelineno-0-60"></a>        <span class="n">download_slug</span><span class="o">=</span><span class="s2">"allocator"</span><span class="p">,</span>
-<a id="__codelineno-0-61" name="__codelineno-0-61"></a>        <span class="n">show_cloud_init</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-62" name="__codelineno-0-62"></a>        <span class="c1"># Reached via same-tab navigation from /admin, so window.close() is a no-op.</span>
-<a id="__codelineno-0-63" name="__codelineno-0-63"></a>        <span class="n">show_close</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-64" name="__codelineno-0-64"></a>    <span class="p">)</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-78">78</a></span>
+<span class="normal"><a href="#__codelineno-0-79">79</a></span>
+<span class="normal"><a href="#__codelineno-0-80">80</a></span>
+<span class="normal"><a href="#__codelineno-0-81">81</a></span>
+<span class="normal"><a href="#__codelineno-0-82">82</a></span>
+<span class="normal"><a href="#__codelineno-0-83">83</a></span>
+<span class="normal"><a href="#__codelineno-0-84">84</a></span>
+<span class="normal"><a href="#__codelineno-0-85">85</a></span>
+<span class="normal"><a href="#__codelineno-0-86">86</a></span>
+<span class="normal"><a href="#__codelineno-0-87">87</a></span>
+<span class="normal"><a href="#__codelineno-0-88">88</a></span>
+<span class="normal"><a href="#__codelineno-0-89">89</a></span>
+<span class="normal"><a href="#__codelineno-0-90">90</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-78" name="__codelineno-0-78"></a><span class="nd">@bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">"/admin/allocator-logs"</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s2">"GET"</span><span class="p">])</span>
+<a id="__codelineno-0-79" name="__codelineno-0-79"></a><span class="nd">@auth</span><span class="o">.</span><span class="n">login_required</span>
+<a id="__codelineno-0-80" name="__codelineno-0-80"></a><span class="k">def</span><span class="w"> </span><span class="nf">allocator_logs_page</span><span class="p">():</span>
+<a id="__codelineno-0-81" name="__codelineno-0-81"></a><span class="w">    </span><span class="sd">"""Render the shared logs page pointed at this blueprint's API."""</span>
+<a id="__codelineno-0-82" name="__codelineno-0-82"></a>    <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span>
+<a id="__codelineno-0-83" name="__codelineno-0-83"></a>        <span class="s2">"instance-logs.html"</span><span class="p">,</span>
+<a id="__codelineno-0-84" name="__codelineno-0-84"></a>        <span class="n">log_title</span><span class="o">=</span><span class="s2">"Allocator Logs"</span><span class="p">,</span>
+<a id="__codelineno-0-85" name="__codelineno-0-85"></a>        <span class="n">log_endpoint</span><span class="o">=</span><span class="s2">"/api/allocator-logs"</span><span class="p">,</span>
+<a id="__codelineno-0-86" name="__codelineno-0-86"></a>        <span class="n">download_slug</span><span class="o">=</span><span class="s2">"allocator"</span><span class="p">,</span>
+<a id="__codelineno-0-87" name="__codelineno-0-87"></a>        <span class="n">show_cloud_init</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-0-88" name="__codelineno-0-88"></a>        <span class="c1"># Reached via same-tab navigation from /admin, so window.close() is a no-op.</span>
+<a id="__codelineno-0-89" name="__codelineno-0-89"></a>        <span class="n">show_close</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-0-90" name="__codelineno-0-90"></a>    <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
