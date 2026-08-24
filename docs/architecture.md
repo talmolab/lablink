@@ -38,7 +38,7 @@ graph TB
             subgraph AllocatorContainer["Docker Container: lablink-allocator"]
                 Nginx[nginx :5000<br/>only network-facing<br/>process]
                 Flask[Flask App<br/>127.0.0.1:8000<br/><br/>• Web UI<br/>• API<br/>• OpenTofu]
-                PostgreSQL[(PostgreSQL 17<br/><br/>• vms<br/>• operations<br/>• schedules)]
+                PostgreSQL[(PostgreSQL 17<br/><br/>• vms<br/>• operations<br/>• scheduled_destructions<br/>• settings)]
                 Nginx --> Flask
                 Flask <--> PostgreSQL
             end
@@ -58,7 +58,7 @@ graph TB
         subgraph AWSResources["AWS Resources"]
             SecurityGroups[Security Groups]
             ElasticIPs[Elastic IPs<br/>Static IPs]
-            S3[S3 Bucket<br/>TF State + Lock Table]
+            S3[S3 Bucket: TF State<br/>DynamoDB: Lock Table]
         end
     end
 
@@ -87,7 +87,10 @@ Inside the allocator container, nginx on port 5000 is the only network-facing
 process: Flask binds loopback (127.0.0.1:8000) and PostgreSQL runs co-located
 in the same container. Participants' noVNC traffic is proxied by that nginx to
 the client's KasmVNC WebSocket — the browser never talks to a client VM
-directly. When `ssl.provider=letsencrypt` (the default) or `cloudflare`, a
+directly, except under `manual.connectivity=lan_direct`, where it opens a
+WebSocket straight to the client's LAN IP (see
+[Client connectivity](#client-connectivity-how-the-desktop-is-reached)).
+When `ssl.provider=letsencrypt` (the default) or `cloudflare`, a
 Caddy reverse proxy on the EC2 host terminates TLS on ports 80/443 and
 forwards to the container's port 5000.
 
@@ -465,7 +468,7 @@ sequenceDiagram
     OpenTofu->>AWS: Launch EC2 instance<br/>with user_data script
     AWS-->>OpenTofu: Return instance details<br/>(hostname, IP, etc.)
     OpenTofu-->>Worker: Provisioning complete
-    Worker->>Flask: Mark operation succeeded
+    Worker->>Worker: Mark operation succeeded<br/>(operations table)
 
     Note over VM: Boot sequence begins
     VM->>VM: Execute user_data script
@@ -487,14 +490,14 @@ sequenceDiagram
     participant Flask as Flask App
     participant DB as PostgreSQL
 
-    Note over Client: Every 20 seconds
-
-    loop Health Check Cycle
+    par GPU check — every 20 seconds
         Client->>Client: Check GPU status
-        Client->>Flask: POST /api/gpu_health<br/>(gpu_status, hostname)
-        Flask->>DB: Update Healthy column,<br/>touch LastSeen
-        Flask-->>Client: ACK
-
+        alt Status changed
+            Client->>Flask: POST /api/gpu_health<br/>(gpu_status, hostname)
+            Flask->>DB: Update Healthy column,<br/>touch LastSeen
+            Flask-->>Client: ACK
+        end
+    and Heartbeat — every 30 seconds
         Client->>Flask: POST /api/heartbeat
         Flask->>DB: Touch LastSeen
         Flask-->>Client: ACK

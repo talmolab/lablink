@@ -49,15 +49,16 @@ def submit_vm_details():
        `no_seats.html`.
     3. **Per-session prep.** Mints a `session_id` and `browser_token`, then
        rotates the KasmVNC password on the assigned client through that
-       client's local agent. This runs inside the assignment transaction, so
-       a rotation failure rolls the assignment back.
+       client's local agent. The claim has already committed by this point,
+       so a rotation failure is compensated for, not rolled back: the seat is
+       released and the VM flagged `Unhealthy`.
     4. **Cookie + redirect.** Signs a `lablink_session` cookie bound to the
        `session_id` and redirects to `GET /desktop`.
 
     **Success Response:**
 
-    - **Code:** `302 Found` → `/desktop`, with the `lablink_session` cookie
-      set.
+    - **Code:** `303 See Other` → `/desktop`, with the `lablink_session`
+      cookie set.
 
     **Error Response:**
 
