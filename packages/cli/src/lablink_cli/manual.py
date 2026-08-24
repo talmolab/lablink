@@ -73,6 +73,42 @@ def public_url(workdir: Path) -> str | None:
     return candidate if candidate.startswith(("http://", "https://")) else None
 
 
+# Marker file written into the workdir by `lablink deploy --render-only`:
+# its presence (containing exactly "external") means the allocator runs as a
+# workload on an external container platform (Run:AI, Kubernetes, ...) — no
+# local container, and the platform owns the lifecycle. Absent or holding
+# anything else means today's compose-managed semantics, so every workdir
+# predating the marker behaves exactly as before.
+RUNTIME_FILENAME = "runtime"
+
+
+def deployment_runtime(workdir: Path) -> str:
+    """How this deployment's allocator lifecycle is managed.
+
+    Returns ``"external"`` when the workdir carries the marker written by
+    ``lablink deploy --render-only``, else ``"compose"``.
+    """
+    try:
+        if (workdir / RUNTIME_FILENAME).read_text().strip() == "external":
+            return "external"
+    except (OSError, UnicodeDecodeError):
+        pass
+    return "compose"
+
+
+def resolved_base_url(cfg: Config, workdir: Path) -> str | None:
+    """The allocator base URL, honoring the runtime marker.
+
+    Compose-managed deployments are reached on localhost (`base_url`);
+    external-runtime deployments have no local container, so the only
+    address is the recorded public URL — None when the workdir has none
+    (deploy refuses to render such a bundle, but the file can go missing).
+    """
+    if deployment_runtime(workdir) == "external":
+        return public_url(workdir)
+    return base_url(cfg)
+
+
 def admin_credentials(cfg: Config, workdir: Path) -> tuple[str, str] | None:
     """Find admin user/password for the manual compose stack.
 
@@ -91,14 +127,15 @@ def admin_credentials(cfg: Config, workdir: Path) -> tuple[str, str] | None:
 
 
 def registered_clients(
-    cfg: Config, admin_user: str, admin_password: str
+    cfg: Config, admin_user: str, admin_password: str, base: str | None = None
 ) -> tuple[list[dict] | None, str]:
     """GET /api/v1/clients with admin Basic auth.
 
     Returns (clients, error_message). On success, error_message is "".
-    On failure, clients is None.
+    On failure, clients is None. `base` overrides the localhost base URL —
+    external-runtime deployments pass their recorded public URL.
     """
-    url = f"{base_url(cfg)}/api/v1/clients"
+    url = f"{(base or base_url(cfg)).rstrip('/')}/api/v1/clients"
     creds = f"{admin_user}:{admin_password}".encode()
     header = "Basic " + base64.b64encode(creds).decode()
     req = Request(

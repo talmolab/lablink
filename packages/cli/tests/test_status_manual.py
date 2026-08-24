@@ -201,3 +201,57 @@ class TestRunStatusManual:
             manual_cfg, docker=_ComposeDocker(), workdir_root=tmp_path
         )
         assert mock_health.call_args_list[0][0][0] == "http://localhost:80"
+
+    @patch("lablink_cli.manual.registered_clients")
+    @patch("lablink_cli.commands.status.check_health_endpoint")
+    def test_external_runtime_skips_compose_ps_and_uses_canonical_url(
+        self, mock_health, mock_clients, manual_cfg, tmp_path
+    ):
+        from lablink_cli.manual import RUNTIME_FILENAME
+
+        workdir = tmp_path / "mylab"
+        workdir.mkdir()
+        (workdir / RUNTIME_FILENAME).write_text("external\n")
+        (workdir / "allocator-url").write_text("https://lab.example.org")
+        manual_cfg.manual.participant_exposure = "cloudflare_tunnel"
+        mock_health.return_value = {"healthy": True}
+        mock_clients.return_value = ([], "")
+
+        fake_docker = MagicMock()
+        _run_status_manual(
+            manual_cfg, docker=fake_docker, workdir_root=tmp_path
+        )
+
+        fake_docker.compose.assert_not_called()
+        # Both HTTP checks target the canonical public URL, not localhost.
+        assert (
+            mock_health.call_args_list[0][0][0] == "https://lab.example.org"
+        )
+        assert (
+            mock_clients.call_args.kwargs["base"] == "https://lab.example.org"
+        )
+
+    @patch("lablink_cli.manual.registered_clients")
+    @patch("lablink_cli.commands.status.check_health_endpoint")
+    def test_external_runtime_missing_url_reports_explicitly(
+        self, mock_health, mock_clients, manual_cfg, tmp_path, capsys
+    ):
+        """A render-only bundle with no supported public exposure has no
+        address to probe — say so, instead of silently falling back to a
+        localhost that has nothing listening on it."""
+        from lablink_cli.manual import RUNTIME_FILENAME
+
+        workdir = tmp_path / "mylab"
+        workdir.mkdir()
+        (workdir / RUNTIME_FILENAME).write_text("external\n")
+        # No allocator-url file recorded.
+
+        fake_docker = MagicMock()
+        _run_status_manual(
+            manual_cfg, docker=fake_docker, workdir_root=tmp_path
+        )
+
+        out = capsys.readouterr().out
+        assert "No public URL recorded" in out
+        mock_health.assert_not_called()
+        mock_clients.assert_not_called()

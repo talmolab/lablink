@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import tempfile
@@ -294,6 +295,51 @@ def fetch_manual_allocator_logs(*, docker: Docker | None = None) -> dict:
 
 
 # ------------------------------------------------------------------
+# Log fetching — external-runtime allocator (no local docker container)
+# ------------------------------------------------------------------
+def fetch_external_allocator_logs(
+    *,
+    allocator_url: str,
+    admin_user: str,
+    admin_password: str,
+    ssl_provider: str = "none",
+) -> dict:
+    """Snapshot an externally-run allocator's own logs over HTTP.
+
+    External-runtime deployments (``lablink deploy --render-only``) have
+    no local ``lablink-allocator`` container to ``docker logs``; the
+    allocator serves the same content at ``GET /api/allocator-logs``
+    (admin basic-auth, redacted tail of /var/log/lablink/allocator.log).
+    Routed through :func:`authenticated_json_request` — the same helper
+    :func:`fetch_client_logs` uses — rather than a bare ``requests.get``:
+    Cloudflare-proxied allocators (this feature's own topology) return
+    HTTP 403 for the default urllib/requests User-Agent, and that helper
+    is what sends the CLI's product UA instead (see api.py). Mirrors
+    :func:`fetch_manual_allocator_logs`'s contract
+    (cloud_init_logs / docker_logs / error keys).
+    """
+    url = f"{allocator_url.rstrip('/')}/api/allocator-logs"
+    try:
+        body = authenticated_json_request(
+            url, admin_user, admin_password, ssl_provider=ssl_provider, timeout=30
+        )
+        return {
+            "cloud_init_logs": body.get("cloud_init_logs"),
+            "docker_logs": body.get("docker_logs"),
+            "error": body.get("error"),
+        }
+    except (HTTPError, URLError, json.JSONDecodeError) as e:
+        return {
+            "cloud_init_logs": None,
+            "docker_logs": None,
+            "error": (
+                f"Could not fetch allocator logs from {url}: {e} "
+                "(is the platform workload running?)"
+            ),
+        }
+
+
+# ------------------------------------------------------------------
 # Manual-provider TUI launcher
 # ------------------------------------------------------------------
 def _run_logs_manual(
@@ -303,8 +349,11 @@ def _run_logs_manual(
 
     The TUI shows the local allocator container plus every registered
     BYO client. Client logs come from /api/vm-logs/<hostname> (populated
-    by the manual-client log shipper). The allocator entry is fetched
-    via local ``docker logs lablink-allocator`` instead of SSH.
+    by the manual-client log shipper). The allocator entry is fetched via
+    local ``docker logs lablink-allocator`` instead of SSH — except for an
+    external-runtime deployment (``lablink deploy --render-only``), which
+    has no local container at all; its allocator entry is fetched over
+    HTTP from its own public URL instead (see ``fetch_external_allocator_logs``).
 
     `workdir_root` overrides the default compose root (used by tests).
     """
@@ -319,12 +368,31 @@ def _run_logs_manual(
         raise SystemExit(1)
     admin_user, admin_pw = creds
 
-    allocator_url = manual.base_url(cfg)
+    runtime = manual.deployment_runtime(workdir)
+    if runtime == "external":
+        # No local container/port to fall back to — the allocator only
+        # exists at the public URL staged by `lablink deploy --render-only`
+        # (same canonical-URL file `lablink status` reads).
+        allocator_url = manual.public_url(workdir)
+        if not allocator_url:
+            console.print(
+                "[red]Could not determine the external allocator's public "
+                "URL.[/red]\n"
+                f"Expected one recorded under {workdir} — re-run `lablink "
+                "deploy --render-only` or check the platform workload."
+            )
+            raise SystemExit(1)
+    else:
+        allocator_url = manual.base_url(cfg)
 
     console.print(
         "[dim]Fetching registered BYO clients from the allocator...[/dim]"
     )
-    clients, err = manual.registered_clients(cfg, admin_user, admin_pw)
+    # allocator_url is localhost for a compose stack (registered_clients'
+    # default) and the recorded public URL for an external runtime.
+    clients, err = manual.registered_clients(
+        cfg, admin_user, admin_pw, base=allocator_url
+    )
     if clients is None:
         console.print(
             f"[red]Failed to list clients:[/red] {err}\n"
@@ -365,6 +433,7 @@ def _run_logs_manual(
         admin_pw=admin_pw,
         deploy_dir=workdir,
         manual=True,
+        runtime=runtime,
     )
     app.run()
 

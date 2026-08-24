@@ -513,14 +513,28 @@ unhealthy VM.
 
 ## Deployment Paths
 
-There are two ways to stand up an allocator, both driving the same Terraform
-configs from `talmolab/lablink-template`:
+There are four ways to stand up an allocator. Three drive `lablink deploy`,
+selected by `provider` in `config.yaml` (and, for the manual provider, by
+whether Docker runs the container for you or you hand the rendered bundle to
+something else); the fourth uses the template repo directly:
 
-- **CLI (recommended)**: `lablink deploy` downloads a pinned, checksummed
-  template release, runs OpenTofu locally, and stores state remotely in an
-  S3 bucket (`lablink-tf-state-<account-id>`) with a DynamoDB lock table —
-  one state key per named deployment. See
+- **CLI → AWS** (`provider: aws`, the default): downloads a pinned,
+  checksummed OpenTofu template release from `talmolab/lablink-template`,
+  applies it locally, and stores state remotely in an S3 bucket
+  (`lablink-tf-state-<account-id>`) with a DynamoDB lock table — one state
+  key per named deployment. See
   [CLI First Deployment](cli/first-deployment.md).
+- **CLI → docker-compose** (`provider: manual`): renders a docker-compose
+  stack (allocator + optional Tailscale sidecar) into
+  `~/.lablink/compose/<deployment_name>/` and runs it with
+  `docker compose up -d`, on a machine you already have — no AWS account, no
+  OpenTofu. See [Bring-Your-Own Clients](cli/byo-clients.md).
+- **CLI → external runtime** (`provider: manual`, with
+  `lablink deploy --render-only`): renders the same bundle as the
+  docker-compose path, then stops short of starting containers — for when
+  the allocator has to run as a workload on a platform you don't control the
+  Docker daemon for (a Run:AI workspace, a Kubernetes pod). See
+  [External runtime](cli/external-runtime.md).
 - **Template repo fork**: GitHub Actions workflows in the template repo run
   `tofu apply`/`destroy` for isolated `dev`/`test`/`prod` environments, each
   with its own backend config and resource-name suffix. See

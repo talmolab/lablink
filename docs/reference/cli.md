@@ -148,7 +148,7 @@ Deploy LabLink infrastructure (AWS OpenTofu or docker-compose).
 
 ```bash
 lablink deploy [--config PATH] [--template-version V] [--terraform-bundle PATH] [--yes]
-               [--tailscale-authkey KEY] [--cloudflare-tunnel-token TOKEN]
+               [--tailscale-authkey KEY] [--cloudflare-tunnel-token TOKEN] [--render-only]
 ```
 
 **AWS provider:** downloads the pinned `lablink-template` OpenTofu files (or uses a
@@ -173,9 +173,10 @@ the container only.
 | `-y`, `--yes` | Skip confirmation prompts. Does not bypass credential prompts (the admin password is still required interactively). |
 | `--tailscale-authkey KEY` | Auth key for the allocator's own tailnet sidecar. Required on the **first** deploy when `manual.connectivity` is `mesh_overlay` and/or `manual.participant_exposure` is `tailscale_funnel`; optional on redeploys (the previous value is carried forward from the deployment's `.env`). **Manual provider only.** |
 | `--cloudflare-tunnel-token TOKEN` | Token for publishing the allocator at `manual.public_hostname`. Required on the first deploy when `manual.participant_exposure` is `cloudflare_tunnel`; optional on redeploys. Supply it again to rotate. **Manual provider only.** |
+| `--render-only` | Render the compose bundle and print a launch sheet instead of starting containers — for running the allocator image as a workload on an external container platform (Run:AI, Kubernetes) with no local Docker daemon. See [External Runtime](../cli/external-runtime.md). **Manual provider only.** |
 
-Secrets passed with the last two flags are written only to the deployment's `.env`
-(mode `0600`), never to `config.yaml`.
+Secrets passed via `--tailscale-authkey` / `--cloudflare-tunnel-token` are written
+only to the deployment's `.env` (mode `0600`), never to `config.yaml`.
 
 ---
 

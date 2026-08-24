@@ -408,10 +408,12 @@ def get_allocator_url(cfg: Config) -> str:
 
     Manual provider has neither input: no OpenTofu state to read an IP
     from, and ``dns.enabled`` is meaningless for a compose stack —
-    ``manual.base_url`` owns that answer.
+    ``manual.resolved_base_url`` owns that answer (localhost for a
+    compose-managed stack; the recorded public URL for an external-runtime
+    deployment, which has no local container).
     """
     if getattr(cfg, "provider", "aws") == "manual":
-        return manual.base_url(cfg)
+        return manual.resolved_base_url(cfg, manual.workdir(cfg)) or ""
 
     deploy_dir = get_deploy_dir(cfg)
     outputs = {}

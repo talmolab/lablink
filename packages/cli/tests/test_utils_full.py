@@ -92,6 +92,42 @@ class TestGetAllocatorUrl:
         assert result == "http://localhost:80"
         mock_dir.assert_not_called()
 
+    def test_manual_provider_external_runtime_uses_public_url(self, mock_cfg):
+        """An external-runtime deployment (`lablink deploy --render-only`)
+        has no localhost port to fall back to — the allocator only exists
+        at its recorded public URL. Without this, `stats`/`export-metrics`
+        hit http://localhost:80 for a deployment with nothing listening
+        there."""
+        mock_cfg.provider = "manual"
+
+        with patch(
+            "lablink_cli.manual.deployment_runtime",
+            return_value="external",
+        ), patch(
+            "lablink_cli.manual.public_url",
+            return_value="https://lab.example.org",
+        ):
+            result = get_allocator_url(mock_cfg)
+
+        assert result == "https://lab.example.org"
+
+    def test_manual_provider_external_runtime_no_url_returns_empty(self, mock_cfg):
+        """A render-only bundle with no recorded public URL yields an empty
+        string, not a bogus localhost guess — callers already print 'Could
+        not determine allocator URL' on empty."""
+        mock_cfg.provider = "manual"
+
+        with patch(
+            "lablink_cli.manual.deployment_runtime",
+            return_value="external",
+        ), patch(
+            "lablink_cli.manual.public_url",
+            return_value=None,
+        ):
+            result = get_allocator_url(mock_cfg)
+
+        assert result == ""
+
     def test_deploy_dir_missing(self, mock_cfg):
         mock_cfg.dns.enabled = False
         mock_cfg.ssl.provider = "none"
