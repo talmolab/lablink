@@ -11,6 +11,12 @@ from rich.console import Console
 
 from lablink_allocator_service.conf.structured_config import Config
 
+from lablink_cli import manual
+from lablink_cli.config.schema import (  # noqa: F401 — re-exported
+    _MISSING,
+    resolve_from_saved_config,
+)
+
 console = Console()
 
 
@@ -401,17 +407,11 @@ def get_allocator_url(cfg: Config) -> str:
     """Determine the allocator base URL from OpenTofu outputs or config.
 
     Manual provider has neither input: no OpenTofu state to read an IP
-    from, and ``dns.enabled`` is meaningless for a compose stack. Both
-    compose templates publish ``${HTTP_PORT}:5000`` on the host, and the
-    CLI's manual paths already assume they run on that host (`status` and
-    `logs` shell into the local container), so localhost is the address —
-    the same base URL deploy_compose._health_poll polls after `up`.
-    Imported lazily: deploy_compose imports this module at load time.
+    from, and ``dns.enabled`` is meaningless for a compose stack —
+    ``manual.base_url`` owns that answer.
     """
     if getattr(cfg, "provider", "aws") == "manual":
-        from lablink_cli.commands.deploy_compose import DEFAULT_HTTP_PORT
-
-        return f"http://localhost:{DEFAULT_HTTP_PORT}"
+        return manual.base_url(cfg)
 
     deploy_dir = get_deploy_dir(cfg)
     outputs = {}
@@ -436,8 +436,6 @@ def get_allocator_url(cfg: Config) -> str:
         return f"http://{ip}"
     return ""
 
-
-_MISSING = ("MISSING", "")
 
 # The places resolve_admin_credentials draws from, quoted back to the
 # operator when the allocator rejects what it produced — a bare "HTTP 401"
@@ -480,30 +478,6 @@ def _resolve_from_config(
     return None
 
 
-def resolve_from_saved_config(path: Path) -> tuple[str, str] | None:
-    """Try to get credentials from a deploy-time config.yaml at ``path``.
-
-    Both providers stash the resolved credentials in a rendered config.yaml,
-    just in different places (AWS: the deploy dir, manual: the compose
-    workdir), so the read is shared and only the path differs.
-    """
-    import yaml
-
-    if not path.exists():
-        return None
-
-    with open(path) as f:
-        saved_cfg = yaml.safe_load(f) or {}
-
-    app_cfg = saved_cfg.get("app", {}) or {}
-    user = app_cfg.get("admin_user", "")
-    pw = app_cfg.get("admin_password", "")
-
-    if user and user not in _MISSING and pw and pw not in _MISSING:
-        return user, pw
-    return None
-
-
 def _resolve_from_prompt() -> tuple[str, str]:
     """Prompt the user for admin credentials."""
     import getpass
@@ -542,10 +516,7 @@ def resolve_admin_credentials(
         return resolved
 
     if getattr(cfg, "provider", "aws") == "manual":
-        # Lazy: deploy_compose imports this module at load time.
-        from lablink_cli.commands.deploy_compose import compose_workdir
-
-        path = compose_workdir(cfg) / "config.yaml"
+        path = manual.workdir(cfg) / "config.yaml"
     else:
         path = get_deploy_dir(cfg) / "config" / "config.yaml"
 

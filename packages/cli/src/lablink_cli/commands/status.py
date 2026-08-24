@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import base64
 import json
 import os
 import socket
@@ -21,6 +20,7 @@ from rich.table import Table
 
 from lablink_allocator_service.conf.structured_config import Config
 
+from lablink_cli import manual
 from lablink_cli.api import USER_AGENT
 from lablink_cli.commands.utils import (
     AwsQueryError,
@@ -30,7 +30,6 @@ from lablink_cli.commands.utils import (
     get_tofu_outputs,
     TofuError,
     print_aws_error,
-    resolve_from_saved_config,
 )
 from lablink_cli.docker import Docker, default_docker
 
@@ -650,59 +649,6 @@ def _render_cost_estimate(cfg: Config, live_pricing: bool = True) -> None:
 # ------------------------------------------------------------------
 # Main entry point
 # ------------------------------------------------------------------
-def _resolve_manual_admin_credentials(
-    cfg: Config, workdir: Path
-) -> tuple[str, str] | None:
-    """Find admin user/password for the manual compose stack.
-
-    Tries cfg first, then the workdir's rendered config.yaml (which
-    deploy_compose.render_compose_dir always writes with the resolved
-    credentials) — the same two sources ``resolve_admin_credentials``
-    consults for a manual config, minus its interactive prompt: callers
-    here print their own guidance instead, so this returns None.
-    """
-    user = getattr(cfg.app, "admin_user", "") or ""
-    pw = getattr(cfg.app, "admin_password", "") or ""
-    if user and pw and user != "MISSING" and pw != "MISSING":
-        return user, pw
-
-    return resolve_from_saved_config(workdir / "config.yaml")
-
-
-def _fetch_registered_clients(
-    base_url: str, admin_user: str, admin_password: str
-) -> tuple[list[dict] | None, str]:
-    """GET /api/v1/clients with admin Basic auth.
-
-    Returns (clients, error_message). On success, error_message is "".
-    On failure, clients is None.
-    """
-    url = f"{base_url.rstrip('/')}/api/v1/clients"
-    creds = f"{admin_user}:{admin_password}".encode()
-    header = "Basic " + base64.b64encode(creds).decode()
-    req = Request(url, method="GET", headers={"Authorization": header})
-    try:
-        resp = urlopen(req, timeout=10)  # noqa: S310
-        body = json.loads(resp.read().decode())
-        return body.get("clients", []) or [], ""
-    except HTTPError as e:
-        if e.code == 401:
-            # A bare "HTTP 401" reads like an allocator fault. It's the
-            # admin credentials, and they live in one of two files.
-            return None, (
-                f"the allocator rejected admin user '{admin_user}' "
-                "(HTTP 401). Check app.admin_user / app.admin_password "
-                "in ~/.lablink/config.yaml or in the rendered "
-                "~/.lablink/compose/<deployment>/config.yaml — a "
-                "redeploy can change them."
-            )
-        return None, f"HTTP {e.code} from {url}"
-    except URLError as e:
-        return None, f"{url} → {e.reason}"
-    except Exception as e:
-        return None, f"{url} → {e}"
-
-
 def _render_manual_clients_table(clients: list[dict]) -> None:
     """Print a Rich table of registered BYO clients."""
     table = Table(show_header=True)
@@ -753,32 +699,18 @@ def _render_manual_clients_table(clients: list[dict]) -> None:
     console.print(table)
 
 
-def _public_url(workdir: Path) -> str | None:
-    """The participant-facing URL `lablink deploy` published for this stack.
+def _run_status_manual(
+    cfg: Config,
+    *,
+    docker: Docker | None = None,
+    workdir_root: Path | None = None,
+) -> None:
+    """Report compose stack health, allocator HTTP health, and BYO clients.
 
-    Read from the canonical-URL file staged in the deployment dir (the same
-    file bind-mounted into the allocator, written from `tailscale funnel
-    status`). Empty on every deployment that isn't Funnel-exposed, in which
-    case there is no public URL to show and this returns None.
+    `workdir_root` overrides the default compose root (used by tests).
     """
-    # Imported inside the function: deploy_compose imports
-    # check_health_endpoint from this module, so a module-level import here
-    # would close an import cycle.
-    from lablink_cli.commands.deploy_compose import CANONICAL_URL_FILENAME
-
-    try:
-        candidate = (workdir / CANONICAL_URL_FILENAME).read_text().strip()
-    except OSError:
-        return None
-    return candidate if candidate.startswith(("http://", "https://")) else None
-
-
-def _run_status_manual(cfg: Config, *, docker: Docker | None = None) -> None:
-    """Report compose stack health, allocator HTTP health, and BYO clients."""
     docker = docker or default_docker()
-    workdir = Path.home() / ".lablink" / "compose" / (
-        cfg.deployment_name or "lablink"
-    )
+    workdir = manual.workdir(cfg, workdir_root)
 
     console.print(
         f"[bold]Manual deployment:[/bold] {cfg.deployment_name}"
@@ -795,8 +727,7 @@ def _run_status_manual(cfg: Config, *, docker: Docker | None = None) -> None:
     if ps.ok:
         console.print(ps.stdout)
 
-    scheme = "https" if cfg.ssl.provider == "self_signed" else "http"
-    base_url = f"{scheme}://localhost"
+    base_url = manual.base_url(cfg)
     health = check_health_endpoint(base_url)
     if health.get("healthy"):
         console.print(
@@ -811,7 +742,7 @@ def _run_status_manual(cfg: Config, *, docker: Docker | None = None) -> None:
     # participants (or BYO clients) use. When the stack is Funnel-exposed,
     # surface the public URL too — and check it, since Funnel being off or
     # the tailnet being down is invisible from a localhost probe.
-    public_url = _public_url(workdir)
+    public_url = manual.public_url(workdir)
     if public_url:
         label = (
             "Tailscale Funnel"
@@ -834,17 +765,17 @@ def _run_status_manual(cfg: Config, *, docker: Docker | None = None) -> None:
 
     console.print()
     console.print("[bold]Registered Clients[/bold]")
-    creds = _resolve_manual_admin_credentials(cfg, workdir)
+    creds = manual.admin_credentials(cfg, workdir)
     if creds is None:
         console.print(
             "[yellow]Admin credentials not found in config — "
             "cannot list clients. Open the admin dashboard at "
-            f"{public_url or f'{scheme}://localhost'} instead.[/yellow]"
+            f"{public_url or base_url} instead.[/yellow]"
         )
         return
 
     admin_user, admin_pw = creds
-    clients, err = _fetch_registered_clients(base_url, admin_user, admin_pw)
+    clients, err = manual.registered_clients(cfg, admin_user, admin_pw)
     if clients is None:
         console.print(f"[red]Failed to list clients: {err}[/red]")
         return

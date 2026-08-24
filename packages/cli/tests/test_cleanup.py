@@ -536,7 +536,7 @@ class TestManualCleanup:
         mock_default_docker.return_value = fake_docker
 
         with patch(
-            "lablink_cli.commands.cleanup.DEFAULT_COMPOSE_DIR",
+            "lablink_cli.manual.DEFAULT_COMPOSE_DIR",
             tmp_path / "compose",
         ):
             run_cleanup(mock_cfg, dry_run=False)
@@ -560,7 +560,7 @@ class TestManualCleanup:
         mock_default_docker.return_value = fake_docker
 
         with patch(
-            "lablink_cli.commands.cleanup.DEFAULT_COMPOSE_DIR",
+            "lablink_cli.manual.DEFAULT_COMPOSE_DIR",
             tmp_path / "compose",
         ):
             run_cleanup(mock_cfg, dry_run=False)
@@ -581,7 +581,7 @@ class TestManualCleanup:
         mock_default_docker.return_value = fake_docker
 
         with patch(
-            "lablink_cli.commands.cleanup.DEFAULT_COMPOSE_DIR",
+            "lablink_cli.manual.DEFAULT_COMPOSE_DIR",
             tmp_path / "compose",
         ):
             run_cleanup(mock_cfg, dry_run=True)
