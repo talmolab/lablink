@@ -58,6 +58,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ristretto \
     xarchiver \
     thunar-archive-plugin \
+    tumbler \
     yaru-theme-gtk \
     yaru-theme-icon \
     fonts-ubuntu \

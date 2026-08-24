@@ -82,6 +82,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ristretto \
     xarchiver \
     thunar-archive-plugin \
+    # D-Bus thumbnail service (a Recommends of thunar, so dropped by
+    # --no-install-recommends). Without it Thunar and the GTK file chooser
+    # show generic icons for images instead of thumbnails.
+    tumbler \
     # Ubuntu 24.04's own theme. Yaru ships xfwm4 window decorations as well
     # as the GTK theme and icons, so the desktop is themed end to end rather
     # than GTK-only with fallback borders.
