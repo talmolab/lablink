@@ -363,6 +363,36 @@ lablink client doctor   # on a BYO client box: registration, container, log ship
 
     See [Pick a connectivity mode](cli/byo-clients.md#pick-a-connectivity-mode).
 
+??? note "A reverse-tunnel client logs `Invalid status code: 524` every ~2 minutes"
+    Expected churn when `manual.connectivity=reverse_tunnel` is paired with
+    `manual.participant_exposure=cloudflare_tunnel`. The wstunnel client keeps
+    one "await" connection open for the server to hand new tunnels to, and the
+    server holds that HTTP upgrade **pending** until it's needed. Cloudflare's
+    proxy gives an origin 120 seconds to answer, then kills the pending
+    request with its own 524 status — so the client logs the error and
+    re-dials within a second, forever.
+
+    Established desktop sessions ride their own, fully-upgraded connections
+    and are **not** affected (measured: sessions survive many churn cycles and
+    400+ seconds of idle). The cost is a ~1-second window every ~2 minutes in
+    which a brand-new participant connection stalls until the client
+    re-attaches, plus this log noise. There is no fix on the free Cloudflare
+    plan (the 120s timeout is configurable only for Enterprise), and wstunnel
+    upstream documents CDN buffering as incompatible with its protocol —
+    treat the message as noise unless it stops being periodic.
+
+??? note "Sessions on a laptop client drop when the lid closes (or randomly)"
+    A bring-your-own client on a laptop dies with the machine: Windows
+    sleep/Modern Standby suspends the WSL2 VM, which freezes Docker, the
+    tunnel, and KasmVNC in one stroke — every participant session drops and
+    the allocator eventually marks the client unhealthy. Wi-Fi power saving
+    can do the same without sleep.
+
+    Before serving real participants from a laptop, disable sleep while
+    plugged in (Windows: `powercfg /change standby-timeout-ac 0`) and turn
+    off Wi-Fi power management. The viewer auto-reconnects when the machine
+    comes back, but anything running in the session meanwhile was frozen.
+
 ??? note "A mesh-overlay client looks healthy but is unreachable"
     Re-registering a `mesh_overlay` client mints a **new** Tailscale node. MagicDNS suffixes the name (`-1`, `-2`, …) because the old node is offline but still holds the original name, so the allocator's stored hostname points at a machine that no longer answers — while the client's own logs look perfectly fine.
 

@@ -156,12 +156,13 @@ def desktop_client_with_row(monkeypatch):
     return _make
 
 
-def test_desktop_aws_byte_identical(desktop_client_with_row):
+def test_desktop_aws_viewer_url_locked(desktop_client_with_row):
     client = desktop_client_with_row(ws_url="proxy/btok123", cred=None)
     r = client.get("/desktop")
     assert r.status_code == 302
     assert r.headers["Location"] == (
         "/static/novnc/vnc.html?path=proxy/btok123&autoconnect=1&resize=remote"
+        "&reconnect=1&reconnect_delay=2000"
     )
 
 
@@ -201,7 +202,8 @@ def test_desktop_view_only_appends_query_param(desktop_client_with_row):
     assert r.status_code == 302
     assert r.headers["Location"] == (
         "/static/novnc/vnc.html?path=proxy/btok123"
-        "&autoconnect=1&resize=remote&view_only=1"
+        "&autoconnect=1&resize=remote&reconnect=1&reconnect_delay=2000"
+        "&view_only=1"
     )
 
 
@@ -232,7 +234,8 @@ def test_desktop_admin_session_renders_wrapper_with_release_form(
     # never reach the fullscreen handler that calls navigator.keyboard.lock.
     assert (
         'src="/static/novnc/vnc.html?path=proxy/tok-admin'
-        '&autoconnect=1&resize=remote&show_control_bar=1"' in body
+        '&autoconnect=1&resize=remote'
+        '&reconnect=1&reconnect_delay=2000&show_control_bar=1"' in body
     )
     assert "allowfullscreen" in body
 
