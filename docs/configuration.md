@@ -255,6 +255,13 @@ Controls HTTPS/SSL certificate management.
 - Requires `dns.enabled: true` and a valid `ssl.email`
 - Rate limited (5 duplicate certificates per week per domain)
 
+!!! warning "Redeploying the same domain hits the rate limit"
+    Every deploy requests a fresh certificate. After 5 deploys of the same
+    domain within 7 days, Let's Encrypt refuses issuance and the site fails
+    in the browser with `ERR_SSL_PROTOCOL_ERROR` — there is no clearer error
+    surfaced anywhere. For repeated test deploys, use a fresh subdomain each
+    cycle (e.g. `test2.lablink.example.com`), or wait out the 7-day window.
+
 Configuration example:
 ```yaml
 dns:

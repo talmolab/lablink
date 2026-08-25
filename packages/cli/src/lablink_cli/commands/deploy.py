@@ -273,6 +273,20 @@ def _prompt_passwords() -> dict[str, str]:
     }
 
 
+def _warn_letsencrypt_rate_limit(cfg: Config) -> None:
+    """Warn that LE issues ≤5 certs/domain/7 days — redeploys fail opaquely."""
+    if cfg.ssl.provider != "letsencrypt":
+        return
+    console.print(
+        "  [yellow]Note:[/yellow] Let's Encrypt issues at most 5 "
+        "certificates per domain per 7 days. Repeated deploys of "
+        f"'{cfg.dns.domain}' within a week will hit this limit and the "
+        "site will fail with ERR_SSL_PROTOCOL_ERROR. Use a fresh "
+        "subdomain for repeated test deploys."
+    )
+    console.print()
+
+
 def _build_health_poll_target(cfg: Config, ec2_ip: str) -> dict:
     """Pick the post-deploy poll URL + timeout. Caddy is Host-bound under
     letsencrypt/cloudflare, so those must poll the domain, not the IP."""
@@ -371,6 +385,8 @@ def run_deploy(
         )
     )
     console.print()
+
+    _warn_letsencrypt_rate_limit(cfg)
 
     # Validate AWS credentials
     check_credentials(_get_session(cfg.app.region))

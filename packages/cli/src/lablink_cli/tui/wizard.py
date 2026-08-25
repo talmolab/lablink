@@ -805,7 +805,10 @@ class DnsScreen(Screen):
                     if not is_manual:
                         yield RadioButton(
                             "Let's Encrypt — free automatic SSL, requires a "
-                            "domain (https://letsencrypt.org/)",
+                            "domain (https://letsencrypt.org/). Rate limit: "
+                            "5 certs per domain per 7 days — redeploying the "
+                            "same test domain fails with "
+                            "ERR_SSL_PROTOCOL_ERROR",
                             value=(default_idx == 1),
                             id="dns-letsencrypt",
                         )
@@ -945,7 +948,7 @@ class DnsScreen(Screen):
                         id="adv-ssl-none",
                     )
                     yield RadioButton(
-                        "letsencrypt",
+                        "letsencrypt (rate limit: 5 certs/domain/7 days)",
                         value=(cfg.ssl.provider == "letsencrypt"),
                         id="adv-ssl-letsencrypt",
                     )
