@@ -74,13 +74,19 @@ def desktop():
     if suffix == "admin_session":
         return _render_admin_session_page(ws_url, hostname)
 
-    # Proxied path (relative, server-side credential): byte-identical to
-    # the historical viewer URL — AWS regression-locked.
+    # Proxied path (relative, server-side credential). reconnect=1 makes the
+    # Kasm noVNC viewer retry after an unexpected drop (reconnect_delay ms
+    # between attempts) instead of stranding the participant on a dead
+    # "Disconnected" screen — transient WS kills are a fact of life on every
+    # connectivity path (Cloudflare 524 churn, campus middleboxes, laptop
+    # sleep). Deliberate disconnects don't loop: the viewer arms reconnect
+    # only after a successful connect and disarms it on user Disconnect.
     if ws_url.startswith("proxy/"):
         vo_qs = "&view_only=1" if view_only else ""
         return redirect(
             f"/static/novnc/vnc.html?path={ws_url}"
-            f"&autoconnect=1&resize=remote{vo_qs}",
+            f"&autoconnect=1&resize=remote"
+            f"&reconnect=1&reconnect_delay=2000{vo_qs}",
             code=302,
         )
 
@@ -105,7 +111,8 @@ def desktop():
     vo_qs = "&view_only=1" if view_only else ""
     target = (
         f"/static/novnc/vnc.html?host={host}&port={port}&encrypt={encrypt}"
-        f"&autoconnect=1&resize=remote{pw_qs}{vo_qs}"
+        f"&autoconnect=1&resize=remote"
+        f"&reconnect=1&reconnect_delay=2000{pw_qs}{vo_qs}"
     )
     return (
         "<!doctype html><meta charset=utf-8>"
@@ -131,7 +138,8 @@ def _render_admin_session_page(ws_url: str, hostname: str) -> str:
     """
     viewer_src = (
         f"/static/novnc/vnc.html?path={ws_url}"
-        "&autoconnect=1&resize=remote&show_control_bar=1"
+        "&autoconnect=1&resize=remote"
+        "&reconnect=1&reconnect_delay=2000&show_control_bar=1"
     )
     release_action = f"/admin/instances/{quote(hostname, safe='')}/release"
     safe_hostname = html.escape(hostname)
