@@ -274,12 +274,7 @@ def _prompt_passwords() -> dict[str, str]:
 
 
 def _warn_letsencrypt_rate_limit(cfg: Config) -> None:
-    """Warn about Let's Encrypt's production rate limit before apply.
-
-    LE issues at most 5 certificates per exact domain per 7 days. Repeated
-    test deploys of the same domain silently exhaust the quota, and the only
-    symptom is ERR_SSL_PROTOCOL_ERROR in the browser.
-    """
+    """Warn that LE issues ≤5 certs/domain/7 days — redeploys fail opaquely."""
     if cfg.ssl.provider != "letsencrypt":
         return
     console.print(
