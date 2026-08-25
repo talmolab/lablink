@@ -21,6 +21,7 @@ from lablink_cli.commands.deploy import (
     _prepare_working_dir,
     _run_tofu,
     _tofu_destroy,
+    _warn_letsencrypt_rate_limit,
     run_deploy,
     run_destroy,
 )
@@ -386,6 +387,39 @@ class TestBuildHealthPollTarget:
         target = _build_health_poll_target(mock_cfg, "1.2.3.4")
         assert target["url"] == "http://1.2.3.4"
         assert target["max_wait"] == 300
+
+
+# ------------------------------------------------------------------
+# _warn_letsencrypt_rate_limit
+# ------------------------------------------------------------------
+class TestWarnLetsencryptRateLimit:
+    """Pre-deploy warning about LE's 5-certs/domain/7-days production limit.
+
+    Redeploying the same test domain exhausts the quota and the only symptom
+    is an opaque ERR_SSL_PROTOCOL_ERROR in the browser — the warning is the
+    fix for that opacity.
+    """
+
+    @patch("lablink_cli.commands.deploy.console")
+    def test_warns_for_letsencrypt(self, mock_console, mock_cfg):
+        mock_cfg.ssl.provider = "letsencrypt"
+        mock_cfg.dns.domain = "lab.example.com"
+        _warn_letsencrypt_rate_limit(mock_cfg)
+        printed = " ".join(
+            str(c.args[0]) for c in mock_console.print.call_args_list if c.args
+        )
+        assert "5 certificates" in printed
+        assert "lab.example.com" in printed
+        assert "ERR_SSL_PROTOCOL_ERROR" in printed
+
+    @pytest.mark.parametrize(
+        "provider", ["none", "acm", "cloudflare", "self_signed"]
+    )
+    @patch("lablink_cli.commands.deploy.console")
+    def test_silent_for_other_providers(self, mock_console, mock_cfg, provider):
+        mock_cfg.ssl.provider = provider
+        _warn_letsencrypt_rate_limit(mock_cfg)
+        mock_console.print.assert_not_called()
 
 
 # ------------------------------------------------------------------
