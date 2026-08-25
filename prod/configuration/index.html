@@ -6074,6 +6074,14 @@ allocator container with a fixed identity (database <code>lablink_db</code>, use
 <li>Requires <code>dns.enabled: true</code> and a valid <code>ssl.email</code></li>
 <li>Rate limited (5 duplicate certificates per week per domain)</li>
 </ul>
+<div class="admonition warning">
+<p class="admonition-title">Redeploying the same domain hits the rate limit</p>
+<p>Every deploy requests a fresh certificate. After 5 deploys of the same
+domain within 7 days, Let's Encrypt refuses issuance and the site fails
+in the browser with <code>ERR_SSL_PROTOCOL_ERROR</code> — there is no clearer error
+surfaced anywhere. For repeated test deploys, use a fresh subdomain each
+cycle (e.g. <code>test2.lablink.example.com</code>), or wait out the 7-day window.</p>
+</div>
 <p>Configuration example:
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">dns</span><span class="p">:</span>
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
