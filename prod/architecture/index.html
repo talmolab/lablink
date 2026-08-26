@@ -5186,7 +5186,7 @@ contract.</p>
 <li>Exposes a local agent the allocator calls to rotate the VNC password per session</li>
 <li>Clones the configured repository and runs the containerized research software</li>
 </ol>
-<p><strong>Desktop performance</strong>: the client deliberately overrides six upstream
+<p><strong>Desktop performance</strong>: the client deliberately overrides seven upstream
 defaults, because stock KasmVNC and XFCE never reduce cost while the screen is
 moving — they hold near-maximum quality through a full-screen redraw and fall
 behind, which participants perceive as choppy motion. Do not revert these to
@@ -5221,6 +5221,11 @@ their defaults without re-measuring:</p>
 <td>Sends a cheap region shift instead of re-encoding the scrolled region.</td>
 </tr>
 <tr>
+<td><code>-videoCodec auto</code></td>
+<td><code>""</code> (empty)</td>
+<td>KasmVNC 1.5.0 gates all video streaming on this being non-empty — with the default the server never advertises H.264 and every session silently stays in per-rect JPEG/WebP. <code>auto</code> picks the best probed encoder (NVENC → VAAPI → software x264).</td>
+</tr>
+<tr>
 <td><code>Xft</code> <code>RGBA: none</code></td>
 <td><code>rgb</code> (subpixel)</td>
 <td>Subpixel antialiasing puts coloured fringes on every glyph, and at <code>-DynamicQualityMin 4</code> those fringes are the first thing the encoder discards — text ends up ringed with colour noise. Greyscale antialiasing compresses better and stays legible at the quality floor.</td>
@@ -5232,7 +5237,17 @@ their defaults without re-measuring:</p>
 </tr>
 </tbody>
 </table>
-<p>The three encoder settings are passed on the <code>Xvnc</code> command line, not written
+<p>Caveat: on browser connections the bundled viewer's quality preset re-sends
+<code>dynamic_quality_min</code> and <code>video_time</code> as pseudo-encodings at connect,
+overriding the argv values per-session. The images bake the preset default to
+High (3) — <code>dynamic_quality_min 7</code>, <code>video_time 5</code>, 60 FPS cap — chosen over
+Extreme (4) because Extreme's <code>video_time 100</code> prevents video/H.264 streaming
+mode from ever engaging. The argv values still govern any client that doesn't
+send the pseudo-encodings. H.264 streaming additionally requires the viewer
+page to be served over HTTPS (WebCodecs is unavailable on insecure origins;
+the session falls back to JPEG/WebP image mode — see
+<a href="../configuration/">Configuration</a>).</p>
+<p>The encoder settings are passed on the <code>Xvnc</code> command line, not written
 to <code>~/.vnc/kasmvnc.yaml</code>. That file is read only by the <code>kasmvncserver</code> Perl
 wrapper, which <code>start.sh</code> bypasses to exec <code>Xvnc</code> directly, so tuning placed
 there is silently ignored.</p>

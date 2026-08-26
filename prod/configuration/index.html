@@ -6123,6 +6123,15 @@ cycle (e.g. <code>test2.lablink.example.com</code>), or wait out the 7-day windo
 <li>Browser shows "Not Secure" warning</li>
 <li>Useful for testing and development</li>
 <li>May require clearing browser HSTS cache if you previously accessed via HTTPS (see <a href="../troubleshooting/#reaching-the-allocator">Troubleshooting</a>)</li>
+<li><strong>Desktop streaming falls back to JPEG/WebP</strong> — the viewer decodes H.264
+  with the WebCodecs API, which Chrome only exposes on secure (HTTPS)
+  origins. On HTTP the console logs <code>WebCodecs API not available</code> and the
+  session silently uses JPEG/WebP image mode instead. The desktop still
+  works at the full frame rate; only the H.264/NVENC video-streaming mode
+  is unavailable. To test H.264 without a certificate, tunnel through
+  localhost (a secure context): <code>ssh -L 8080:localhost:80 &lt;allocator-host&gt;</code>
+  and open <code>http://localhost:8080</code> — then retest in an incognito window,
+  since the viewer caches its codec-detection result in <code>localStorage</code>.</li>
 </ul>
 <p>Configuration example:
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nt">ssl</span><span class="p">:</span>
