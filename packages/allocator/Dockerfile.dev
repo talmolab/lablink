@@ -69,6 +69,21 @@ RUN for f in /usr/share/kasmvnc/www/assets/ui-*.js; do \
             || { echo "ERROR: sed did not remove the clobber from $f"; exit 1; }; \
     done
 
+# Raise the viewer's default stream-quality preset from Medium (2) to
+# Extreme (4). The preset caps the frame rate the browser requests from
+# the server, and the Medium default paces full-motion content (window
+# drags, plot scrolling) at ~17 FPS on an otherwise idle GPU VM; the
+# same session reaches 45+ FPS on Extreme. Browsers that already stored
+# a preset in localStorage keep their choice; only fresh sessions see
+# this default. Verify-patch-verify as above.
+RUN for f in /usr/share/kasmvnc/www/assets/ui-*.js; do \
+        grep -q 'initSetting("video_quality",2)' "$f" \
+            || { echo "ERROR: video_quality default not present in $f — KasmVNC bundle may have changed; review the sed"; exit 1; }; \
+        sed -i 's/initSetting("video_quality",2)/initSetting("video_quality",4)/' "$f"; \
+        grep -q 'initSetting("video_quality",4)' "$f" \
+            || { echo "ERROR: sed did not raise the video_quality default in $f"; exit 1; }; \
+    done
+
 # wstunnel -- reverse-tunnel connectivity's server side. A single static Go/Rust
 # binary; harmless when unused, since start.sh only launches it when
 # CONNECTIVITY_MODE=reverse_tunnel. Must stay in lockstep with Dockerfile.dev

@@ -70,7 +70,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fontconfig \
     xdg-utils \
     dbus-x11 \
-    xscreensaver \
     xbase-clients \
     xvfb \
     # xterm is pinned as a permanent X client by start.sh so that the
@@ -148,6 +147,22 @@ RUN for f in /usr/share/kasmvnc/www/assets/ui-*.js; do \
         sed -i 's/this\._rfbCredentials\.password="";//g' "$f"; \
         ! grep -q 'this._rfbCredentials.password=""' "$f" \
             || { echo "ERROR: sed did not remove the clobber from $f"; exit 1; }; \
+    done
+
+# Raise the viewer's default stream-quality preset from Medium (2) to
+# Extreme (4). The preset caps the frame rate the browser requests from
+# the server, and the Medium default paces full-motion content (window
+# drags, plot scrolling) at ~17 FPS on an otherwise idle GPU VM; the
+# same session reaches 45+ FPS on Extreme. Browsers that already stored
+# a preset in localStorage keep their choice; only fresh sessions see
+# this default. Same defense-in-depth note as above: the allocator's
+# copy of this bundle is the one browsers normally load.
+RUN for f in /usr/share/kasmvnc/www/assets/ui-*.js; do \
+        grep -q 'initSetting("video_quality",2)' "$f" \
+            || { echo "ERROR: video_quality default not present in $f — KasmVNC bundle may have changed; review the sed"; exit 1; }; \
+        sed -i 's/initSetting("video_quality",2)/initSetting("video_quality",4)/' "$f"; \
+        grep -q 'initSetting("video_quality",4)' "$f" \
+            || { echo "ERROR: sed did not raise the video_quality default in $f"; exit 1; }; \
     done
 
 # wstunnel -- reverse-tunnel connectivity's client side. Dials OUT to the
