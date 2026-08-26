@@ -71,7 +71,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xdg-utils \
     dbus-x11 \
     xbase-clients \
-    xvfb \
     # xterm is pinned as a permanent X client by start.sh so that the
     # "last X client exited" path never fires, which otherwise tears
     # Xvnc down when xfce4 components race on dbus name ownership.
@@ -80,7 +79,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # active-window sampler to read the focused window title.
     xdotool \
     psmisc \
-    xserver-xorg-video-dummy \
     libutempter0 \
     gnupg2 \
     sudo \
@@ -161,18 +159,19 @@ RUN for f in /usr/share/kasmvnc/www/assets/ui-*.js; do \
     done
 
 # Raise the viewer's default stream-quality preset from Medium (2) to
-# Extreme (4). The preset caps the frame rate the browser requests from
-# the server, and the Medium default paces full-motion content (window
-# drags, plot scrolling) at ~17 FPS on an otherwise idle GPU VM; the
-# same session reaches 45+ FPS on Extreme. Browsers that already stored
+# High (3): High lifts the frame-rate cap to 60 FPS (Medium paces motion
+# at ~17 FPS) while keeping video_time=5 so H.264 streaming mode can
+# still engage — Extreme (4) forces video_time=100, which blocks it.
+# Full rationale: docs/architecture.md, desktop-performance section.
+# Browsers that already stored
 # a preset in localStorage keep their choice; only fresh sessions see
 # this default. Same defense-in-depth note as above: the allocator's
 # copy of this bundle is the one browsers normally load.
 RUN for f in /usr/share/kasmvnc/www/assets/ui-*.js; do \
         grep -q 'initSetting("video_quality",2)' "$f" \
             || { echo "ERROR: video_quality default not present in $f — KasmVNC bundle may have changed; review the sed"; exit 1; }; \
-        sed -i 's/initSetting("video_quality",2)/initSetting("video_quality",4)/' "$f"; \
-        grep -q 'initSetting("video_quality",4)' "$f" \
+        sed -i 's/initSetting("video_quality",2)/initSetting("video_quality",3)/' "$f"; \
+        grep -q 'initSetting("video_quality",3)' "$f" \
             || { echo "ERROR: sed did not raise the video_quality default in $f"; exit 1; }; \
     done
 

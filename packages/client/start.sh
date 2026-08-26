@@ -571,7 +571,7 @@ fi
 # -interface 0.0.0.0 binds all interfaces; SG ingress (allocator SG only)
 # is the network-layer firewall.
 #
-# The three encoder flags are the desktop-responsiveness tuning. They are on
+# The encoder flags below are the desktop-responsiveness tuning. They are on
 # the argv rather than in kasmvnc.yaml *because* of the wrapper bypass above:
 # that file is parsed only by the wrapper, so an `encoding:` block there
 # never reaches this process. Stock KasmVNC never gets cheaper while the
@@ -587,6 +587,12 @@ fi
 #       exit threshold is 3s and is deliberately left alone.
 #   -DetectScrolling 1    ships off. Sends a cheap region shift instead of
 #       re-encoding the scrolled region.
+#   -videoCodec auto      ships "" (empty), and EncodeManager gates ALL video
+#       streaming on it being non-empty (video_mode_available = ffmpeg_available
+#       && Server::videoCodec[0]) -- without this flag the server never
+#       advertises H.264 to the viewer and every session silently stays in
+#       per-rect JPEG/WebP, no matter what the browser requests. "auto" picks
+#       the best probed encoder: NVENC > VAAPI > software x264.
 # Keep Xvnc's GLX init on mesa, away from the host NVIDIA driver's EGL stack.
 #
 # When the container toolkit is asked for graphics capabilities it bind-mounts
@@ -622,6 +628,7 @@ stdbuf -oL -eL env \
     -DynamicQualityMin 4 \
     -VideoTime 2 \
     -DetectScrolling 1 \
+    -videoCodec auto \
     -noreset \
     2>&1 | sed -u 's/^/[kasmvnc] /' >&5 &
 

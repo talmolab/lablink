@@ -9,6 +9,13 @@ from lablink_allocator_service.signed_cookie import sign
 
 SEED_SECRET = "test-secret"
 
+# Exact-lock copy of desktop.py's VIEWER_TUNING_QS — a deliberate local
+# literal so these URL locks fail if the prod constant changes.
+TUNING = (
+    "&idle_disconnect=1440"
+    "&kasmvnc_mode_preference=-1029%7C-1026%7C-1028%7C-1027%7C-1025"
+)
+
 
 def _ensure_session_columns(real_db):
     """The real_db fixture creates a minimal vms table; extend it
@@ -162,7 +169,7 @@ def test_desktop_aws_viewer_url_locked(desktop_client_with_row):
     assert r.status_code == 302
     assert r.headers["Location"] == (
         "/static/novnc/vnc.html?path=proxy/btok123&autoconnect=1&resize=remote"
-        "&reconnect=1&reconnect_delay=2000"
+        "&reconnect=1&reconnect_delay=2000" + TUNING
     )
 
 
@@ -203,7 +210,7 @@ def test_desktop_view_only_appends_query_param(desktop_client_with_row):
     assert r.headers["Location"] == (
         "/static/novnc/vnc.html?path=proxy/btok123"
         "&autoconnect=1&resize=remote&reconnect=1&reconnect_delay=2000"
-        "&view_only=1"
+        "&view_only=1" + TUNING
     )
 
 
@@ -235,7 +242,8 @@ def test_desktop_admin_session_renders_wrapper_with_release_form(
     assert (
         'src="/static/novnc/vnc.html?path=proxy/tok-admin'
         '&autoconnect=1&resize=remote'
-        '&reconnect=1&reconnect_delay=2000&show_control_bar=1"' in body
+        '&reconnect=1&reconnect_delay=2000&show_control_bar=1'
+        + TUNING + '"' in body
     )
     assert "allowfullscreen" in body
 

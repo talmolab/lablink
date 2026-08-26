@@ -363,11 +363,11 @@ jobs:
               || { echo "FAIL: Kasm noVNC UI bundle missing in assets/"; exit 1; }
             ls /usr/share/kasmvnc/www/assets/ui-*.css >/dev/null 2>&1 \
               || { echo "FAIL: Kasm noVNC UI stylesheet missing in assets/"; exit 1; }
-            # kasmvncserver package pin — same 1.4.x line as the client
+            # kasmvncserver package pin — same 1.5.x line as the client
             # image, so the bundled noVNC and the server stay protocol-
             # compatible across version bumps.
-            dpkg-query -W -f="\${Version}" kasmvncserver | grep -qE "^1\.4\." \
-              || { echo "FAIL: KasmVNC pin drift on allocator — installed version not 1.4.x"; exit 1; }
+            dpkg-query -W -f="\${Version}" kasmvncserver | grep -qE "^1\.5\." \
+              || { echo "FAIL: KasmVNC pin drift on allocator — installed version not 1.5.x"; exit 1; }
             echo "✓ Kasm-bundled noVNC present at /usr/share/kasmvnc/www/. Installed:"
             dpkg -l kasmvncserver | tail -1
           '
