@@ -2,6 +2,7 @@
 
 import io
 import re
+import signal
 import threading
 from collections import deque
 from unittest.mock import MagicMock, patch
@@ -150,3 +151,69 @@ class TestShipperLoop:
         shipper_loop(q, stop, lambda msgs, retries: False, poll_s=0)
         assert not q  # dropped, not retained
         assert "dropped 2 lines" in capsys.readouterr().err
+
+
+class TestMain:
+    """Covers the console-script entry point's wiring."""
+
+    def _clear_env(self, monkeypatch):
+        for var in ("ALLOCATOR_URL", "CLIENT_SECRET", "VM_NAME"):
+            monkeypatch.delenv(var, raising=False)
+
+    def test_missing_env_degrades_to_pure_passthrough(
+        self, monkeypatch, capsys
+    ):
+        """Fail open: logging must never depend on registration plumbing
+        being complete — lines still reach stdout, nothing is shipped."""
+        self._clear_env(monkeypatch)
+        monkeypatch.setattr("sys.stdin", io.StringIO("a\nb\n"))
+        with patch.object(ship_logs.requests, "post") as post:
+            ship_logs.main()
+        captured = capsys.readouterr()
+        assert captured.out == "a\nb\n"
+        assert "without shipping" in captured.err
+        post.assert_not_called()
+
+    def test_full_run_ships_stream_and_exits_on_eof(
+        self, monkeypatch, capsys
+    ):
+        """End-to-end through main(): env wiring, the shipper thread, the
+        signal-handler registration, and the EOF final flush."""
+        monkeypatch.setenv("ALLOCATOR_URL", "http://alloc/")
+        monkeypatch.setenv("CLIENT_SECRET", "sekrit")
+        monkeypatch.setenv("VM_NAME", "runai-client-2")
+        monkeypatch.setattr("sys.stdin", io.StringIO("one\ntwo\n"))
+        # Recorder instead of the real signal.signal: pytest owns the
+        # process's SIGINT handling, and clobbering it would outlive
+        # this test.
+        registered = {}
+        monkeypatch.setattr(
+            ship_logs.signal,
+            "signal",
+            lambda sig, handler: registered.__setitem__(sig, handler),
+        )
+
+        resp = MagicMock(status_code=200)
+        with patch.object(ship_logs.requests, "post", return_value=resp) as post:
+            ship_logs.main()
+
+        # Passthrough reached stdout; the startup line went to stderr.
+        captured = capsys.readouterr()
+        assert captured.out == "one\ntwo\n"
+        assert "/api/vm-logs/runai-client-2" in captured.err
+
+        # EOF triggered the final flush: both lines, stamped, one batch,
+        # bearer-authenticated, sanitized URL (no double slash).
+        assert post.call_count == 1
+        assert post.call_args.args == (
+            "http://alloc/api/vm-logs/runai-client-2",
+        )
+        messages = post.call_args.kwargs["json"]["messages"]
+        assert [m.split(" ", 1)[1] for m in messages] == ["one", "two"]
+        headers = post.call_args.kwargs["headers"]
+        assert headers["Authorization"] == "Bearer sekrit"
+
+        # Both stop signals were wired to the same handler, and invoking
+        # it is safe after shutdown (events set on an already-done loop).
+        assert set(registered) == {signal.SIGTERM, signal.SIGINT}
+        registered[signal.SIGTERM](signal.SIGTERM, None)
