@@ -26,7 +26,7 @@ from rich.console import Console
 
 from lablink_cli.commands.register import TAILSCALE_STATE_VOLUME
 from lablink_cli.docker import Docker, DockerUnavailable, default_docker
-from lablink_cli.log_shipper import CONTAINER_NAME
+from lablink_cli.commands.register import CONTAINER_NAME
 
 TAILNET_ADMIN_URL = "https://login.tailscale.com/admin/machines"
 

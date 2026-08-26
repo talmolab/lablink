@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import subprocess
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -136,59 +136,6 @@ def test_logs_swallows_missing_binary_as_a_failed_result():
     assert not result.ok
 
 
-def test_follow_logs_builds_base_argv():
-    # Ported from log_shipper.TestOpenDockerLogs.test_builds_command_with_since
-    # (Task 5) — the container-name-only shape of that same argv.
-    with patch("lablink_cli.docker.subprocess.Popen") as mock_popen:
-        mock_popen.return_value = MagicMock()
-        Docker().follow_logs("lablink-client")
-    argv = mock_popen.call_args.args[0]
-    assert argv == [
-        "docker",
-        "logs",
-        "--follow",
-        "--timestamps",
-        "lablink-client",
-    ]
-
-
-def test_follow_logs_includes_since_before_name():
-    # Ported from
-    # log_shipper.TestOpenDockerLogs.test_builds_command_with_since.
-    with patch("lablink_cli.docker.subprocess.Popen") as mock_popen:
-        mock_popen.return_value = MagicMock()
-        Docker().follow_logs(
-            "lablink-client", since="2026-08-12T00:00:00Z"
-        )
-    argv = mock_popen.call_args.args[0]
-    since_idx = argv.index("--since")
-    assert argv[since_idx + 1] == "2026-08-12T00:00:00Z"
-    assert argv.index("lablink-client") > since_idx + 1
-
-
-def test_follow_logs_omits_since_when_none():
-    # Ported from log_shipper.TestOpenDockerLogs.test_omits_since_when_none.
-    with patch("lablink_cli.docker.subprocess.Popen") as mock_popen:
-        mock_popen.return_value = MagicMock()
-        Docker().follow_logs("lablink-client", since=None)
-    argv = mock_popen.call_args.args[0]
-    assert "--since" not in argv
-
-
-def test_follow_logs_popen_kwargs():
-    """Line-buffering and merged streams are load-bearing for the shipper's
-    incremental reads (_read_lines_from_popen) — not covered by the argv
-    tests above, so assert on them directly."""
-    with patch("lablink_cli.docker.subprocess.Popen") as mock_popen:
-        mock_popen.return_value = MagicMock()
-        Docker().follow_logs("lablink-client")
-    kwargs = mock_popen.call_args.kwargs
-    assert kwargs["stdout"] is subprocess.PIPE
-    assert kwargs["stderr"] is subprocess.STDOUT
-    assert kwargs["text"] is True
-    assert kwargs["bufsize"] == 1
-
-
 def test_compose_passes_workdir_as_cwd():
     with patch("lablink_cli.docker.subprocess.run") as run:
         run.return_value = _completed(0)
@@ -240,13 +187,6 @@ def test_null_docker_logs_does_not_shell_out():
     run.assert_not_called()
     assert result.returncode == 1
     assert "No such container" in result.stderr
-
-
-def test_log_shipper_no_longer_defines_inspect_container():
-    """The verb lives in the adapter now; log_shipper must not re-export it."""
-    import lablink_cli.log_shipper as ls
-
-    assert not hasattr(ls, "inspect_container")
 
 
 def test_container_status_running_moved_from_log_shipper():
