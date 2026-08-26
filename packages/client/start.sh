@@ -11,7 +11,38 @@ CONTAINER_START_TIME=$(date +%s)
 # services are launched with their own `... | sed ... >&5 &` pipeline, so
 # the inner sed writes directly to fd 5 and bypasses the [start] tagger
 # (otherwise lines would be double-tagged as "[start] [agent] ...").
-exec 5>&1
+# When SHIP_LOGS=1 (written into the env file by `lablink client register`
+# for BYO clients), fd 5 feeds the in-container ship_logs worker instead of
+# going straight to stdout. The worker passes every line through to this
+# container's stdout unchanged (`docker logs` output is identical either
+# way) and forwards a copy to the allocator's /api/vm-logs. BYO clients
+# need this because they have no host-side shipper: hand-off clients
+# (--no-run-locally, e.g. Run:AI) are their own PID 1 with no docker daemon
+# anywhere, and the CLI's old detached shipper for run-locally boxes died
+# silently on operator laptops.
+#
+# The worker sits IN the logging path, so its failure must degrade, never
+# block (lablink#304's silent tail stall is the cautionary tale): the
+# supervisor loop respawns a crashed worker — the kernel's pipe buffer
+# absorbs the gap — and after 3 crashes it execs plain `cat`, which is
+# logging exactly as if SHIP_LOGS were unset. Absolute venv path because
+# this runs before the venv activation below, and the process-substitution
+# subshell never sees it anyway.
+if [ "${SHIP_LOGS:-0}" = "1" ]; then
+  exec 5> >(
+    fails=0
+    while :; do
+      /home/client/.venv/bin/ship_logs && break
+      fails=$((fails+1))
+      if [ "$fails" -ge 3 ]; then
+        echo "ship_logs crashed $fails times; falling back to passthrough" >&2
+        exec cat
+      fi
+    done
+  )
+else
+  exec 5>&1
+fi
 exec > >(sed -u 's/^/[start] /' >&5) 2>&1
 # -----------------------------------------------------------------------
 

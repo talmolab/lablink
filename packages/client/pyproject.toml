@@ -42,6 +42,7 @@ agent = "lablink_client_service.agent.api:main"
 check_gpu = "lablink_client_service.check_gpu:main"
 heartbeat = "lablink_client_service.heartbeat:main"
 lablink-monitoring = "lablink_client_service.monitoring.__main__:main"
+ship_logs = "lablink_client_service.ship_logs:main"
 update_inuse_status = "lablink_client_service.update_inuse_status:main"
 
 [tool.setuptools.package-data]

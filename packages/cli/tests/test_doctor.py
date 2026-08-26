@@ -304,61 +304,30 @@ class TestCheckClientContainer:
 
 
 class TestCheckLogShipper:
-    # 2026-08-05T12:00:00Z
-    SHIPPED = "2026-08-05T12:00:00Z"
-    SHIPPED_EPOCH = 1785931200.0
+    """The shipper runs inside the container (start.sh's ship_logs
+    worker), so the check is a pgrep via `docker exec`."""
 
-    def _run(self, *, alive, last, now=None):
+    def _run(self, *, ok):
         from lablink_cli.commands.doctor import _check_log_shipper
+        from lablink_cli.docker import Result
 
-        with (
-            patch(
-                "lablink_cli.commands.register._shipper_alive",
-                return_value=alive,
-            ),
-            patch(
-                "lablink_cli.log_shipper.read_last_shipped_ts",
-                return_value=last,
-            ),
-        ):
-            return _check_log_shipper(now=now)
+        mock_docker = MagicMock()
+        mock_docker.exec_in.return_value = Result(0 if ok else 1)
+        result = _check_log_shipper(mock_docker)
+        return result, mock_docker
 
-    def test_dead_shipper_fails(self):
-        result = self._run(alive=False, last=self.SHIPPED)
-        assert result["status"] == "fail"
-        assert "not reaching the allocator" in result["detail"].lower()
-
-    def test_alive_and_recent_passes(self):
-        result = self._run(
-            alive=True, last=self.SHIPPED, now=self.SHIPPED_EPOCH + 60
-        )
+    def test_worker_present_passes(self):
+        result, docker = self._run(ok=True)
         assert result["status"] == "pass"
-
-    def test_alive_but_stale_warns(self):
-        """The failure a liveness-only check cannot see: process up,
-        container healthy, nothing reaching the allocator."""
-        result = self._run(
-            alive=True, last=self.SHIPPED, now=self.SHIPPED_EPOCH + 6 * 86400
+        docker.exec_in.assert_called_once_with(
+            "lablink-client", ["pgrep", "-f", "ship_logs"]
         )
-        assert result["status"] == "warn"
-        assert "6d ago" in result["detail"]
-        assert self.SHIPPED in result["detail"]
 
-    def test_age_formatting_stays_readable(self):
-        from lablink_cli.commands.doctor import _format_age
-
-        assert _format_age(20 * 60) == "20m"
-        assert _format_age(3 * 3600) == "3h"
-        assert _format_age(6 * 86400) == "6d"
-
-    def test_alive_but_never_shipped_warns(self):
-        result = self._run(alive=True, last=None)
-        assert result["status"] == "warn"
-        assert "never shipped" in result["detail"]
-
-    def test_unparseable_timestamp_warns(self):
-        result = self._run(alive=True, last="not-a-timestamp")
-        assert result["status"] == "warn"
+    def test_worker_absent_fails_with_remedy(self):
+        result, _ = self._run(ok=False)
+        assert result["status"] == "fail"
+        assert "not reaching the allocator" in result["detail"]
+        assert "--force" in result["detail"]
 
 
 class TestRunClientDoctor:

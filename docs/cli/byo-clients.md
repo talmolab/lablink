@@ -179,6 +179,11 @@ easiest thing to send to someone else who owns a box.
     the workload. In that case you must also pass `--hostname` and
     `--machine-identity`, since there's nothing local to auto-detect from.
 
+    The printed env includes `SHIP_LOGS=1`: the client container ships its own
+    output stream to the allocator's per-VM logs page (there is no host-side
+    shipper in any BYO shape). Keep that line in your paste, or the logs page
+    stays empty for the client.
+
 If docker is missing on the box, `register` keeps the env file so you can install
 docker and re-run with `--force`.
 

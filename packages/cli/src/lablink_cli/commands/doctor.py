@@ -366,27 +366,6 @@ def _check_manual_prereqs(*, docker: Docker | None = None) -> None:
 # client on this machine actually working?"
 # --------------------------------------------------------------------
 
-# A shipper that is alive but hasn't shipped in this long is reporting a
-# problem no liveness check can see — the process is up and the container is
-# healthy, but nothing is reaching the allocator. That combination went
-# unnoticed for a week (lablink#428), which is the reason this command exists.
-SHIPPER_STALE_AFTER_S = 15 * 60
-
-
-def _format_age(seconds: float) -> str:
-    """Coarse human age ("6d", "3h", "20m") for the staleness message.
-
-    A raw minute count reads as noise once it passes a few hours
-    ("8687 min ago"), and this is the one line an operator scans to decide
-    whether logs are flowing.
-    """
-    if seconds >= 86400:
-        return f"{int(seconds // 86400)}d"
-    if seconds >= 3600:
-        return f"{int(seconds // 3600)}h"
-    return f"{int(seconds // 60)}m"
-
-
 def _check_client_registered() -> dict:
     """Check that `lablink client register` has run on this box."""
     from lablink_cli.commands.register import DEFAULT_ENV_FILE
@@ -409,7 +388,7 @@ def _check_client_container(docker: Docker) -> dict:
     "daemon_error" when the daemon is unreachable, so a separate probe would
     only duplicate the same `docker inspect` call.
     """
-    from lablink_cli.log_shipper import CONTAINER_NAME
+    from lablink_cli.commands.register import CONTAINER_NAME
 
     result = {"check": "Client container", "status": "fail"}
     status = docker.container_status(CONTAINER_NAME)
@@ -440,59 +419,34 @@ def _check_client_container(docker: Docker) -> dict:
     return result
 
 
-def _check_log_shipper(now: float | None = None) -> dict:
-    """Check the log shipper is alive AND actually shipping.
+def _check_log_shipper(docker: Docker) -> dict:
+    """Check the in-container ship_logs worker is running.
 
-    Liveness alone is not enough. A shipper can sit blocked on a quiet
-    container with a full buffer, process up, nothing delivered — so this
-    also reports how long ago a batch last landed.
+    The shipper lives inside the client container — start.sh feeds every
+    service's output through the client package's ship_logs worker when
+    SHIP_LOGS=1 — so the probe is a pgrep inside the container. The old
+    host-side staleness check (lablink#428's alive-but-not-shipping
+    hazard) moved in-container with it: a worker that can't reach the
+    allocator says so in `docker logs lablink-client`
+    ("ship_logs: dropped N lines after retries").
     """
-    import time
-    from datetime import datetime, timezone
-
-    from lablink_cli.commands.register import _shipper_alive
-    from lablink_cli.log_shipper import STATE_FILE, read_last_shipped_ts
+    from lablink_cli.commands.register import CONTAINER_NAME
 
     result = {"check": "Log shipper", "status": "fail"}
 
-    if not _shipper_alive():
-        result["detail"] = (
-            "Not running — client logs are not reaching the allocator. "
-            "Run `lablink client register` to restart it."
-        )
+    probe = docker.exec_in(CONTAINER_NAME, ["pgrep", "-f", "ship_logs"])
+    if probe.ok:
+        result["status"] = "pass"
+        result["detail"] = "ship_logs worker running inside the container"
         return result
 
-    last = read_last_shipped_ts(STATE_FILE)
-    if last is None:
-        result["status"] = "warn"
-        result["detail"] = (
-            "Running, but has never shipped a batch. Normal for the first "
-            "minute after registering; otherwise check the allocator URL "
-            "and client secret."
-        )
-        return result
-
-    try:
-        shipped_at = datetime.strptime(last, "%Y-%m-%dT%H:%M:%SZ").replace(
-            tzinfo=timezone.utc
-        )
-    except ValueError:
-        result["status"] = "warn"
-        result["detail"] = f"Running; unparseable last-shipped value {last!r}"
-        return result
-
-    current = now if now is not None else time.time()
-    age_s = current - shipped_at.timestamp()
-    if age_s > SHIPPER_STALE_AFTER_S:
-        result["status"] = "warn"
-        result["detail"] = (
-            f"Running, but last shipped {_format_age(age_s)} ago ({last}). "
-            "The process is up but nothing is reaching the allocator."
-        )
-        return result
-
-    result["status"] = "pass"
-    result["detail"] = f"Running; last shipped {last}"
+    result["detail"] = (
+        "No ship_logs worker inside the container — client logs are not "
+        "reaching the allocator. The container is either down (see the "
+        "check above), running an image that predates in-container "
+        "shipping, or missing SHIP_LOGS=1 in its env. Re-run "
+        "`lablink client register --force` to recreate it."
+    )
     return result
 
 
@@ -512,7 +466,7 @@ def run_client_doctor(*, docker: Docker | None = None) -> None:
     checks = [
         _check_client_registered(),
         _check_client_container(docker),
-        _check_log_shipper(),
+        _check_log_shipper(docker),
     ]
 
     _render_checks(

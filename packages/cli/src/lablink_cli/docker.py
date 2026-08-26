@@ -244,27 +244,6 @@ class Docker:
             stderr=result.stderr or "",
         )
 
-    def follow_logs(
-        self, name: str, *, since: str | None = None
-    ) -> subprocess.Popen:
-        """Spawn ``docker logs --follow --timestamps [--since <ts>] <name>``.
-
-        Returns the Popen handle: the log shipper needs ``.terminate()`` and
-        ``.poll()`` as well as incremental reads from ``.stdout``.
-        """
-        self.require()
-        argv = ["docker", "logs", "--follow", "--timestamps"]
-        if since:
-            argv += ["--since", since]
-        argv.append(name)
-        return subprocess.Popen(
-            argv,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1,  # line-buffered
-        )
-
     # -- escape hatches ------------------------------------------------
 
     def compose(
@@ -388,11 +367,6 @@ class NullDocker(Docker):
         timeout: float | None = None,
     ) -> Result:
         return Result(returncode=1, stderr=self._NOT_FOUND)
-
-    def follow_logs(
-        self, name: str, *, since: str | None = None
-    ) -> subprocess.Popen:
-        raise DockerUnavailable(self._NOT_FOUND)
 
     def _run(
         self,
