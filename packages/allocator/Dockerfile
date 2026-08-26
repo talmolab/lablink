@@ -31,7 +31,7 @@ RUN apt-get update && apt-get install -y curl unzip && \
 # types (e.g. 97) that KasmVNC's stricter parser rejects, killing the
 # connection on the first mouse/keyboard event. Kasm's bundled noVNC
 # is the only viewer that's protocol-compatible with kasmvncserver.
-ARG KASMVNC_VERSION=1.4.0
+ARG KASMVNC_VERSION=1.5.0
 RUN apt-get update && apt-get install -y --no-install-recommends \
     nginx curl ca-certificates && \
     curl -L -o /tmp/kasmvncserver.deb \

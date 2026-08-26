@@ -27,7 +27,7 @@ RUN apt-get update && apt-get install -y curl unzip && \
 # Debian's generic `novnc` package: it sends RFB extension message
 # types (e.g. 97) that KasmVNC's stricter parser rejects, killing the
 # connection on the first mouse/keyboard event.
-ARG KASMVNC_VERSION=1.4.0
+ARG KASMVNC_VERSION=1.5.0
 RUN apt-get update && apt-get install -y --no-install-recommends \
     nginx curl ca-certificates && \
     curl -L -o /tmp/kasmvncserver.deb \
