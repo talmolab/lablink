@@ -103,7 +103,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Required for session and screen management
     dbus-x11 \
     xbase-clients \
-    xvfb \
     # xterm is pinned as a permanent X client by start.sh so that the
     # "last X client exited" path never fires, which otherwise tears
     # Xvnc down when xfce4 components race on dbus name ownership.
@@ -114,8 +113,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xdotool \
     # Provides process management utilities
     psmisc \
-    # Dummy X server for headless environments
-    xserver-xorg-video-dummy \
     # Supports session management and terminal multiplexers
     libutempter0 \
     # Enables secure communication and package verification
@@ -207,18 +204,24 @@ RUN for f in /usr/share/kasmvnc/www/assets/ui-*.js; do \
     done
 
 # Raise the viewer's default stream-quality preset from Medium (2) to
-# Extreme (4). The preset caps the frame rate the browser requests from
+# High (3). The preset caps the frame rate the browser requests from
 # the server, and the Medium default paces full-motion content (window
 # drags, plot scrolling) at ~17 FPS on an otherwise idle GPU VM; the
-# same session reaches 45+ FPS on Extreme. Browsers that already stored
+# cap lifts to 60 FPS on High and the same session reaches 45+ FPS.
+# Not Extreme (4): that preset also force-pushes video_time=100 and
+# video_area=100, which stops the server's video/H.264 streaming mode
+# from ever engaging (it would need 100 s of continuous full-screen
+# change) and clobbers the -VideoTime/-DynamicQualityMin tuning in the
+# client's Xvnc argv; High keeps video_time=5/video_area=65 so
+# streaming mode still triggers. Browsers that already stored
 # a preset in localStorage keep their choice; only fresh sessions see
 # this default. Same defense-in-depth note as above: the allocator's
 # copy of this bundle is the one browsers normally load.
 RUN for f in /usr/share/kasmvnc/www/assets/ui-*.js; do \
         grep -q 'initSetting("video_quality",2)' "$f" \
             || { echo "ERROR: video_quality default not present in $f — KasmVNC bundle may have changed; review the sed"; exit 1; }; \
-        sed -i 's/initSetting("video_quality",2)/initSetting("video_quality",4)/' "$f"; \
-        grep -q 'initSetting("video_quality",4)' "$f" \
+        sed -i 's/initSetting("video_quality",2)/initSetting("video_quality",3)/' "$f"; \
+        grep -q 'initSetting("video_quality",3)' "$f" \
             || { echo "ERROR: sed did not raise the video_quality default in $f"; exit 1; }; \
     done
 

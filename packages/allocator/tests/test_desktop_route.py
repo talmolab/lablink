@@ -163,6 +163,8 @@ def test_desktop_aws_viewer_url_locked(desktop_client_with_row):
     assert r.headers["Location"] == (
         "/static/novnc/vnc.html?path=proxy/btok123&autoconnect=1&resize=remote"
         "&reconnect=1&reconnect_delay=2000"
+        "&idle_disconnect=1440"
+        "&kasmvnc_mode_preference=-1029%7C-1026%7C-1028%7C-1027%7C-1025"
     )
 
 
@@ -204,6 +206,8 @@ def test_desktop_view_only_appends_query_param(desktop_client_with_row):
         "/static/novnc/vnc.html?path=proxy/btok123"
         "&autoconnect=1&resize=remote&reconnect=1&reconnect_delay=2000"
         "&view_only=1"
+        "&idle_disconnect=1440"
+        "&kasmvnc_mode_preference=-1029%7C-1026%7C-1028%7C-1027%7C-1025"
     )
 
 
@@ -235,7 +239,9 @@ def test_desktop_admin_session_renders_wrapper_with_release_form(
     assert (
         'src="/static/novnc/vnc.html?path=proxy/tok-admin'
         '&autoconnect=1&resize=remote'
-        '&reconnect=1&reconnect_delay=2000&show_control_bar=1"' in body
+        '&reconnect=1&reconnect_delay=2000&show_control_bar=1'
+        '&idle_disconnect=1440'
+        '&kasmvnc_mode_preference=-1029%7C-1026%7C-1028%7C-1027%7C-1025"' in body
     )
     assert "allowfullscreen" in body
 
