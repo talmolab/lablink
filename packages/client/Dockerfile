@@ -164,11 +164,22 @@ RUN curl -fsSL https://tailscale.com/install.sh | sh
 
 # KasmVNC standalone VNC server. Pin to a current stable release;
 # bump alongside client image releases.
-ARG KASMVNC_VERSION=1.4.0
+#
+# The ffmpeg runtime libs are for 1.5.0's video streaming mode (H.264+
+# encode of motion areas): Xkasmvnc dlopens libavcodec.so.<major> and
+# friends at runtime — they are deliberately NOT deb dependencies, and
+# without them video streaming silently never engages. Kasm builds the
+# noble deb against noble's stock ffmpeg 6.1, so the matching majors are
+# avcodec/avformat 60, avutil 58, swscale 7. NVENC needs no extra
+# packages here: Ubuntu's libavcodec ships the nvenc encoders, and the
+# host driver's libnvidia-encode is injected by the NVIDIA container
+# runtime (NVIDIA_DRIVER_CAPABILITIES=all, set above).
+ARG KASMVNC_VERSION=1.5.0
 RUN curl -L -o /tmp/kasmvncserver.deb \
       "https://github.com/kasmtech/KasmVNC/releases/download/v${KASMVNC_VERSION}/kasmvncserver_noble_${KASMVNC_VERSION}_amd64.deb" && \
     apt-get update && \
-    apt-get install -y --no-install-recommends /tmp/kasmvncserver.deb && \
+    apt-get install -y --no-install-recommends /tmp/kasmvncserver.deb \
+      libavcodec60 libavformat60 libavutil58 libswscale7 && \
     rm /tmp/kasmvncserver.deb && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
