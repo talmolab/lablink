@@ -243,6 +243,17 @@ their defaults without re-measuring:
 | `Xft` `RGBA: none` | `rgb` (subpixel) | Subpixel antialiasing puts coloured fringes on every glyph, and at `-DynamicQualityMin 4` those fringes are the first thing the encoder discards — text ends up ringed with colour noise. Greyscale antialiasing compresses better and stays legible at the quality floor. |
 | Solid backdrop (`image-style: 0`) | wallpaper image | The exposed desktop is re-encoded during every window drag. A flat fill costs almost nothing per damage rect where a photograph costs a lot — and it saves the 57 MB `ubuntu-wallpapers` package. |
 
+Caveat: on browser connections the bundled viewer's quality preset re-sends
+`dynamic_quality_min` and `video_time` as pseudo-encodings at connect,
+overriding the argv values per-session. The images bake the preset default to
+High (3) — `dynamic_quality_min 7`, `video_time 5`, 60 FPS cap — chosen over
+Extreme (4) because Extreme's `video_time 100` prevents video/H.264 streaming
+mode from ever engaging. The argv values still govern any client that doesn't
+send the pseudo-encodings. H.264 streaming additionally requires the viewer
+page to be served over HTTPS (WebCodecs is unavailable on insecure origins;
+the session falls back to JPEG/WebP image mode — see
+[Configuration](configuration.md)).
+
 The three encoder settings are passed on the `Xvnc` command line, not written
 to `~/.vnc/kasmvnc.yaml`. That file is read only by the `kasmvncserver` Perl
 wrapper, which `start.sh` bypasses to exec `Xvnc` directly, so tuning placed

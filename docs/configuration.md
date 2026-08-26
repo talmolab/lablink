@@ -309,6 +309,15 @@ ssl:
 - Browser shows "Not Secure" warning
 - Useful for testing and development
 - May require clearing browser HSTS cache if you previously accessed via HTTPS (see [Troubleshooting](troubleshooting.md#reaching-the-allocator))
+- **Desktop streaming falls back to JPEG/WebP** — the viewer decodes H.264
+  with the WebCodecs API, which Chrome only exposes on secure (HTTPS)
+  origins. On HTTP the console logs `WebCodecs API not available` and the
+  session silently uses JPEG/WebP image mode instead. The desktop still
+  works at the full frame rate; only the H.264/NVENC video-streaming mode
+  is unavailable. To test H.264 without a certificate, tunnel through
+  localhost (a secure context): `ssh -L 8080:localhost:80 <allocator-host>`
+  and open `http://localhost:8080` — then retest in an incognito window,
+  since the viewer caches its codec-detection result in `localStorage`.
 
 Configuration example:
 ```yaml
