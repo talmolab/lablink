@@ -4413,6 +4413,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../reference/client/lablink_client_service/ship_logs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ship_logs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../reference/client/lablink_client_service/update_inuse_status/" class="md-nav__link">
         
   
@@ -4794,6 +4822,10 @@ the secrets for pasting into a separate workload submission — useful when you'
 registering a scheduler-hosted workload from your laptop rather than from inside
 the workload. In that case you must also pass <code>--hostname</code> and
 <code>--machine-identity</code>, since there's nothing local to auto-detect from.</p>
+<p>The printed env includes <code>SHIP_LOGS=1</code>: the client container ships its own
+output stream to the allocator's per-VM logs page (there is no host-side
+shipper in any BYO shape). Keep that line in your paste, or the logs page
+stays empty for the client.</p>
 </div>
 <p>If docker is missing on the box, <code>register</code> keeps the env file so you can install
 docker and re-run with <code>--force</code>.</p>
