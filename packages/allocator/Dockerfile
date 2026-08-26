@@ -74,16 +74,11 @@ RUN for f in /usr/share/kasmvnc/www/assets/ui-*.js; do \
     done
 
 # Raise the viewer's default stream-quality preset from Medium (2) to
-# High (3). The preset caps the frame rate the browser requests from
-# the server, and the Medium default paces full-motion content (window
-# drags, plot scrolling) at ~17 FPS on an otherwise idle GPU VM; the
-# cap lifts to 60 FPS on High and the same session reaches 45+ FPS.
-# Not Extreme (4): that preset also force-pushes video_time=100 and
-# video_area=100, which stops the server's video/H.264 streaming mode
-# from ever engaging (it would need 100 s of continuous full-screen
-# change) and clobbers the -VideoTime/-DynamicQualityMin tuning in the
-# client's Xvnc argv; High keeps video_time=5/video_area=65 so
-# streaming mode still triggers. Browsers that already stored
+# High (3): High lifts the frame-rate cap to 60 FPS (Medium paces motion
+# at ~17 FPS) while keeping video_time=5 so H.264 streaming mode can
+# still engage — Extreme (4) forces video_time=100, which blocks it.
+# Full rationale: docs/architecture.md, desktop-performance section.
+# Browsers that already stored
 # a preset in localStorage keep their choice; only fresh sessions see
 # this default. Verify-patch-verify as above.
 RUN for f in /usr/share/kasmvnc/www/assets/ui-*.js; do \

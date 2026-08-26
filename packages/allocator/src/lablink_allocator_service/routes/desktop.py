@@ -25,19 +25,17 @@ bp = Blueprint("desktop", __name__)
 
 # Viewer tuning shared by every noVNC URL this module builds.
 #
-# idle_disconnect: the Kasm viewer defaults to 20 and counts only *user input*
-# as activity (server-side screen updates never bump lastActiveAt), so a
-# participant watching a 20-minute training run gets disconnected and
-# hard-navigated to disconnected.html — where reconnect=1 can never fire.
-# Value is in minutes; 1440 (24 h) matches nginx's proxy_read_timeout.
-# Never use 0: the viewer treats it as "disconnect immediately".
+# idle_disconnect: the viewer defaults to 20 minutes and counts only user
+# INPUT as activity (server-side screen updates never bump lastActiveAt), so
+# a participant watching a training run gets disconnected — and the hard
+# navigate to disconnected.html means reconnect=1 can never fire. 1440 min
+# (24 h) matches nginx's proxy_read_timeout. Never use 0: the viewer treats
+# it as "disconnect immediately".
 #
-# kasmvnc_mode_preference: the viewer defaults to JPEG/WebP rects (-1025) and
-# never asks for the H.264 streaming modes the KasmVNC 1.5.0 server offers.
-# This param is the bundle's embedding hook: a |-separated (%7C) preference
-# list; the first mode both the server advertises and the browser can decode
-# wins. Order: NVENC (-1029), generic AVC (-1026), VAAPI (-1028),
-# software (-1027), then JPEG/WebP (-1025) as the safety net.
+# kasmvnc_mode_preference: |-separated codec preference; the first mode both
+# the server advertises and the browser can decode wins. NVENC (-1029), AVC
+# (-1026), VAAPI (-1028), software (-1027), then JPEG/WebP (-1025) as the
+# safety net. Without it the viewer never requests H.264 at all.
 VIEWER_TUNING_QS = (
     "&idle_disconnect=1440"
     "&kasmvnc_mode_preference=-1029%7C-1026%7C-1028%7C-1027%7C-1025"
