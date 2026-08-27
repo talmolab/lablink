@@ -153,9 +153,7 @@ pass it again to rotate it.
 Run this **on the machine you're adding**, not on the allocator host:
 
 ```bash
-lablink client register \
-  --allocator-url http://192.168.1.42:5000 \
-  --register-token Xf3k9…
+lablink client register --allocator-url http://192.168.1.42:5000 --register-token Xf3k9…
 ```
 
 It auto-detects hostname, LAN IP, machine identity, and GPU presence/model, writes

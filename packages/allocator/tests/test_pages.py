@@ -110,6 +110,21 @@ def test_byo_onboarding_lan_direct_has_no_off_lan_flags(app, client, admin_heade
     assert "--no-run-locally" not in html
 
 
+def test_byo_onboarding_command_is_one_line(app, client, admin_headers, monkeypatch):
+    """Bash `\\` continuations break the paste on Windows shells."""
+    from lablink_allocator_service import main
+
+    # mesh_overlay + self_signed renders every conditional flag, so this
+    # covers the most-branched form of the command.
+    monkeypatch.setattr(main.cfg.ssl, "provider", "self_signed", raising=False)
+    html = _onboarding_html(app, client, admin_headers, "mesh_overlay")
+
+    cmd = re.search(r'<pre id="cmd">(.*?)</pre>', html, re.DOTALL).group(1)
+    assert "\n" not in cmd, f"command spans multiple lines:\n{cmd}"
+    assert "\\" not in cmd, f"command carries a line continuation:\n{cmd}"
+    assert "--insecure" in cmd  # guards that the monkeypatch took effect
+
+
 @patch("lablink_allocator_service.main.database")
 def test_admin_instances(mock_database, client, admin_headers):
     """Test the admin instances endpoint without any instances."""
