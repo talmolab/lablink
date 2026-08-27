@@ -37,16 +37,12 @@
       pre {
         background-color: #1e1e1e;
         color: #f8f8f2;
-        padding: 18px 80px 18px 20px;
+        padding: 18px 20px;
         border-radius: 8px;
         font-size: 14px;
         line-height: 1.6;
+        overflow-x: auto;
         margin: 0;
-        /* The command is one physical line; soft-wrap it so it stays
-           readable without horizontal scrolling. Soft wraps are not part
-           of textContent, so the copy stays a single line. */
-        white-space: pre-wrap;
-        overflow-wrap: anywhere;
       }
       .cmd-wrap {
         position: relative;
@@ -121,8 +117,7 @@
 
       <div class="cmd-wrap">
         <button class="copy-btn" id="copyBtn" onclick="copyCmd()">Copy</button>
-        {# Deliberately one physical line: bash `\` continuations paste as a
-           literal "/" or "\" on Windows shells and break the command. #}
+        {# One physical line: bash `\` continuations break the paste on Windows. #}
         <pre id="cmd">lablink client register --allocator-url {{ allocator_url }} --register-token {{ register_token }}{% if connectivity == "mesh_overlay" %} --overlay-hostname &lt;name&gt; --tailscale-authkey &lt;key&gt;{% elif connectivity == "reverse_tunnel" %} --tunnel{% endif %}{% if show_insecure %} --insecure{% endif %}</pre>
       </div>
 
@@ -153,8 +148,7 @@
 
     <script>
       function copyCmd() {
-        // textContent, not innerText: innerText is layout-derived, so a
-        // soft wrap could sneak a newline into the clipboard.
+        // textContent, not innerText: layout-independent, so wrapping can never add newlines.
         const txt = document.getElementById("cmd").textContent;
         const btn = document.getElementById("copyBtn");
         const onCopied = () => {

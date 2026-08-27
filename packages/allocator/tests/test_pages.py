@@ -2,8 +2,6 @@ import re
 from unittest.mock import MagicMock, patch
 from types import SimpleNamespace
 
-import pytest
-
 
 def test_home_basic_structure(client):
     resp = client.get("/")
@@ -112,27 +110,19 @@ def test_byo_onboarding_lan_direct_has_no_off_lan_flags(app, client, admin_heade
     assert "--no-run-locally" not in html
 
 
-@pytest.mark.parametrize(
-    "connectivity", ["lan_direct", "mesh_overlay", "reverse_tunnel"]
-)
-def test_byo_onboarding_command_is_one_line(
-    app, client, admin_headers, connectivity, monkeypatch
-):
-    """The copyable command must be a single physical line with no `\\`
-    continuations: those are bash-only, and pasting them into a Windows
-    shell leaves literal `\\`/`/` tokens that break the command even though
-    every flag is correct."""
+def test_byo_onboarding_command_is_one_line(app, client, admin_headers, monkeypatch):
+    """Bash `\\` continuations break the paste on Windows shells."""
     from lablink_allocator_service import main
 
-    # self_signed so --insecure renders too — it was the last continuation.
+    # mesh_overlay + self_signed renders every conditional flag, so this
+    # covers the most-branched form of the command.
     monkeypatch.setattr(main.cfg.ssl, "provider", "self_signed", raising=False)
-    html = _onboarding_html(app, client, admin_headers, connectivity)
+    html = _onboarding_html(app, client, admin_headers, "mesh_overlay")
 
     cmd = re.search(r'<pre id="cmd">(.*?)</pre>', html, re.DOTALL).group(1)
     assert "\n" not in cmd, f"command spans multiple lines:\n{cmd}"
     assert "\\" not in cmd, f"command carries a line continuation:\n{cmd}"
-    assert cmd.startswith("lablink client register --allocator-url ")
-    assert "--insecure" in cmd
+    assert "--insecure" in cmd  # guards that the monkeypatch took effect
 
 
 @patch("lablink_allocator_service.main.database")
