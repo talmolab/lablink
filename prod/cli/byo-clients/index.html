@@ -4800,9 +4800,7 @@ an auth key on the <strong>first</strong> deploy:</p>
 pass it again to rotate it.</p>
 <h2 id="step-4-register-each-box">Step 4: Register each box<a class="headerlink" href="#step-4-register-each-box" title="Permanent link">&para;</a></h2>
 <p>Run this <strong>on the machine you're adding</strong>, not on the allocator host:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>lablink<span class="w"> </span>client<span class="w"> </span>register<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span>--allocator-url<span class="w"> </span>http://192.168.1.42:5000<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span>--register-token<span class="w"> </span>Xf3k9…
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>lablink<span class="w"> </span>client<span class="w"> </span>register<span class="w"> </span>--allocator-url<span class="w"> </span>http://192.168.1.42:5000<span class="w"> </span>--register-token<span class="w"> </span>Xf3k9…
 </code></pre></div>
 <p>It auto-detects hostname, LAN IP, machine identity, and GPU presence/model, writes
 the returned secrets to <code>~/.lablink/client.env</code> (mode <code>0600</code>), and <code>docker run</code>s the
