@@ -272,9 +272,27 @@ def deploy(
         "redeploys (the previous value is carried forward). Supply it again "
         "to rotate. Manual provider only.",
     ),
+    render_only: bool = typer.Option(
+        False,
+        "--render-only",
+        help="Render the deployment bundle and print a launch sheet "
+        "instead of starting containers — for running the allocator "
+        "image on an external container platform (Run:AI, Kubernetes) "
+        "where no Docker daemon is available. Manual provider only.",
+    ),
 ) -> None:
     """Deploy LabLink infrastructure (AWS OpenTofu or docker-compose)."""
     cfg = _load_cfg(config)
+
+    if render_only and cfg.provider != "manual":
+        from rich.console import Console
+
+        Console().print(
+            "[red]--render-only is only meaningful with provider: manual "
+            f"(this config has provider: {cfg.provider}).[/red]"
+        )
+        raise typer.Exit(1)
+
     if cfg.provider == "manual":
         from lablink_cli.commands.deploy_compose import run_deploy_compose
 
@@ -283,6 +301,7 @@ def deploy(
             yes=yes,
             tailscale_authkey=tailscale_authkey,
             cloudflare_tunnel_token=cloudflare_tunnel_token,
+            render_only=render_only,
         )
         return
 

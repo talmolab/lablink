@@ -1442,6 +1442,80 @@ class TestDestroyCompose:
         assert "lablink client unregister" not in out
 
 
+class TestDestroyExternal:
+    def test_external_destroy_removes_workdir_without_docker(self, tmp_path):
+        """External-runtime deployments have nothing local to tear down
+        with docker — the allocator runs on the platform, not this box.
+        Destroy must remove only the rendered bundle and never touch
+        `docker compose`/`docker.require`."""
+        from lablink_cli.commands.deploy_compose import (
+            RUNTIME_FILENAME,
+            run_destroy_compose,
+        )
+
+        cfg = _manual_cfg()
+        workdir = tmp_path / "testlab"
+        workdir.mkdir(parents=True)
+        (workdir / RUNTIME_FILENAME).write_text("external\n")
+        (workdir / "config.yaml").write_text("x: 1\n")
+        fake_docker = MagicMock()
+
+        run_destroy_compose(cfg, yes=True, workdir_root=tmp_path, docker=fake_docker)
+
+        assert not workdir.exists()
+        fake_docker.compose.assert_not_called()
+        fake_docker.require.assert_not_called()
+
+    def test_external_destroy_aborts_without_confirmation(self, tmp_path):
+        """Without `--yes`, a declined confirmation leaves the bundle in
+        place — mirrors the compose path's abort behavior."""
+        from lablink_cli.commands.deploy_compose import (
+            RUNTIME_FILENAME,
+            run_destroy_compose,
+        )
+
+        cfg = _manual_cfg()
+        workdir = tmp_path / "testlab"
+        workdir.mkdir(parents=True)
+        (workdir / RUNTIME_FILENAME).write_text("external\n")
+        fake_docker = MagicMock()
+
+        with patch(
+            "lablink_cli.commands.deploy_compose.typer.prompt",
+            return_value="no",
+        ):
+            with pytest.raises(SystemExit):
+                run_destroy_compose(
+                    cfg, workdir_root=tmp_path, docker=fake_docker
+                )
+
+        assert workdir.exists()
+        fake_docker.compose.assert_not_called()
+
+    def test_external_destroy_prints_client_cleanup_reminder(
+        self, tmp_path, capsys
+    ):
+        """The compose path's BYO-client-unregister reminder must not be
+        dropped for external-runtime deployments — extended to also cover
+        client workloads submitted on the platform."""
+        from lablink_cli.commands.deploy_compose import (
+            RUNTIME_FILENAME,
+            run_destroy_compose,
+        )
+
+        cfg = _manual_cfg()
+        workdir = tmp_path / "testlab"
+        workdir.mkdir(parents=True)
+        (workdir / RUNTIME_FILENAME).write_text("external\n")
+        fake_docker = MagicMock()
+
+        run_destroy_compose(cfg, yes=True, workdir_root=tmp_path, docker=fake_docker)
+
+        out = capsys.readouterr().out
+        assert "lablink client unregister" in out
+        assert "workload" in out
+
+
 class TestPrintSummary:
     @patch("lablink_cli.commands.deploy_compose._detect_lan_ip")
     @patch("lablink_cli.commands.deploy_compose._extract_register_token")
@@ -2891,3 +2965,257 @@ class TestComposeDeploymentMetrics:
                 run_deploy_compose(_manual_cfg(), workdir_root=tmp_path)
 
         assert deployment_metrics.load_all_metrics() == []
+
+
+class TestRenderOnly:
+    @patch("lablink_cli.commands.deploy_compose._compose_up")
+    def test_render_only_writes_bundle_and_marker_without_docker(
+        self, mock_up, tmp_path
+    ):
+        from lablink_cli.commands.deploy_compose import (
+            RUNTIME_FILENAME,
+            run_deploy_compose,
+        )
+
+        cfg = _manual_cfg(
+            connectivity="reverse_tunnel",
+            participant_exposure="cloudflare_tunnel",
+            public_hostname="lab.example.org",
+            # cloudflare_tunnel triggers the weak-admin-password gate
+            # (participant_exposure != "none"), same as every other
+            # cloudflare_tunnel test in this file — the default "pw" from
+            # _manual_cfg() is deliberately weak/short and would otherwise
+            # trip that gate before render-only ever gets a chance to run.
+            admin_password="a-strong-enough-password",
+        )
+        fake_docker = MagicMock()
+        run_deploy_compose(
+            cfg,
+            yes=True,
+            workdir_root=tmp_path,
+            cloudflare_tunnel_token="cf-tok",
+            docker=fake_docker,
+            render_only=True,
+        )
+        workdir = tmp_path / "testlab"
+        assert (workdir / "config.yaml").exists()
+        assert (workdir / "custom-startup.sh").exists()
+        assert (workdir / "allocator-url").read_text() == (
+            "https://lab.example.org"
+        )
+        assert (workdir / RUNTIME_FILENAME).read_text().strip() == "external"
+        fake_docker.require.assert_not_called()
+        mock_up.assert_not_called()
+
+    def test_render_only_finalizes_metrics_as_success(self, tmp_path):
+        """render_only's early return must not strand the deployment-
+        metrics record at "in_progress" forever -- the render IS the
+        deploy action for this mode, so it gets its own success write
+        (mirroring the compose path's), same as TestComposeDeploymentMetrics
+        does for a real compose-up."""
+        from lablink_cli import deployment_metrics
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        cfg = _manual_cfg(
+            connectivity="reverse_tunnel",
+            participant_exposure="cloudflare_tunnel",
+            public_hostname="lab.example.org",
+            admin_password="a-strong-enough-password",
+        )
+        run_deploy_compose(
+            cfg,
+            yes=True,
+            workdir_root=tmp_path,
+            cloudflare_tunnel_token="cf-tok",
+            docker=MagicMock(),
+            render_only=True,
+        )
+
+        records = deployment_metrics.load_all_metrics()
+        assert len(records) == 1
+        rec = records[0]
+        assert rec["status"] == "success"
+        assert rec["allocator_deploy_end_time"]
+        assert rec["allocator_total_deployment_duration_seconds"] is not None
+
+    def test_render_only_rejects_missing_public_url(self, tmp_path):
+        """A bundle with no supported public exposure (e.g.
+        participant_exposure: none) has no address for day-2 `status`/
+        `logs` to reach the externally-run allocator at — refuse it
+        instead of shipping a broken bundle."""
+        from lablink_cli import deployment_metrics
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        cfg = _manual_cfg(
+            connectivity="reverse_tunnel", participant_exposure="none"
+        )
+        with pytest.raises(SystemExit):
+            run_deploy_compose(
+                cfg,
+                yes=True,
+                workdir_root=tmp_path,
+                docker=MagicMock(),
+                render_only=True,
+            )
+
+        records = deployment_metrics.load_all_metrics()
+        assert len(records) == 1
+        assert records[0]["status"] == "failed"
+
+    def test_render_only_rejects_sidecar_configs(self, tmp_path):
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        cfg = _manual_cfg(
+            connectivity="mesh_overlay", overlay_tailnet="tail1234.ts.net"
+        )
+        with pytest.raises(SystemExit):
+            run_deploy_compose(
+                cfg,
+                yes=True,
+                workdir_root=tmp_path,
+                tailscale_authkey="tskey-abc",
+                render_only=True,
+            )
+
+    def test_render_only_rejects_sidecar_before_any_docker_use(self, tmp_path):
+        """A first-time render-only deploy of a sidecar-needing config,
+        with no --tailscale-authkey and no prior .env, must hit the clean
+        rejection before ANY docker call. Regression guard: the sidecar
+        check used to sit after the "is there already an authkey on
+        record" block, which calls docker.volume_exists() ->
+        docker.require() -- on a docker-less machine (the whole point of
+        --render-only) that raised an unhandled DockerUnavailable instead
+        of this command's own SystemExit message.
+        """
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        cfg = _manual_cfg(
+            connectivity="mesh_overlay", overlay_tailnet="tail1234.ts.net"
+        )
+        fake_docker = MagicMock()
+        fake_docker.require.side_effect = AssertionError("docker.require() called")
+        fake_docker.volume_exists.side_effect = AssertionError(
+            "docker.volume_exists() called"
+        )
+        with pytest.raises(SystemExit):
+            run_deploy_compose(
+                cfg,
+                yes=True,
+                workdir_root=tmp_path,
+                docker=fake_docker,
+                render_only=True,
+            )
+        fake_docker.require.assert_not_called()
+        fake_docker.volume_exists.assert_not_called()
+
+    @patch("lablink_cli.commands.deploy_compose._print_summary")
+    @patch("lablink_cli.commands.deploy_compose._health_poll")
+    @patch("lablink_cli.commands.deploy_compose._compose_up")
+    def test_compose_deploy_clears_stale_external_marker(
+        self, mock_up, mock_poll, mock_summary, tmp_path
+    ):
+        from lablink_cli.commands.deploy_compose import (
+            RUNTIME_FILENAME,
+            deployment_runtime,
+            run_deploy_compose,
+        )
+
+        cfg = _manual_cfg()
+        workdir = tmp_path / "testlab"
+        workdir.mkdir(parents=True)
+        (workdir / RUNTIME_FILENAME).write_text("external\n")
+        run_deploy_compose(cfg, yes=True, workdir_root=tmp_path)
+        assert deployment_runtime(workdir) == "compose"
+
+
+class TestRenderOnlyFlipWarning:
+    """A workdir that already exists with no external marker is a live
+    compose-managed deployment. --render-only would flip it to external —
+    after which `lablink destroy` stops managing any local compose stack
+    for it at all. Warn before doing that; a fresh workdir gets no such
+    warning."""
+
+    def test_warns_when_flipping_existing_compose_workdir(self, tmp_path, capsys):
+        from lablink_cli.commands.deploy_compose import (
+            render_compose_dir,
+            run_deploy_compose,
+        )
+
+        cfg = _manual_cfg(
+            connectivity="reverse_tunnel",
+            participant_exposure="cloudflare_tunnel",
+            public_hostname="lab.example.org",
+            admin_password="a-strong-enough-password",
+        )
+        target = tmp_path / "testlab"
+        # Simulate a pre-existing compose-managed deployment: rendered,
+        # no external marker written.
+        render_compose_dir(cfg, target)
+
+        with patch(
+            "lablink_cli.commands.deploy_compose.typer.confirm",
+            return_value=True,
+        ):
+            run_deploy_compose(
+                cfg,
+                workdir_root=tmp_path,
+                cloudflare_tunnel_token="cf-tok",
+                docker=MagicMock(),
+                render_only=True,
+            )
+
+        out = capsys.readouterr().out
+        assert "docker-compose" in out
+        assert "lablink destroy" in out
+
+    def test_no_warning_for_a_fresh_workdir(self, tmp_path, capsys):
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        cfg = _manual_cfg(
+            connectivity="reverse_tunnel",
+            participant_exposure="cloudflare_tunnel",
+            public_hostname="lab.example.org",
+            admin_password="a-strong-enough-password",
+        )
+
+        with patch(
+            "lablink_cli.commands.deploy_compose.typer.confirm",
+            return_value=True,
+        ):
+            run_deploy_compose(
+                cfg,
+                workdir_root=tmp_path,
+                cloudflare_tunnel_token="cf-tok",
+                docker=MagicMock(),
+                render_only=True,
+            )
+
+        out = capsys.readouterr().out
+        assert "Warning" not in out
+
+
+class TestDeploymentRuntime:
+    def test_missing_marker_means_compose(self, tmp_path):
+        from lablink_cli.commands.deploy_compose import deployment_runtime
+
+        assert deployment_runtime(tmp_path) == "compose"
+
+    def test_external_marker(self, tmp_path):
+        from lablink_cli.commands.deploy_compose import (
+            RUNTIME_FILENAME,
+            deployment_runtime,
+        )
+
+        (tmp_path / RUNTIME_FILENAME).write_text("external\n")
+        assert deployment_runtime(tmp_path) == "external"
+
+    def test_undecodable_marker_means_compose(self, tmp_path):
+        """A marker file that isn't valid UTF-8 must not raise — treated
+        the same as a missing one."""
+        from lablink_cli.commands.deploy_compose import (
+            RUNTIME_FILENAME,
+            deployment_runtime,
+        )
+
+        (tmp_path / RUNTIME_FILENAME).write_bytes(b"\xff\xfe\x00")
+        assert deployment_runtime(tmp_path) == "compose"

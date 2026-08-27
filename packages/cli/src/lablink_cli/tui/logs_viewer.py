@@ -126,6 +126,7 @@ class LogsApp(App):
         admin_pw: str,
         deploy_dir: Path,
         manual: bool = False,
+        runtime: str = "compose",
     ) -> None:
         super().__init__()
         self._cfg = cfg
@@ -135,6 +136,11 @@ class LogsApp(App):
         self._admin_pw = admin_pw
         self._deploy_dir = deploy_dir
         self._manual = manual
+        # "compose" (local docker container) or "external" (no local
+        # container — allocator runs as a workload on an external platform;
+        # see manual.deployment_runtime). Only meaningful when
+        # manual=True.
+        self._runtime = runtime
         self._selected_vm: dict | None = None
         # Manual provider has no cloud-init concept (BYO hosts boot
         # themselves); default to docker and skip the cloud-init tab UI.
@@ -316,7 +322,21 @@ class LogsApp(App):
             else:
                 # Manual provider's allocator is a local docker container, not
                 # an EC2 instance — bypass SSH and read `docker logs` directly.
-                if self._manual:
+                # An external-runtime deployment has no local container at
+                # all; fetch the allocator's own log endpoint over HTTP
+                # instead (see fetch_external_allocator_logs).
+                if self._manual and self._runtime == "external":
+                    from lablink_cli.commands.logs import (
+                        fetch_external_allocator_logs,
+                    )
+
+                    logs = fetch_external_allocator_logs(
+                        allocator_url=self._allocator_url,
+                        admin_user=self._admin_user,
+                        admin_password=self._admin_pw,
+                        ssl_provider=self._cfg.ssl.provider,
+                    )
+                elif self._manual:
                     from lablink_cli.commands.logs import (
                         fetch_manual_allocator_logs,
                     )

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
 from unittest.mock import MagicMock, patch
+from urllib.error import HTTPError, URLError
 
 from lablink_cli.commands.logs import (
     _ssh_via_instance_connect,
@@ -203,6 +205,84 @@ class TestFetchManualAllocatorLogs:
 
 
 # ------------------------------------------------------------------
+# fetch_external_allocator_logs — external-runtime allocator (HTTP)
+# ------------------------------------------------------------------
+class TestFetchExternalAllocatorLogs:
+    @patch("lablink_cli.commands.logs.authenticated_json_request")
+    def test_fetches_via_authenticated_json_request(self, mock_fetch):
+        """Routed through the CLI's own HTTP layer (product User-Agent),
+        not a bare `requests.get` — Cloudflare-proxied allocators (this
+        feature's own topology) 403 the default UA."""
+        from lablink_cli.commands.logs import fetch_external_allocator_logs
+
+        mock_fetch.return_value = {
+            "cloud_init_logs": None,
+            "docker_logs": "line1\nline2",
+            "error": None,
+        }
+        out = fetch_external_allocator_logs(
+            allocator_url="https://lab.example.org",
+            admin_user="admin",
+            admin_password="pw",
+            ssl_provider="none",
+        )
+        assert out["docker_logs"] == "line1\nline2"
+        args, kwargs = mock_fetch.call_args
+        assert args[0] == "https://lab.example.org/api/allocator-logs"
+        assert args[1] == "admin"
+        assert args[2] == "pw"
+        assert kwargs["ssl_provider"] == "none"
+
+    @patch("lablink_cli.commands.logs.authenticated_json_request")
+    def test_http_failure_reports_error_in_contract_shape(self, mock_fetch):
+        from lablink_cli.commands.logs import fetch_external_allocator_logs
+
+        mock_fetch.side_effect = URLError("boom")
+        out = fetch_external_allocator_logs(
+            allocator_url="https://lab.example.org",
+            admin_user="admin",
+            admin_password="pw",
+        )
+        assert out["docker_logs"] is None
+        assert "is the platform workload running" in out["error"]
+
+    @patch("lablink_cli.commands.logs.authenticated_json_request")
+    def test_http_error_reports_error_in_contract_shape(self, mock_fetch):
+        import io
+        from email.message import Message
+
+        from lablink_cli.commands.logs import fetch_external_allocator_logs
+
+        mock_fetch.side_effect = HTTPError(
+            "https://lab.example.org/api/allocator-logs",
+            403,
+            "Forbidden",
+            Message(),
+            io.BytesIO(b""),
+        )
+        out = fetch_external_allocator_logs(
+            allocator_url="https://lab.example.org",
+            admin_user="admin",
+            admin_password="pw",
+        )
+        assert out["docker_logs"] is None
+        assert "is the platform workload running" in out["error"]
+
+    @patch("lablink_cli.commands.logs.authenticated_json_request")
+    def test_malformed_json_reports_error_in_contract_shape(self, mock_fetch):
+        from lablink_cli.commands.logs import fetch_external_allocator_logs
+
+        mock_fetch.side_effect = json.JSONDecodeError("bad", "doc", 0)
+        out = fetch_external_allocator_logs(
+            allocator_url="https://lab.example.org",
+            admin_user="admin",
+            admin_password="pw",
+        )
+        assert out["docker_logs"] is None
+        assert "is the platform workload running" in out["error"]
+
+
+# ------------------------------------------------------------------
 # Manual-provider TUI launcher (_run_logs_manual)
 # ------------------------------------------------------------------
 class TestRunLogsManualTui:
@@ -308,6 +388,64 @@ class TestRunLogsManualTui:
         ), patch(
             "lablink_cli.manual.registered_clients",
             return_value=(None, "connection refused"),
+        ):
+            with pytest.raises(SystemExit) as exc:
+                run_logs(mock_cfg)
+
+        assert exc.value.code == 1
+
+    def test_external_runtime_uses_public_url_and_external_fetcher(self, mock_cfg):
+        """An external-runtime deployment has no localhost port to probe —
+        the allocator URL and log fetcher must come from its public URL."""
+        from lablink_cli.commands.logs import run_logs
+
+        mock_cfg.provider = "manual"
+        mock_cfg.deployment_name = "testlab"
+
+        with patch(
+            "lablink_cli.manual.admin_credentials",
+            return_value=("admin", "pw"),
+        ), patch(
+            "lablink_cli.manual.deployment_runtime",
+            return_value="external",
+        ), patch(
+            "lablink_cli.manual.public_url",
+            return_value="https://lab.example.org",
+        ), patch(
+            "lablink_cli.manual.registered_clients",
+            return_value=([], ""),
+        ) as mock_fetch_clients, patch(
+            "lablink_cli.tui.logs_viewer.LogsApp"
+        ) as mock_app_cls:
+            mock_app_cls.return_value = MagicMock()
+
+            run_logs(mock_cfg)
+
+        # Clients discovered against the public URL, not localhost.
+        assert (
+            mock_fetch_clients.call_args.kwargs["base"]
+            == "https://lab.example.org"
+        )
+        kwargs = mock_app_cls.call_args.kwargs
+        assert kwargs["allocator_url"] == "https://lab.example.org"
+        assert kwargs["runtime"] == "external"
+
+    def test_external_runtime_missing_public_url_exits(self, mock_cfg):
+        import pytest
+        from lablink_cli.commands.logs import run_logs
+
+        mock_cfg.provider = "manual"
+        mock_cfg.deployment_name = "testlab"
+
+        with patch(
+            "lablink_cli.manual.admin_credentials",
+            return_value=("admin", "pw"),
+        ), patch(
+            "lablink_cli.manual.deployment_runtime",
+            return_value="external",
+        ), patch(
+            "lablink_cli.manual.public_url",
+            return_value=None,
         ):
             with pytest.raises(SystemExit) as exc:
                 run_logs(mock_cfg)

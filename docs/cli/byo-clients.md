@@ -21,6 +21,11 @@ Good fits: a lab with GPU workstations already on a bench, a workshop on
 institution-owned machines, or a scheduler-hosted workload (e.g. Run:AI) you can't
 provision from OpenTofu.
 
+Running the allocator itself on a container platform such as Run:AI? See
+[External runtime](external-runtime.md) instead — same config and register
+flow, but the allocator is submitted as a workload rather than started with
+`lablink deploy` on a machine you control Docker on.
+
 ## Prerequisites
 
 - **docker** and the **`docker compose` v2 plugin** on the allocator host and on every client box.

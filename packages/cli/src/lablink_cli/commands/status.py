@@ -723,15 +723,48 @@ def _run_status_manual(
         )
         return
 
-    ps = docker.compose(workdir, "ps")
-    if ps.ok:
-        console.print(ps.stdout)
+    runtime = manual.deployment_runtime(workdir)
+
+    if runtime == "compose":
+        ps = docker.compose(workdir, "ps")
+        if ps.ok:
+            console.print(ps.stdout)
+    else:
+        console.print(
+            "[dim]Lifecycle: managed by external platform "
+            "(rendered with --render-only) — container status is not "
+            "visible from here; check your platform's workload view.[/dim]"
+        )
 
     base_url = manual.base_url(cfg)
+    if runtime == "external":
+        # No local container to probe — the allocator only exists at its
+        # public URL, staged in the same canonical-URL file the
+        # funnel/cloudflare path below reads. A missing URL means
+        # --render-only produced a bundle with no supported exposure —
+        # there's nothing to reach, so say so explicitly instead of
+        # silently falling back to localhost, which has nothing listening
+        # on it for an external-runtime deployment.
+        base_url = manual.public_url(workdir)
+        if not base_url:
+            console.print(
+                "[red]No public URL recorded for this external-runtime "
+                "deployment.[/red]\n"
+                f"Expected one at {workdir / manual.CANONICAL_URL_FILENAME} — "
+                "re-render with `lablink deploy --render-only` after "
+                "setting manual.participant_exposure: cloudflare_tunnel, "
+                "or check whether the platform workload is running."
+            )
+            return
     health = check_health_endpoint(base_url)
     if health.get("healthy"):
         console.print(
             f"[green]Allocator healthy at {base_url}/api/health[/green]"
+        )
+    elif runtime == "external":
+        console.print(
+            f"[yellow]Allocator not healthy at {base_url}/api/health "
+            "(is the platform workload running?)[/yellow]"
         )
     else:
         console.print(
@@ -775,7 +808,12 @@ def _run_status_manual(
         return
 
     admin_user, admin_pw = creds
-    clients, err = manual.registered_clients(cfg, admin_user, admin_pw)
+    # base_url is localhost for a compose stack (registered_clients'
+    # default) and the recorded public URL for an external runtime — the
+    # only address that deployment exists at.
+    clients, err = manual.registered_clients(
+        cfg, admin_user, admin_pw, base=base_url
+    )
     if clients is None:
         console.print(f"[red]Failed to list clients: {err}[/red]")
         return

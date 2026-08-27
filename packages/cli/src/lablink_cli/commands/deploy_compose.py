@@ -39,6 +39,8 @@ from lablink_cli.manual import (
     CANONICAL_URL_FILENAME,
     DEFAULT_COMPOSE_DIR,  # noqa: F401 — re-exported for callers/tests
     DEFAULT_HTTP_PORT,
+    RUNTIME_FILENAME,
+    deployment_runtime,
     workdir as compose_workdir,
 )
 
@@ -66,6 +68,7 @@ FUNNEL_ENABLE_RETRY_DELAY_SECONDS = 2
 PUBLIC_HOSTNAME_MAX_ATTEMPTS = 6
 PUBLIC_HOSTNAME_RETRY_DELAY_SECONDS = 5
 console = Console()
+
 
 
 def _read_env_value(env_path: Path, key: str) -> str | None:
@@ -279,8 +282,11 @@ def run_deploy_compose(
     tailscale_authkey: str | None = None,
     cloudflare_tunnel_token: str | None = None,
     docker: Docker | None = None,
+    render_only: bool = False,
 ) -> None:
-    """Bring up the allocator stack via docker-compose.
+    """Bring up the allocator stack via docker-compose, or (with
+    `render_only=True`) render it for an external container platform
+    instead.
 
     Renders the compose working directory (`compose_workdir(cfg)`),
     runs `docker compose up -d`, polls the allocator's `/api/health`
@@ -289,6 +295,14 @@ def run_deploy_compose(
 
     `yes=True` skips the interactive confirmation prompt.
     `workdir_root` overrides `DEFAULT_COMPOSE_DIR` (used by tests).
+    `render_only=True` renders the compose bundle (config.yaml,
+    custom-startup.sh, the canonical-URL file) and writes the
+    `RUNTIME_FILENAME` marker, then prints a launch sheet and returns —
+    no docker on this machine is required or used. For running the
+    allocator image as a workload on an external container platform
+    (Run:AI, Kubernetes) instead of via `docker compose up`. Rejected
+    up front when the config needs the Tailscale sidecar, which such
+    platforms do not grant kernel TUN/NET_ADMIN access for.
     `tailscale_authkey` is required when a tailnet join is needed for
     either `cfg.manual.connectivity == "mesh_overlay"` or
     `cfg.manual.participant_exposure == "tailscale_funnel"`, unless a
@@ -309,6 +323,28 @@ def run_deploy_compose(
     target = compose_workdir(cfg, workdir_root)
 
     needs_sidecar = _needs_tailscale_sidecar(cfg)
+
+    # Preflight: --render-only can't serve a config that needs the
+    # Tailscale sidecar — a managed external container platform (the
+    # whole point of --render-only) grants the workload no kernel TUN
+    # device / NET_ADMIN, which containerboot requires to join a tailnet.
+    # Placed before ANY docker use — including the
+    # _tailscale_state_volume_exists check just below, which calls
+    # docker.volume_exists() and therefore docker.require() — so a
+    # docker-less machine gets this clean message instead of an unhandled
+    # DockerUnavailable traceback.
+    if render_only and needs_sidecar:
+        console.print(
+            "[red]--render-only cannot serve this config: "
+            f"manual.connectivity={cfg.manual.connectivity!r} / "
+            f"manual.participant_exposure={cfg.manual.participant_exposure!r} "
+            "need the Tailscale sidecar (kernel TUN device + NET_ADMIN), "
+            "which managed container platforms do not grant. Use "
+            "connectivity=reverse_tunnel with "
+            "participant_exposure=cloudflare_tunnel instead.[/red]"
+        )
+        raise SystemExit(1)
+
     if needs_sidecar:
         # Checking ".env exists" alone (i.e. "is this a redeploy") isn't
         # enough: a redeploy that *switches* to needing the sidecar has
@@ -418,16 +454,19 @@ def run_deploy_compose(
         )
         raise SystemExit(1)
 
-    # Preflight: docker on PATH.
-    try:
-        docker.require()
-    except DockerUnavailable:
-        console.print(
-            "[red]docker not found on PATH.[/red] "
-            "Install Docker Engine + the Compose plugin "
-            "(https://docs.docker.com/engine/install/) and re-run."
-        )
-        raise SystemExit(1)
+    # Preflight: docker on PATH. Not needed for --render-only — the whole
+    # point is running the image on a platform without a local docker
+    # daemon.
+    if not render_only:
+        try:
+            docker.require()
+        except DockerUnavailable:
+            console.print(
+                "[red]docker not found on PATH.[/red] "
+                "Install Docker Engine + the Compose plugin "
+                "(https://docs.docker.com/engine/install/) and re-run."
+            )
+            raise SystemExit(1)
 
     # Resolve admin credentials (mirrors AWS deploy.py). The wizard does
     # NOT collect admin user/password — they're resolved here. Write the
@@ -460,13 +499,35 @@ def run_deploy_compose(
             raise SystemExit(1)
 
     if not yes:
-        action = "create" if not target.exists() else "update"
+        existed_before = target.exists()
+        action = "create" if not existed_before else "update"
+        verb = (
+            f"render an external-runtime bundle in {target}"
+            if render_only
+            else f"{action} compose stack in {target}"
+        )
         console.print(
-            f"About to {action} compose stack in {target}\n"
+            f"About to {verb}\n"
             f"  provider: manual\n"
             f"  ssl: {cfg.ssl.provider}\n"
             f"  admin user: {admin_user}\n"
         )
+        # A workdir that already exists with no external marker is a live
+        # compose-managed deployment. --render-only would flip it to
+        # external — after which `lablink destroy` stops managing any
+        # local compose stack for it at all, orphaning one still running.
+        # Only the marker transition is checked here (no docker probe):
+        # the transition itself is the signal, regardless of whether a
+        # stack happens to be up right now.
+        if render_only and existed_before and deployment_runtime(target) == "compose":
+            console.print(
+                "[bold red]Warning:[/bold red] this deployment is currently "
+                "managed by docker-compose. --render-only will flip it to "
+                "external-runtime — afterward, `lablink destroy` no longer "
+                "manages any local docker-compose stack for it. If a "
+                "compose stack is running for this deployment, tear it "
+                "down FIRST with `lablink destroy`, before proceeding here."
+            )
         if not typer.confirm("Proceed?", default=True):
             console.print("Aborted.")
             raise SystemExit(1)
@@ -500,6 +561,62 @@ def run_deploy_compose(
             cloudflare_tunnel_token=cloudflare_tunnel_token,
         )
         console.print(f"[green]Rendered {target}[/green]")
+
+        # Write or clear the runtime marker `deployment_runtime()` reads
+        # back (status/logs/destroy branch on it). render_only returns
+        # immediately after — no docker.compose/health-poll/summary,
+        # since an external platform runs the image, not this machine.
+        marker = target / RUNTIME_FILENAME
+        if render_only:
+            marker.write_text("external\n")
+
+            # A bundle with no recorded public URL leaves every day-2
+            # command broken: `status`/`logs` have no address to reach the
+            # externally-run allocator at, and (until now) `status` simply
+            # probed localhost, which has nothing listening on it for this
+            # mode. Read the canonical-URL file directly rather than
+            # importing status._public_url, to avoid a needless
+            # cross-module reach for one string check.
+            canonical_url = (target / CANONICAL_URL_FILENAME).read_text().strip()
+            if not canonical_url.startswith(("http://", "https://")):
+                console.print(
+                    "[red]--render-only produced a bundle with no public "
+                    "URL recorded.[/red]\n"
+                    "Day-2 `lablink status` / `lablink logs` need one to "
+                    "reach the externally-run allocator. The only exposure "
+                    "mode --render-only supports today is "
+                    "manual.participant_exposure: cloudflare_tunnel (with "
+                    "manual.public_hostname set) — update your config and "
+                    "re-render."
+                )
+                raise SystemExit(1)
+
+            # Render-only's own success write, mirroring the compose
+            # path's success write below (allocator_deploy_end_time /
+            # allocator_total_deployment_duration_seconds / status) —
+            # the render IS the deploy action here, so without this the
+            # in_progress record written above would never be finalized
+            # (the early return skips the compose path's write entirely).
+            # No compose_up/health_check phases ran in this path, so the
+            # duration sums to 0 — an honest reflection of "no docker
+            # phases," not a stand-in for a real elapsed time.
+            metrics.allocator_deploy_end_time = datetime.now(timezone.utc).isoformat()
+            metrics.allocator_total_deployment_duration_seconds = round(
+                sum(
+                    v
+                    for v in (
+                        metrics.allocator_compose_up_duration_seconds,
+                        metrics.allocator_health_check_duration_seconds,
+                    )
+                    if v is not None
+                ),
+                3,
+            )
+            metrics.status = "success"
+            write_metrics(metrics_path, metrics)
+            _print_launch_sheet(cfg, target, console)
+            return
+        marker.unlink(missing_ok=True)
 
         # Explicitly disable Funnel *before* _compose_up, whenever the new
         # config no longer wants it — this must run before --remove-orphans
@@ -847,6 +964,34 @@ def _print_last_log_lines(lines: int = 30, *, docker: Docker) -> None:
         console.print(_redact_secrets(result.stdout))
 
 
+def _print_launch_sheet(cfg: Config, workdir: Path, console: Console) -> None:
+    """Print everything needed to launch the rendered bundle on an
+    external container platform (the platform is the container runtime;
+    nothing needs docker on this machine)."""
+    cf_token = _read_env_value(workdir / ".env", "CLOUDFLARE_TUNNEL_TOKEN")
+    console.print("\n[bold]Bundle rendered — launch it on your platform:[/bold]")
+    console.print(f"  Image:    {_allocator_image(cfg)}  (default command)")
+    console.print("  Env vars:")
+    console.print(f"    PARTICIPANT_EXPOSURE={cfg.manual.participant_exposure}")
+    if cfg.manual.participant_exposure == "cloudflare_tunnel":
+        console.print(f"    CLOUDFLARE_TUNNEL_TOKEN={cf_token or '<missing>'}")
+    console.print("  Mounts (read-only files, all rendered in this dir):")
+    console.print(f"    {workdir}/config.yaml        -> /config/config.yaml")
+    console.print(f"    {workdir}/custom-startup.sh  -> /config/custom-startup.sh")
+    console.print(f"    {workdir}/allocator-url      -> /config/allocator-url")
+    console.print(
+        "  Persistent volume (optional): /var/lib/postgresql "
+        "(DB survives pod restarts)"
+    )
+    console.print("  Inbound ports: none required — every leg dials out.")
+    console.print("  The image expects to run as root (postgres + nginx).")
+    console.print(
+        "\n  After boot, the BYO register token prints in the workload's "
+        "log\n  (also at /var/log/lablink/allocator.log inside the "
+        "container).\n  See docs: CLI → External runtime (Run:AI walkthrough)."
+    )
+
+
 def _print_summary(
     cfg: Config,
     *,
@@ -1139,6 +1284,36 @@ def run_destroy_compose(
     if not target.exists():
         console.print(
             f"[yellow]No compose stack at {target} — already destroyed.[/yellow]"
+        )
+        return
+
+    if deployment_runtime(target) == "external":
+        console.print(
+            "[bold]This deployment runs on an external platform[/bold] — "
+            "there is nothing to stop here.\n"
+            "Delete the platform workload yourself (e.g. "
+            "`runai workspace delete <name> -p <project>`); any Postgres "
+            "data lives in the volume you attached there.\n"
+            f"Removing only the local bundle at {target}."
+        )
+        if not yes:
+            confirmation = typer.prompt(
+                f"Type 'yes' to remove the local bundle at {target}",
+                default="no",
+                show_default=False,
+            )
+            if confirmation.strip().lower() != "yes":
+                console.print("Aborted.")
+                raise SystemExit(1)
+        shutil.rmtree(target)
+        console.print(f"[green]Removed {target}.[/green]")
+        console.print(
+            "\n[bold]Reminder:[/bold] this only removed the local rendered "
+            "bundle — every BYO client still has `lablink-client` running, "
+            "and any client submitted as its own platform workload is "
+            "still running there too.\n"
+            "Run [bold]lablink client unregister[/bold] on each BYO box, "
+            "and delete each client workload on the platform yourself."
         )
         return
 
