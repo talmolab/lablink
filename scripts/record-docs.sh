@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Record the terminal videos embedded in docs/cli/first-deployment.md.
 #
-#   ./scripts/record-docs.sh          # clips 01 + 02 (wizard, doctor)
-#   ./scripts/record-docs.sh --live   # clips 03 + 04 — CREATES REAL AWS RESOURCES
-#   ./scripts/record-docs.sh --all    # all four in order — RECOMMENDED
+#   ./scripts/record-docs.sh         # clips 01 + 02 (wizard, doctor)
+#   ./scripts/record-docs.sh --all   # all four — CREATES REAL AWS RESOURCES
 #
-# --all is the mode that actually works end to end: clip 01's wizard writes
-# the provider:aws config that clips 03/04 then deploy. Running --live on its
-# own requires you to already have an AWS config in place.
+# Clips 03/04 only run under --all, because they deploy the provider:aws
+# config that clip 01's wizard writes. Recording them against whatever config
+# was already lying around is how you deploy a BYO config by accident, so
+# there is deliberately no mode that does that.
 #
 # Credentials are inherited from this shell: run `aws sso login` first. They
 # are never typed inside a tape, so they never appear on camera.
@@ -27,49 +27,27 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
+case "${1:-}" in
+  "")    ALL=0 ;;
+  --all) ALL=1 ;;
+  *) echo "usage: $0 [--all]" >&2; exit 1 ;;
+esac
+
 # Every tape needs a session, not just the live ones: clip 01's wizard
 # auto-runs `lablink setup` to create the S3 state bucket and lock table.
 # Without credentials that step fails and the tape blocks on a prompt that
-# never comes, until WaitTimeout expires 15 minutes later.
+# never comes, until WaitTimeout expires.
 aws sts get-caller-identity >/dev/null 2>&1 || {
   echo "No valid AWS session. Run 'aws sso login' first." >&2; exit 1; }
-
-MODE="${1:-}"
-
-case "$MODE" in
-  --live|--all) LIVE=1 ;;
-  "")           LIVE=0 ;;
-  *) echo "usage: $0 [--live|--all]" >&2; exit 1 ;;
-esac
 
 # Clip 01 records the wizard, which pre-fills from an existing config and
 # would otherwise show the edit-a-deployment flow rather than the first-run
 # flow the doc describes. Stashing also keeps a real BYO config from being
 # deployed by clips 03/04. Put it back however we exit.
-if [ "$MODE" != "--live" ] && [ -f "$CONFIG" ]; then
-  mv "$CONFIG" "$BACKUP"
-fi
+[ -f "$CONFIG" ] && mv "$CONFIG" "$BACKUP"
 
-if [ "$LIVE" = 1 ]; then
+if [ "$ALL" = 1 ]; then
   echo "WARNING: recording against real AWS — this provisions EC2 and costs money."
-
-  # --live on its own deploys whatever config is already in place, so it has
-  # to be an AWS one. A provider:manual config sends `lablink deploy` down
-  # the docker-compose path, which exits immediately and leaves the tape
-  # blocking for the full 15m WaitTimeout on a prompt that never comes.
-  if [ "$MODE" = "--live" ]; then
-    [ -f "$CONFIG" ] || {
-      echo "No $CONFIG — use --all to record the wizard first." >&2; exit 1; }
-    if grep -qE '^provider:' "$CONFIG" \
-       && ! grep -qE '^provider:[[:space:]]*aws[[:space:]]*$' "$CONFIG"; then
-      echo "ERROR: $CONFIG is not a provider:aws config:" >&2
-      grep -nE '^provider:' "$CONFIG" >&2
-      echo "Clips 03/04 record the AWS path. Use --all to generate an AWS" >&2
-      echo "config via the wizard (your current config is stashed and" >&2
-      echo "restored), or point --live at an AWS config." >&2
-      exit 1
-    fi
-  fi
 
   # `lablink deploy` always prompts for an admin password (--yes explicitly
   # does not bypass it), and a committed tape must not carry a credential.
@@ -84,11 +62,7 @@ if [ "$LIVE" = 1 ]; then
 
   # 03 leaves a deployment standing that 04 launches into and then destroys,
   # so they only make sense back to back and in this order.
-  if [ "$MODE" = "--all" ]; then
-    TAPES=(01-configure.tape 02-doctor.tape 03-deploy.tape 04-launch-destroy.tape)
-  else
-    TAPES=(03-deploy.tape 04-launch-destroy.tape)
-  fi
+  TAPES=(01-configure.tape 02-doctor.tape 03-deploy.tape 04-launch-destroy.tape)
 else
   TAPES=(01-configure.tape 02-doctor.tape)
 fi
