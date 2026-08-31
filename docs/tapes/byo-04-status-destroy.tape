@@ -26,6 +26,12 @@ Set PlaybackSpeed 2
 Set TypingSpeed 120ms
 
 Hide
+# `unset PROMPT_COMMAND` before PS1, not after: Git Bash (and any
+# distro whose bashrc sets one) REBUILDS PS1 on every prompt from
+# PROMPT_COMMAND, silently discarding the value set here. The tape
+# then waits on a prompt regex that can never match and hangs for
+# the full WaitTimeout. Cost a recording session on Windows to find.
+Type `unset PROMPT_COMMAND` Enter
 Type `export PS1="$ "` Enter
 Type "clear" Enter
 Show

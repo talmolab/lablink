@@ -23,6 +23,15 @@
 # So: TUI screen -> +Screen. Blocking prompt -> +Line on the prompt text.
 # Anything else -> +Line on the prompt returning. Never +Line on a line that
 # later output will scroll past.
+#
+# EVERY "prompt returning" anchor depends on PS1 being exactly what the tape
+# set. It is not enough to export it: Git Bash, and any distro whose bashrc
+# sets PROMPT_COMMAND, REBUILD PS1 from that hook on every prompt and discard
+# the tape's value. The anchor then can never match and the tape hangs for the
+# full WaitTimeout. Every tape's Hide block therefore does
+#   Type `unset PROMPT_COMMAND` Enter
+# BEFORE setting PS1. macOS bash sets no PROMPT_COMMAND, which is why this
+# only ever surfaced on the Windows box recording clip 03.
 # ---------------------------------------------------------------------------
 #
 # Two more VHS gotchas:
