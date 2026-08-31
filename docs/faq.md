@@ -61,18 +61,25 @@ Common questions about LabLink. If something here doesn't resolve your problem, 
     See [Adapting LabLink](adapting.md) for the full guide.
 
 ??? note "Can I use a different AWS region?"
-    Not today — `us-west-2` is the only supported region.
+    Yes, within the regions LabLink publishes images to: `us-west-2`, `us-east-1` and
+    `us-east-2`. Set the region and the matching client AMI together:
 
-    AMI IDs are region-scoped, and both LabLink images (the client VM image and the
-    allocator's own) exist only in `us-west-2`. Setting `app.region` to anything else
-    is refused at plan time by a precondition in the deployment template, so it fails
-    before creating anything rather than half-deploying.
+    ```yaml
+    app:
+      region: "us-east-1"
+    machine:
+      ami_id: "ami-0c3412413810adacc"
+    ```
 
-    Supporting another region means copying both images into it with
-    `aws ec2 copy-image`, pointing `machine.ami_id` at the client copy, and updating
-    the allocator AMI in
-    [lablink-template](https://github.com/talmolab/lablink-template). If you need a
-    particular region, open an issue.
+    | Region | `machine.ami_id` |
+    |--------|------------------|
+    | `us-west-2` | `ami-0601752c11b394251` |
+    | `us-east-1` | `ami-0c3412413810adacc` |
+    | `us-east-2` | `ami-0cd7567480c4840a0` |
+
+    AMI IDs are region-scoped, so a region LabLink has not published images to is
+    refused at plan time rather than half-deploying. `lablink doctor` catches it first.
+    If you need another region, open an issue.
 
 ??? note "Can I use a custom AMI?"
     Yes. Create an AMI with your software pre-installed:

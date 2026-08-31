@@ -138,15 +138,19 @@ class TestCheckAmi:
         cfg.app.region = "ap-south-1"
         result = _check_ami(cfg)
         assert result["status"] == "fail"
-        assert "cannot deploy" in result["detail"]
+        assert "cannot deploy there" in result["detail"]
 
-    def test_us_east_1_is_not_a_pass(self):
-        """The AMI is a us-west-2 image; us-east-1 used to report pass anyway,
-        and the deploy then died on InvalidAMIID.NotFound."""
-        cfg = MagicMock()
-        cfg.app.region = "us-east-1"
-        result = _check_ami(cfg)
-        assert result["status"] == "fail"
+    def test_every_supported_region_reports_its_own_ami(self):
+        """us-east-1 used to pass while being handed a us-west-2 AMI ID. Each
+        region must now report the image that actually exists in it."""
+        from lablink_cli.config.schema import AMI_MAP
+
+        for region, ami in AMI_MAP.items():
+            cfg = MagicMock()
+            cfg.app.region = region
+            result = _check_ami(cfg)
+            assert result["status"] == "pass"
+            assert ami in result["detail"]
 
 
 # ------------------------------------------------------------------

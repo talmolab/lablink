@@ -261,9 +261,9 @@ def _check_ami(cfg) -> dict:
         supported = ", ".join(AMI_MAP)
         result["status"] = "fail"
         result["detail"] = (
-            f"AMI IDs are region-scoped and LabLink's images exist only in "
-            f"{supported}, so app.region '{region}' cannot deploy — OpenTofu "
-            f"refuses to plan. Set app.region to one of: {supported}"
+            f"AMI IDs are region-scoped and LabLink has no image in '{region}', "
+            f"so it cannot deploy there — OpenTofu refuses to plan. Set "
+            f"app.region to one of: {supported}"
         )
 
     return result

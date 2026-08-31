@@ -115,13 +115,17 @@ def validate_config(cfg: Config) -> list[str]:
 
 
 # Client AMI by region (Ubuntu 24.04 with Docker + Nvidia GPU Driver), and by
-# extension the set of regions LabLink can deploy to. AMI IDs are region-scoped:
-# this image exists only in us-west-2, and so does the allocator's own AMI, which
-# lablink-template hardcodes and guards with a plan-time precondition. Listing a
-# region here without copying both images into it produces a config that passes
-# every local check and is then refused by `tofu plan`.
+# extension the set of regions LabLink can deploy to. AMI IDs are region-scoped, so
+# every region needs its own copy of the image and every entry here is a distinct ID
+# — a repeated ID means one of these regions is pointing at another region's image,
+# which is a config that passes every local check and then fails to launch.
+# lablink-template carries the matching per-region map for the allocator's own AMI
+# and refuses to plan for a region missing from it. Adding a region means copying
+# both images into it and making the copies public, then updating both maps.
 AMI_MAP: dict[str, str] = {
     "us-west-2": "ami-0601752c11b394251",
+    "us-east-1": "ami-0c3412413810adacc",
+    "us-east-2": "ami-0cd7567480c4840a0",
 }
 
 # Common GPU instance types
