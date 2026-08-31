@@ -5,7 +5,7 @@ authors = [
   {name = "Talmo Pereira", email = "talmo@salk.edu"},
   {name = "Andrew Park", email = "hep003@ucsd.edu"},
 ]
-version = "0.1.0"
+version = "0.2.0"
 description = "CLI tool for deploying and managing LabLink infrastructure"
 readme = "README.md"
 requires-python = ">=3.10"
