@@ -1,0 +1,60 @@
+# docs/cli/byo-clients.md — Step 4: Register each box (reverse_tunnel)
+#
+# *** THIS TAPE RUNS ON THE BOX, NOT ON THE ALLOCATOR HOST. ***
+# That is the whole reason it is a separate clip: the doc says "run this on
+# the machine you're adding", and a recording made on the allocator host
+# would quietly contradict its own instructions. Record it by running
+# `scripts/record-docs.sh --box <allocator-url> <token>` on the second
+# machine, then copy the .mp4 back into docs/assets/videos/.
+#
+# PS1 is "box$ " here, not "$ ", so the change of machine is visible on
+# camera rather than merely asserted in the caption. Every Wait+Line that
+# anchors on the prompt returning below matches that prompt, NOT the
+# allocator host's.
+#
+# The deployment being registered against is manual.connectivity:
+# reverse_tunnel, so the command carries --tunnel: the box dials OUT to the
+# allocator and holds one connection open. Nothing dials in to it, which is
+# why the auto-detected values below report no LAN IP — there is no inbound
+# address worth having.
+#
+# The register command line is not in this file: it carries a per-run
+# allocator URL and register token, so --box writes it into the gitignored
+# .byo-register.tape that the Source below pulls in. That Source is
+# deliberately OUTSIDE a Hide block — the typed command IS the content of
+# this clip, and the token in it dies with the stack clip 04 destroys.
+#
+# --box pulls the client image before this tape starts. It is a KasmVNC
+# desktop image and on Apple Silicon it is amd64-under-emulation, so a cold
+# pull is minutes of progress bar; the doc's caption says the pull was cut.
+
+Source "_common.tape"
+Output "../assets/videos/byo-03-register.mp4"
+
+Hide
+Type `export PS1="box$ "` Enter
+Type "clear" Enter
+Show
+
+Sleep 2s
+
+# `lablink client register --allocator-url … --register-token … --tunnel`
+Source ".byo-register.tape"
+Sleep 1s
+Enter
+
+# Auto-detection (hostname, LAN IP, machine identity, GPU), the 0600
+# ~/.lablink/client.env write, and the container start.
+Wait+Line /^box\$$/
+Sleep 8s
+
+# --- Confirm the box's own health ----------------------------------------
+# `client doctor` is the box-side check: registration, container, and log
+# shipper. `lablink status` is NOT run here — it reads the deployment
+# config, which only exists on the allocator host, and that is where clip
+# 04 shows this box landing in the pool.
+Type "clear" Sleep 500ms Enter
+Sleep 1s
+Type "lablink client doctor" Sleep 500ms Enter
+Wait+Line /^box\$$/
+Sleep 8s
