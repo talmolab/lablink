@@ -423,14 +423,41 @@ class TestRenderComposeDirParticipantExposure:
 
 
 class TestDeployComposeMeshOverlayPreflight:
+    @patch("getpass.getpass", return_value="")
     @patch("lablink_cli.commands.deploy_compose._tailscale_state_volume_exists")
-    def test_first_deploy_without_authkey_rejected(self, mock_state_exists, tmp_path):
+    def test_first_deploy_without_authkey_and_empty_prompt_rejected(
+        self, mock_state_exists, mock_getpass, tmp_path
+    ):
+        """Declining the prompt (empty answer) is still a hard stop — the
+        sidecar cannot join a tailnet without a key."""
         from lablink_cli.commands.deploy_compose import run_deploy_compose
 
         mock_state_exists.return_value = False
         cfg = _manual_cfg(connectivity="mesh_overlay", overlay_tailnet="example.ts.net")
         with pytest.raises(SystemExit):
             run_deploy_compose(cfg, yes=True, workdir_root=tmp_path)
+        mock_getpass.assert_called_once()
+
+    @patch("getpass.getpass", return_value="tskey-typed")
+    @patch("lablink_cli.commands.deploy_compose._print_summary")
+    @patch("lablink_cli.commands.deploy_compose._health_poll")
+    @patch("lablink_cli.commands.deploy_compose._compose_up")
+    @patch("lablink_cli.commands.deploy_compose._tailscale_state_volume_exists")
+    def test_first_deploy_without_authkey_prompts_and_uses_the_answer(
+        self, mock_state_exists, mock_up, mock_poll, mock_summary, mock_getpass,
+        tmp_path,
+    ):
+        """getpass, not input(): the key must stay off the terminal (and out
+        of shell history) exactly like the admin password."""
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        mock_state_exists.return_value = False
+        cfg = _manual_cfg(connectivity="mesh_overlay", overlay_tailnet="example.ts.net")
+        run_deploy_compose(cfg, yes=True, workdir_root=tmp_path)
+
+        mock_getpass.assert_called_once()
+        env_content = (tmp_path / "testlab" / ".env").read_text()
+        assert "TS_AUTHKEY=tskey-typed" in env_content
 
     @patch("lablink_cli.commands.deploy_compose._print_summary")
     @patch("lablink_cli.commands.deploy_compose._health_poll")
@@ -493,15 +520,18 @@ class TestDeployComposeMeshOverlayPreflight:
     @patch("lablink_cli.commands.deploy_compose._print_summary")
     @patch("lablink_cli.commands.deploy_compose._health_poll")
     @patch("lablink_cli.commands.deploy_compose._compose_up")
+    @patch("getpass.getpass", return_value="")
     def test_switch_from_lan_direct_without_authkey_rejected(
-        self, mock_up, mock_poll, mock_summary, mock_state_exists, tmp_path
+        self, mock_getpass, mock_up, mock_poll, mock_summary, mock_state_exists,
+        tmp_path,
     ):
         """Regression guard: an existing lan_direct deployment (its .env
         has no TS_AUTHKEY line) that switches manual.connectivity to
-        mesh_overlay must still be required to pass --tailscale-authkey.
+        mesh_overlay must still be asked for an authkey.
         ".env exists" alone is not a valid proxy for "an authkey is on
         record" — without this guard the preflight silently skipped the
-        check and render_compose_dir wrote TS_AUTHKEY= (empty)."""
+        check and render_compose_dir wrote TS_AUTHKEY= (empty). The empty
+        prompt answer here stands in for the operator having none."""
         from lablink_cli.commands.deploy_compose import run_deploy_compose
 
         mock_state_exists.return_value = False
@@ -540,7 +570,10 @@ class TestDeployComposeMeshOverlayPreflight:
 
 class TestDeployComposeParticipantExposurePreflight:
     @patch("lablink_cli.commands.deploy_compose._tailscale_state_volume_exists")
-    def test_lan_direct_with_funnel_requires_authkey(self, mock_state_exists, tmp_path):
+    @patch("getpass.getpass", return_value="")
+    def test_lan_direct_with_funnel_requires_authkey(
+        self, mock_getpass, mock_state_exists, tmp_path
+    ):
         """A lan_direct deployment that enables tailscale_funnel still
         needs the sidecar to join a tailnet — same requirement as
         mesh_overlay, generalized."""
@@ -2418,7 +2451,10 @@ class TestCloudflareTunnelPreflights:
             **kw,
         )
 
-    def test_first_deploy_without_token_is_rejected(self, tmp_path):
+    @patch("getpass.getpass", return_value="")
+    def test_first_deploy_without_token_and_empty_prompt_is_rejected(
+        self, mock_getpass, tmp_path
+    ):
         from lablink_cli.commands.deploy_compose import run_deploy_compose
 
         with pytest.raises(SystemExit):
@@ -2427,9 +2463,31 @@ class TestCloudflareTunnelPreflights:
                 yes=True,
                 workdir_root=tmp_path,
                 # Supplied so the sidecar's own authkey preflight can't be
-                # what raises — this test is about the tunnel token.
+                # what prompts — this test is about the tunnel token.
                 tailscale_authkey="tskey-abc",
             )
+        mock_getpass.assert_called_once()
+
+    @patch("getpass.getpass", return_value="eyJhIjoiTYPED")
+    @patch("lablink_cli.commands.deploy_compose._verify_public_hostname")
+    @patch("lablink_cli.commands.deploy_compose._print_summary")
+    @patch("lablink_cli.commands.deploy_compose._health_poll")
+    @patch("lablink_cli.commands.deploy_compose._compose_up")
+    def test_first_deploy_without_token_prompts_and_uses_the_answer(
+        self, mock_up, mock_poll, mock_summary, mock_verify, mock_getpass, tmp_path
+    ):
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        run_deploy_compose(
+            self._cf_cfg(),
+            yes=True,
+            workdir_root=tmp_path,
+            tailscale_authkey="tskey-abc",
+        )
+
+        mock_getpass.assert_called_once()
+        env_content = (tmp_path / "testlab" / ".env").read_text()
+        assert "CLOUDFLARE_TUNNEL_TOKEN=eyJhIjoiTYPED" in env_content
 
     def test_empty_public_hostname_is_rejected(self, tmp_path):
         from lablink_cli.commands.deploy_compose import run_deploy_compose
