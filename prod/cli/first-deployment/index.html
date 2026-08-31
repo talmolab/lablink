@@ -4640,6 +4640,13 @@ OpenTofu.</p>
 <h2 id="step-1-configure">Step 1: Configure<a class="headerlink" href="#step-1-configure" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>lablink<span class="w"> </span>configure
 </code></pre></div>
+<div class="video-container">
+  <video controls width="100%">
+    <source src="../../assets/videos/cli-01-configure.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+</div>
+
 <p>This launches an interactive TUI wizard that walks you through:</p>
 <ul>
 <li><strong>Deployment name</strong> — a short label (e.g. <code>sleap-workshop</code>, <code>dev</code>). Used to tag AWS resources and as the folder name under <code>~/.lablink/deploys/</code>.</li>
@@ -4663,6 +4670,14 @@ OpenTofu.</p>
 <h2 id="step-2-sanity-check">Step 2: Sanity check<a class="headerlink" href="#step-2-sanity-check" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>lablink<span class="w"> </span>doctor
 </code></pre></div>
+<div class="video-container">
+  <video controls width="100%">
+    <source src="../../assets/videos/cli-02-doctor.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+</div>
+
+<p><em>The clip starts with <code>lablink show-config</code> from Step 1, then runs <code>doctor</code>.</em></p>
 <p>All six AWS checks should now pass:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>┌─────────────────────────┬────────┬─────────────────────────────────────┐
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>│ Check                   │ Status │ Detail                              │
@@ -4679,6 +4694,14 @@ OpenTofu.</p>
 <h2 id="step-3-deploy">Step 3: Deploy<a class="headerlink" href="#step-3-deploy" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>lablink<span class="w"> </span>deploy
 </code></pre></div>
+<div class="video-container">
+  <video controls width="100%">
+    <source src="../../assets/videos/cli-03-deploy.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+</div>
+
+<p><em>Recorded at 4× — the real <code>tofu apply</code> and health wait take 3–8 minutes. Continues into Step 4's <code>lablink status</code>.</em></p>
 <p>This will:</p>
 <ol>
 <li>Download the pinned <code>lablink-template</code> OpenTofu files into <code>~/.lablink/cache/terraform/&lt;version&gt;/</code> (first run only).</li>
@@ -4707,6 +4730,14 @@ OpenTofu.</p>
 <h2 id="step-5-launch-a-client-vm">Step 5: Launch a client VM<a class="headerlink" href="#step-5-launch-a-client-vm" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>lablink<span class="w"> </span>client<span class="w"> </span>launch<span class="w"> </span>--num-vms<span class="w"> </span><span class="m">1</span>
 </code></pre></div>
+<div class="video-container">
+  <video controls width="100%">
+    <source src="../../assets/videos/cli-04-launch-destroy.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+</div>
+
+<p><em>Also recorded at 4×, and continues through Step 6's <code>lablink destroy</code>.</em></p>
 <p>The CLI calls the allocator's create-VM endpoint, which provisions the instance via the allocator's own OpenTofu workspace (not the CLI's). Run <code>lablink status</code> again to see the new VM appear.</p>
 <h2 id="step-6-tear-down">Step 6: Tear down<a class="headerlink" href="#step-6-tear-down" title="Permanent link">&para;</a></h2>
 <p>When you're done, destroy everything the CLI created:</p>
