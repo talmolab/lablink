@@ -798,6 +798,56 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#uninstall" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Uninstall
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Uninstall">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-clear-out-aws" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Clear out AWS
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-remove-the-cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Remove the CLI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-remove-local-state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Remove local state
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#next-steps" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4595,6 +4645,56 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#uninstall" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Uninstall
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Uninstall">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-clear-out-aws" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Clear out AWS
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-remove-the-cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Remove the CLI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-remove-local-state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Remove local state
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#next-steps" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4765,7 +4865,7 @@
 <td>Per-deploy metrics records (readable by <code>lablink export-metrics --allocator</code>)</td>
 </tr>
 <tr>
-<td><code>~/.lablink/deploys/&lt;name&gt;/</code></td>
+<td><code>~/.lablink/deploy/&lt;name&gt;/&lt;environment&gt;/</code></td>
 <td>Working directory OpenTofu runs in for each deployment</td>
 </tr>
 </tbody>
@@ -4783,6 +4883,66 @@
 <div class="admonition note">
 <p class="admonition-title">Template version</p>
 <p>The CLI pins a specific version of the <code>lablink-template</code> OpenTofu files. After upgrading the CLI, the first <code>lablink deploy</code> will download the new template version into <code>~/.lablink/cache/terraform/</code>.</p>
+</div>
+<h2 id="uninstall">Uninstall<a class="headerlink" href="#uninstall" title="Permanent link">&para;</a></h2>
+<div class="admonition warning">
+<p class="admonition-title">Destroy your deployments first</p>
+<p>Uninstalling the CLI does <strong>not</strong> stop AWS charges. Everything <code>lablink
+deploy</code> created keeps running and billing, and the CLI is the only thing
+that knows how to tear it down. Run this <em>before</em> removing anything:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>lablink<span class="w"> </span>destroy
+</code></pre></div>
+</div>
+<h3 id="1-clear-out-aws">1. Clear out AWS<a class="headerlink" href="#1-clear-out-aws" title="Permanent link">&para;</a></h3>
+<p><code>lablink destroy</code> removes what OpenTofu owns. Two things deliberately outlive it:</p>
+<ul>
+<li><strong>Orphaned resources</strong> left by an interrupted deploy. <code>lablink cleanup --dry-run</code> lists them; <code>lablink cleanup</code> deletes them.</li>
+<li><strong>The S3 state bucket and DynamoDB lock table</strong>, kept so the next deploy can reuse them (~$0.05/month). To remove those too, see <a href="../managing-deployments/#cleanup-orphaned-resources">Cleanup orphaned resources</a>.</li>
+</ul>
+<p>Confirm nothing is left before moving on:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>lablink<span class="w"> </span>status
+</code></pre></div>
+<h3 id="2-remove-the-cli">2. Remove the CLI<a class="headerlink" href="#2-remove-the-cli" title="Permanent link">&para;</a></h3>
+<p>If you installed from PyPI:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>uv<span class="w"> </span>tool<span class="w"> </span>uninstall<span class="w"> </span>lablink-cli<span class="w">   </span><span class="c1"># or: pip uninstall lablink-cli</span>
+</code></pre></div>
+<p>If you installed from source, delete the checkout (the venv lives inside it):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>rm<span class="w"> </span>-rf<span class="w"> </span>/path/to/lablink
+</code></pre></div>
+<h3 id="3-remove-local-state">3. Remove local state<a class="headerlink" href="#3-remove-local-state" title="Permanent link">&para;</a></h3>
+<p>The CLI never cleans up <code>~/.lablink/</code> on its own:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>rm<span class="w"> </span>-rf<span class="w"> </span>~/.lablink
+</code></pre></div>
+<p>This is local-only — it touches nothing in AWS. What you lose:</p>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Consequence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>config.yaml</code></td>
+<td>Re-run <code>lablink configure</code> to recreate it</td>
+</tr>
+<tr>
+<td><code>cache/terraform/</code></td>
+<td>Re-downloaded on the next deploy</td>
+</tr>
+<tr>
+<td><code>deployments/</code></td>
+<td>Per-deploy metrics history is gone; export it first with <code>lablink export-metrics</code> if you want to keep it</td>
+</tr>
+<tr>
+<td><code>deploy/</code></td>
+<td>OpenTofu working directories. <strong>Delete these only after <code>lablink destroy</code> succeeds</strong> — losing them while resources still exist orphans them from local state</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition tip">
+<p class="admonition-title">Keeping the config</p>
+<p>To reinstall later against the same deployment, keep <code>~/.lablink/config.yaml</code> and delete the rest.</p>
 </div>
 <h2 id="next-steps">Next steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
 <ul>
