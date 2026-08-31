@@ -43,6 +43,22 @@
 # AWS credentials are inherited from the shell that launches vhs — run
 # `aws sso login` before recording. Never type credentials inside a tape.
 
+# `Set Shell "bash"` HANGS ON NATIVE WINDOWS. vhs echoes its directives as it
+# runs them, so the symptom is a tape that prints up to `Output ...` and then
+# sits there until WaitTimeout: the shell never comes up, and not one `Type`
+# has run. A tape with no `Set Shell` line renders fine on the same box, which
+# is how it was isolated.
+#
+# Worse, a hung run leaves `ttyd` alive holding its port, so EVERY later vhs
+# invocation hangs too — including tapes that worked a minute earlier. Clear
+# them before re-testing or you will chase the wrong thing:
+#   tasklist | grep -iE "ttyd|vhs|ffmpeg"
+#   taskkill //F //IM ttyd.exe   (//F, not /F — Git Bash mangles single slashes)
+#
+# Record the box-side clip from WSL2 instead: ttyd and ffmpeg come from apt,
+# these tapes need no changes, and Docker Desktop's WSL integration puts
+# `docker run` on the same engine as native Windows — so it is genuinely the
+# same machine, not a stand-in.
 Set Shell "bash"
 Set FontSize 18
 Set Width 1400
