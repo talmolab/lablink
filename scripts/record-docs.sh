@@ -372,16 +372,7 @@ box)
   docker pull --platform linux/amd64 "$CLIENT_IMAGE" \
     || echo "  (pull failed — the clip will show the download)"
 
-  # Native Windows needs the PowerShell tape: `Set Shell "bash"` hangs there
-  # (see _common.tape). Git Bash reports MINGW64_NT-..., MSYS, or CYGWIN;
-  # WSL2 reports Linux and takes the bash tape, which is the point of
-  # recommending WSL as the low-friction route. Both write the same .mp4.
-  case "$(uname -s)" in
-    MINGW*|MSYS*|CYGWIN*) BOX_TAPE=byo-03-register-windows.tape ;;
-    *)                    BOX_TAPE=byo-03-register.tape ;;
-  esac
-  echo "Shell for this recording: $BOX_TAPE"
-  record "$BOX_TAPE"
+  record byo-03-register.tape
   ;;
 esac
 
