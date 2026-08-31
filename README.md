@@ -37,9 +37,9 @@ Published to PyPI:
   uv tool install lablink-cli   # or: pip install lablink-cli
   ```
 
-  Currently a pre-release (`0.1.0a1`). The package is `lablink-cli`; the command it
-  installs is `lablink`. To work on the CLI itself, install from source instead —
-  see the [Contributing Guide](https://talmolab.github.io/lablink/contributing/).
+  The package is `lablink-cli`; the command it installs is `lablink`. To work on
+  the CLI itself, install from source instead — see the
+  [Contributing Guide](https://talmolab.github.io/lablink/contributing/).
 
 ### Docker Images (Published to GHCR)
 
@@ -62,7 +62,7 @@ Production images are built from the PyPI packages:
 - `linux-amd64-latest` - Latest for specific platform
 - `<sha>` - Specific git commit
 - `linux-amd64-test` - Development/testing builds
-- `<version>` (e.g., `0.2.0`) - Only published when a build is triggered manually
+- `<version>` (e.g., `0.3.0`) - Only published when a build is triggered manually
 
 See [Docker Image Tags](https://talmolab.github.io/lablink/workflows/#image-tagging-strategy) for complete tagging strategy.
 
@@ -179,7 +179,7 @@ LabLink uses **independent versioning** for its packages:
 
 - **lablink-allocator-service**: [![PyPI](https://img.shields.io/pypi/v/lablink-allocator-service)](https://pypi.org/project/lablink-allocator-service/)
 - **lablink-client-service**: [![PyPI](https://img.shields.io/pypi/v/lablink-client-service)](https://pypi.org/project/lablink-client-service/)
-- **lablink-cli**: [![PyPI](https://img.shields.io/pypi/v/lablink-cli)](https://pypi.org/project/lablink-cli/) — pre-release
+- **lablink-cli**: [![PyPI](https://img.shields.io/pypi/v/lablink-cli)](https://pypi.org/project/lablink-cli/)
 
 ---
 
