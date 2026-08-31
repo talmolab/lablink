@@ -61,14 +61,18 @@ Common questions about LabLink. If something here doesn't resolve your problem, 
     See [Adapting LabLink](adapting.md) for the full guide.
 
 ??? note "Can I use a different AWS region?"
-    Yes. Update the region in configuration:
+    Not today — `us-west-2` is the only supported region.
 
-    ```yaml
-    app:
-      region: "us-east-1"  # Change to your preferred region
-    ```
+    AMI IDs are region-scoped, and both LabLink images (the client VM image and the
+    allocator's own) exist only in `us-west-2`. Setting `app.region` to anything else
+    is refused at plan time by a precondition in the deployment template, so it fails
+    before creating anything rather than half-deploying.
 
-    **Important**: AMI IDs are region-specific. You'll need to find the appropriate AMI for your region.
+    Supporting another region means copying both images into it with
+    `aws ec2 copy-image`, pointing `machine.ami_id` at the client copy, and updating
+    the allocator AMI in
+    [lablink-template](https://github.com/talmolab/lablink-template). If you need a
+    particular region, open an issue.
 
 ??? note "Can I use a custom AMI?"
     Yes. Create an AMI with your software pre-installed:

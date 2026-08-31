@@ -128,7 +128,7 @@ class TestCheckAmi:
 
     def test_supported_region(self):
         cfg = MagicMock()
-        cfg.app.region = "us-east-1"
+        cfg.app.region = "us-west-2"
         result = _check_ami(cfg)
         assert result["status"] == "pass"
         assert "ami-" in result["detail"]
@@ -138,7 +138,15 @@ class TestCheckAmi:
         cfg.app.region = "ap-south-1"
         result = _check_ami(cfg)
         assert result["status"] == "fail"
-        assert "No AMI" in result["detail"]
+        assert "cannot deploy" in result["detail"]
+
+    def test_us_east_1_is_not_a_pass(self):
+        """The AMI is a us-west-2 image; us-east-1 used to report pass anyway,
+        and the deploy then died on InvalidAMIID.NotFound."""
+        cfg = MagicMock()
+        cfg.app.region = "us-east-1"
+        result = _check_ami(cfg)
+        assert result["status"] == "fail"
 
 
 # ------------------------------------------------------------------

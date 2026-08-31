@@ -235,9 +235,11 @@ class TestReferenceData:
         assert not DEPLOYMENT_NAME_RE.match("-invalid")
         assert not DEPLOYMENT_NAME_RE.match("invalid-")
 
-    def test_ami_map_has_regions(self):
-        assert len(AMI_MAP) > 0
-        for region, ami in AMI_MAP.items():
+    def test_ami_map_is_us_west_2_only(self):
+        """AMI IDs are region-scoped and both LabLink images live in us-west-2,
+        so any other key here is a config that passes checks and fails to plan."""
+        assert set(AMI_MAP) == {"us-west-2"}
+        for ami in AMI_MAP.values():
             assert ami.startswith("ami-")
 
     def test_gpu_instance_types_structure(self):

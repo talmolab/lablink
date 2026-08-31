@@ -114,11 +114,13 @@ def validate_config(cfg: Config) -> list[str]:
     return errors
 
 
-# AMI IDs by region (Ubuntu 24.04 with Docker + Nvidia GPU Driver)
+# Client AMI by region (Ubuntu 24.04 with Docker + Nvidia GPU Driver), and by
+# extension the set of regions LabLink can deploy to. AMI IDs are region-scoped:
+# this image exists only in us-west-2, and so does the allocator's own AMI, which
+# lablink-template hardcodes and guards with a plan-time precondition. Listing a
+# region here without copying both images into it produces a config that passes
+# every local check and is then refused by `tofu plan`.
 AMI_MAP: dict[str, str] = {
-    "us-east-1": "ami-0601752c11b394251",
-    "us-east-2": "ami-0601752c11b394251",
-    "us-west-1": "ami-0601752c11b394251",
     "us-west-2": "ami-0601752c11b394251",
 }
 
