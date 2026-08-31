@@ -5,6 +5,13 @@
     "aliases": []
   },
   {
+    "version": "lablink-client-service_v0.3.0",
+    "title": "lablink-client-service_v0.3.0",
+    "aliases": [
+      "latest"
+    ]
+  },
+  {
     "version": "lablink-client-service_v0.2.0",
     "title": "lablink-client-service_v0.2.0",
     "aliases": []
@@ -47,9 +54,7 @@
   {
     "version": "lablink-cli_v0.1.0",
     "title": "lablink-cli_v0.1.0",
-    "aliases": [
-      "latest"
-    ]
+    "aliases": []
   },
   {
     "version": "lablink-cli_v0.1.0a1",
