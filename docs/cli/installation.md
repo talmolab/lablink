@@ -126,7 +126,7 @@ The CLI stores state under `~/.lablink/`:
 | `~/.lablink/config.yaml` | Default config file written by `lablink configure` |
 | `~/.lablink/cache/terraform/<version>/` | Cached OpenTofu templates downloaded from the `lablink-template` repo |
 | `~/.lablink/deployments/` | Per-deploy metrics records (readable by `lablink export-metrics --allocator`) |
-| `~/.lablink/deploys/<name>/` | Working directory OpenTofu runs in for each deployment |
+| `~/.lablink/deploy/<name>/<environment>/` | Working directory OpenTofu runs in for each deployment |
 
 Pass `--config /path/to/config.yaml` to any command to use a different config file.
 
@@ -148,6 +148,64 @@ uv sync --all-packages
 
 !!! note "Template version"
     The CLI pins a specific version of the `lablink-template` OpenTofu files. After upgrading the CLI, the first `lablink deploy` will download the new template version into `~/.lablink/cache/terraform/`.
+
+## Uninstall
+
+!!! warning "Destroy your deployments first"
+    Uninstalling the CLI does **not** stop AWS charges. Everything `lablink
+    deploy` created keeps running and billing, and the CLI is the only thing
+    that knows how to tear it down. Run this *before* removing anything:
+
+    ```bash
+    lablink destroy
+    ```
+
+### 1. Clear out AWS
+
+`lablink destroy` removes what OpenTofu owns. Two things deliberately outlive it:
+
+- **Orphaned resources** left by an interrupted deploy. `lablink cleanup --dry-run` lists them; `lablink cleanup` deletes them.
+- **The S3 state bucket and DynamoDB lock table**, kept so the next deploy can reuse them (~$0.05/month). To remove those too, see [Cleanup orphaned resources](managing-deployments.md#cleanup-orphaned-resources).
+
+Confirm nothing is left before moving on:
+
+```bash
+lablink status
+```
+
+### 2. Remove the CLI
+
+If you installed from PyPI:
+
+```bash
+uv tool uninstall lablink-cli   # or: pip uninstall lablink-cli
+```
+
+If you installed from source, delete the checkout (the venv lives inside it):
+
+```bash
+rm -rf /path/to/lablink
+```
+
+### 3. Remove local state
+
+The CLI never cleans up `~/.lablink/` on its own:
+
+```bash
+rm -rf ~/.lablink
+```
+
+This is local-only — it touches nothing in AWS. What you lose:
+
+| Path | Consequence |
+|---|---|
+| `config.yaml` | Re-run `lablink configure` to recreate it |
+| `cache/terraform/` | Re-downloaded on the next deploy |
+| `deployments/` | Per-deploy metrics history is gone; export it first with `lablink export-metrics` if you want to keep it |
+| `deploy/` | OpenTofu working directories. **Delete these only after `lablink destroy` succeeds** — losing them while resources still exist orphans them from local state |
+
+!!! tip "Keeping the config"
+    To reinstall later against the same deployment, keep `~/.lablink/config.yaml` and delete the rest.
 
 ## Next steps
 
