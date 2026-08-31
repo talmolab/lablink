@@ -13,28 +13,28 @@
       
       
       
-        <link rel="prev" href="../monitoring/samplers/processes/">
+        <link rel="prev" href="../byo-clients/">
       
       
-        <link rel="next" href="../ship_logs/">
+        <link rel="next" href="../managing-deployments/">
       
       
         
       
       
-      <link rel="icon" href="../../../../assets/images/favicon.png">
+      <link rel="icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-ProperDocs 1.6.7, mkdocs-material-9.7.7">
     
     
       
-        <title>session_anchor - LabLink</title>
+        <title>External runtime (Run:AI) - LabLink</title>
       
     
     
-      <link rel="stylesheet" href="../../../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
-        <link rel="stylesheet" href="../../../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -53,11 +53,11 @@
       
     
     
-      <link rel="stylesheet" href="../../../../assets/_mkdocstrings.css">
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
     
-      <link rel="stylesheet" href="../../../../stylesheets/extra.css">
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
     
-    <script>__md_scope=new URL("../../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#lablink_client_servicesession_anchor" class="md-skip">
+        <a href="#external-runtime-runai-walkthrough" class="md-skip">
           Skip to content
         </a>
       
@@ -100,7 +100,7 @@
 
 <header class="md-header" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../../../.." title="LabLink" class="md-header__button md-logo" aria-label="LabLink" data-md-component="logo">
+    <a href="../.." title="LabLink" class="md-header__button md-logo" aria-label="LabLink" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -120,7 +120,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              session_anchor
+              External runtime (Run:AI)
             
           </span>
         </div>
@@ -246,7 +246,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../../.." class="md-tabs__link">
+      <a href="../.." class="md-tabs__link">
         
   
   
@@ -267,7 +267,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../../../prerequisites/" class="md-tabs__link">
+        <a href="../../prerequisites/" class="md-tabs__link">
           
   
   
@@ -283,11 +283,13 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="../../../../cli/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
           
   
   
@@ -307,7 +309,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../../../quickstart-template/" class="md-tabs__link">
+        <a href="../../quickstart-template/" class="md-tabs__link">
           
   
   
@@ -327,7 +329,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../../../adapting/" class="md-tabs__link">
+        <a href="../../adapting/" class="md-tabs__link">
           
   
   
@@ -347,7 +349,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../../../architecture/" class="md-tabs__link">
+        <a href="../../architecture/" class="md-tabs__link">
           
   
   
@@ -363,11 +365,9 @@
   
   
   
-    
   
-  
-    <li class="md-tabs__item md-tabs__item--active">
-      <a href="../../../" class="md-tabs__link">
+    <li class="md-tabs__item">
+      <a href="../../reference/" class="md-tabs__link">
         
   
   
@@ -402,7 +402,7 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../../../.." title="LabLink" class="md-nav__button md-logo" aria-label="LabLink" data-md-component="logo">
+    <a href="../.." title="LabLink" class="md-nav__button md-logo" aria-label="LabLink" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -432,7 +432,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../.." class="md-nav__link">
+      <a href="../.." class="md-nav__link">
         
   
   
@@ -513,7 +513,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../prerequisites/" class="md-nav__link">
+      <a href="../../prerequisites/" class="md-nav__link">
         
   
   
@@ -541,7 +541,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../quickstart/" class="md-nav__link">
+      <a href="../../quickstart/" class="md-nav__link">
         
   
   
@@ -573,28 +573,31 @@
       
   
   
+    
   
   
+  
     
     
     
     
+      
+        
+        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
         
           
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
-        
-          
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
             
   
   
@@ -612,7 +615,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             
@@ -630,7 +633,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../cli/" class="md-nav__link">
+      <a href="../" class="md-nav__link">
         
   
   
@@ -658,7 +661,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../cli/installation/" class="md-nav__link">
+      <a href="../installation/" class="md-nav__link">
         
   
   
@@ -686,7 +689,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../cli/first-deployment/" class="md-nav__link">
+      <a href="../first-deployment/" class="md-nav__link">
         
   
   
@@ -714,7 +717,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../cli/byo-clients/" class="md-nav__link">
+      <a href="../byo-clients/" class="md-nav__link">
         
   
   
@@ -739,10 +742,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../../../cli/external-runtime/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    External runtime (Run:AI)
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -758,6 +788,164 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#when-to-use-this-page" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When to use this page
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-1-configure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1: Configure
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-2-create-the-cloudflare-tunnel-one-time-dashboard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2: Create the Cloudflare tunnel (one-time, dashboard)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-3-render-the-deployment-bundle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3: Render the deployment bundle
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-4-launch-the-allocator-workspace-runai" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4: Launch the allocator workspace (Run:AI)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Step 4: Launch the allocator workspace (Run:AI)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#configmap-route" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ConfigMap route
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#no-kubectl-fallback-validated" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        No-kubectl fallback (validated)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-5-verify-and-get-the-register-token" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 5: Verify and get the register token
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-6-client-workspaces-on-the-same-platform-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 6: Client workspaces on the same platform (optional)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#day-2-operations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Day-2 operations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Limitations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next steps
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -770,7 +958,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../cli/managing-deployments/" class="md-nav__link">
+      <a href="../managing-deployments/" class="md-nav__link">
         
   
   
@@ -859,7 +1047,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../quickstart-template/" class="md-nav__link">
+      <a href="../../quickstart-template/" class="md-nav__link">
         
   
   
@@ -887,7 +1075,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../aws-setup/" class="md-nav__link">
+      <a href="../../aws-setup/" class="md-nav__link">
         
   
   
@@ -915,7 +1103,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../deployment/" class="md-nav__link">
+      <a href="../../deployment/" class="md-nav__link">
         
   
   
@@ -1004,7 +1192,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../adapting/" class="md-nav__link">
+      <a href="../../adapting/" class="md-nav__link">
         
   
   
@@ -1032,7 +1220,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../workshop-guide/" class="md-nav__link">
+      <a href="../../workshop-guide/" class="md-nav__link">
         
   
   
@@ -1060,7 +1248,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../configuration/" class="md-nav__link">
+      <a href="../../configuration/" class="md-nav__link">
         
   
   
@@ -1088,7 +1276,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../cost-estimation/" class="md-nav__link">
+      <a href="../../cost-estimation/" class="md-nav__link">
         
   
   
@@ -1116,7 +1304,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../dns-configuration/" class="md-nav__link">
+      <a href="../../dns-configuration/" class="md-nav__link">
         
   
   
@@ -1144,7 +1332,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../security/" class="md-nav__link">
+      <a href="../../security/" class="md-nav__link">
         
   
   
@@ -1172,7 +1360,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../troubleshooting/" class="md-nav__link">
+      <a href="../../troubleshooting/" class="md-nav__link">
         
   
   
@@ -1200,7 +1388,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../faq/" class="md-nav__link">
+      <a href="../../faq/" class="md-nav__link">
         
   
   
@@ -1289,7 +1477,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../architecture/" class="md-nav__link">
+      <a href="../../architecture/" class="md-nav__link">
         
   
   
@@ -1317,7 +1505,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../database/" class="md-nav__link">
+      <a href="../../database/" class="md-nav__link">
         
   
   
@@ -1345,7 +1533,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../api-endpoints/" class="md-nav__link">
+      <a href="../../api-endpoints/" class="md-nav__link">
         
   
   
@@ -1373,7 +1561,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../workflows/" class="md-nav__link">
+      <a href="../../workflows/" class="md-nav__link">
         
   
   
@@ -1401,7 +1589,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../contributing/" class="md-nav__link">
+      <a href="../../contributing/" class="md-nav__link">
         
   
   
@@ -1429,7 +1617,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../changelog/" class="md-nav__link">
+      <a href="../../changelog/" class="md-nav__link">
         
   
   
@@ -1457,7 +1645,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../changelog-allocator/" class="md-nav__link">
+      <a href="../../changelog-allocator/" class="md-nav__link">
         
   
   
@@ -1485,7 +1673,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../changelog-client/" class="md-nav__link">
+      <a href="../../changelog-client/" class="md-nav__link">
         
   
   
@@ -1513,7 +1701,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../changelog-cli/" class="md-nav__link">
+      <a href="../../changelog-cli/" class="md-nav__link">
         
   
   
@@ -1573,32 +1761,29 @@
       
   
   
-    
   
   
-  
     
     
     
     
-      
-        
-        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked>
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../" class="md-nav__link ">
+            <a href="../../reference/" class="md-nav__link ">
               
   
   
@@ -1616,13 +1801,13 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_7" id="__nav_7_label" tabindex="">
+              <label class="md-nav__link " for="__nav_7" id="__nav_7_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_7">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1640,7 +1825,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../cli/" class="md-nav__link">
+      <a href="../../reference/cli/" class="md-nav__link">
         
   
   
@@ -1674,13 +1859,10 @@
       
       
         
-          
-          
-        
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
@@ -1689,7 +1871,7 @@
         <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7_2" >
         
           
-          <label class="md-nav__link" for="__nav_7_2" id="__nav_7_2_label" tabindex="">
+          <label class="md-nav__link" for="__nav_7_2" id="__nav_7_2_label" tabindex="0">
             
   
   
@@ -1744,7 +1926,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../allocator/lablink_allocator_service/" class="md-nav__link ">
+            <a href="../../reference/allocator/lablink_allocator_service/" class="md-nav__link ">
               
   
   
@@ -1786,7 +1968,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/admin_session_expiry/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/admin_session_expiry/" class="md-nav__link">
         
   
   
@@ -1814,7 +1996,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/auth/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/auth/" class="md-nav__link">
         
   
   
@@ -1842,7 +2024,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/client_session/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/client_session/" class="md-nav__link">
         
   
   
@@ -1889,7 +2071,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../allocator/lablink_allocator_service/conf/" class="md-nav__link ">
+            <a href="../../reference/allocator/lablink_allocator_service/conf/" class="md-nav__link ">
               
   
   
@@ -1931,7 +2113,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/conf/structured_config/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/conf/structured_config/" class="md-nav__link">
         
   
   
@@ -1986,7 +2168,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../allocator/lablink_allocator_service/db/" class="md-nav__link ">
+            <a href="../../reference/allocator/lablink_allocator_service/db/" class="md-nav__link ">
               
   
   
@@ -2028,7 +2210,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/db/metrics/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/db/metrics/" class="md-nav__link">
         
   
   
@@ -2056,7 +2238,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/db/operations/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/db/operations/" class="md-nav__link">
         
   
   
@@ -2084,7 +2266,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/db/pool/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/db/pool/" class="md-nav__link">
         
   
   
@@ -2112,7 +2294,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/db/schedules/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/db/schedules/" class="md-nav__link">
         
   
   
@@ -2140,7 +2322,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/db/vms/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/db/vms/" class="md-nav__link">
         
   
   
@@ -2176,7 +2358,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/generate_init_sql/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/generate_init_sql/" class="md-nav__link">
         
   
   
@@ -2204,7 +2386,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/get_config/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/get_config/" class="md-nav__link">
         
   
   
@@ -2232,7 +2414,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/main/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/main/" class="md-nav__link">
         
   
   
@@ -2260,7 +2442,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/operations/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/operations/" class="md-nav__link">
         
   
   
@@ -2307,7 +2489,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../allocator/lablink_allocator_service/providers/" class="md-nav__link ">
+            <a href="../../reference/allocator/lablink_allocator_service/providers/" class="md-nav__link ">
               
   
   
@@ -2349,7 +2531,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/providers/aws/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/providers/aws/" class="md-nav__link">
         
   
   
@@ -2396,7 +2578,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../allocator/lablink_allocator_service/providers/connectivity/" class="md-nav__link ">
+            <a href="../../reference/allocator/lablink_allocator_service/providers/connectivity/" class="md-nav__link ">
               
   
   
@@ -2438,7 +2620,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/providers/connectivity/allocator_proxied/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/providers/connectivity/allocator_proxied/" class="md-nav__link">
         
   
   
@@ -2466,7 +2648,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/providers/connectivity/lan_direct/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/providers/connectivity/lan_direct/" class="md-nav__link">
         
   
   
@@ -2494,7 +2676,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/providers/connectivity/mesh_overlay/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/providers/connectivity/mesh_overlay/" class="md-nav__link">
         
   
   
@@ -2522,7 +2704,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/providers/connectivity/reverse_tunnel/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/providers/connectivity/reverse_tunnel/" class="md-nav__link">
         
   
   
@@ -2558,7 +2740,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/providers/manual/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/providers/manual/" class="md-nav__link">
         
   
   
@@ -2586,7 +2768,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/providers/protocol/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/providers/protocol/" class="md-nav__link">
         
   
   
@@ -2614,7 +2796,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/providers/registry/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/providers/registry/" class="md-nav__link">
         
   
   
@@ -2650,7 +2832,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/reboot/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/reboot/" class="md-nav__link">
         
   
   
@@ -2697,7 +2879,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../allocator/lablink_allocator_service/routes/" class="md-nav__link ">
+            <a href="../../reference/allocator/lablink_allocator_service/routes/" class="md-nav__link ">
               
   
   
@@ -2739,7 +2921,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/routes/admin_pages/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/routes/admin_pages/" class="md-nav__link">
         
   
   
@@ -2767,7 +2949,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/routes/admin_sessions/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/routes/admin_sessions/" class="md-nav__link">
         
   
   
@@ -2795,7 +2977,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/routes/allocator_logs/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/routes/allocator_logs/" class="md-nav__link">
         
   
   
@@ -2823,7 +3005,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/routes/desktop/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/routes/desktop/" class="md-nav__link">
         
   
   
@@ -2851,7 +3033,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/routes/health/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/routes/health/" class="md-nav__link">
         
   
   
@@ -2879,7 +3061,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/routes/internal_proxy_auth/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/routes/internal_proxy_auth/" class="md-nav__link">
         
   
   
@@ -2907,7 +3089,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/routes/metrics/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/routes/metrics/" class="md-nav__link">
         
   
   
@@ -2935,7 +3117,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/routes/provisioning/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/routes/provisioning/" class="md-nav__link">
         
   
   
@@ -2963,7 +3145,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/routes/public/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/routes/public/" class="md-nav__link">
         
   
   
@@ -2991,7 +3173,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/routes/registration/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/routes/registration/" class="md-nav__link">
         
   
   
@@ -3019,7 +3201,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/routes/schedules/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/routes/schedules/" class="md-nav__link">
         
   
   
@@ -3047,7 +3229,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/routes/session_cookie/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/routes/session_cookie/" class="md-nav__link">
         
   
   
@@ -3075,7 +3257,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/routes/vm_telemetry/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/routes/vm_telemetry/" class="md-nav__link">
         
   
   
@@ -3111,7 +3293,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/scheduler/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/scheduler/" class="md-nav__link">
         
   
   
@@ -3139,7 +3321,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/secret_hash/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/secret_hash/" class="md-nav__link">
         
   
   
@@ -3167,7 +3349,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/signed_cookie/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/signed_cookie/" class="md-nav__link">
         
   
   
@@ -3195,7 +3377,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/tunnel_manager/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/tunnel_manager/" class="md-nav__link">
         
   
   
@@ -3242,7 +3424,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../allocator/lablink_allocator_service/utils/" class="md-nav__link ">
+            <a href="../../reference/allocator/lablink_allocator_service/utils/" class="md-nav__link ">
               
   
   
@@ -3284,7 +3466,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/utils/ansi/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/utils/ansi/" class="md-nav__link">
         
   
   
@@ -3312,7 +3494,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/utils/aws_utils/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/utils/aws_utils/" class="md-nav__link">
         
   
   
@@ -3340,7 +3522,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/utils/config_helpers/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/utils/config_helpers/" class="md-nav__link">
         
   
   
@@ -3368,7 +3550,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/utils/log_filter/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/utils/log_filter/" class="md-nav__link">
         
   
   
@@ -3396,7 +3578,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/utils/log_tail/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/utils/log_tail/" class="md-nav__link">
         
   
   
@@ -3424,7 +3606,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/utils/sg_audit/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/utils/sg_audit/" class="md-nav__link">
         
   
   
@@ -3452,7 +3634,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/utils/tofu_utils/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/utils/tofu_utils/" class="md-nav__link">
         
   
   
@@ -3488,7 +3670,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../allocator/lablink_allocator_service/validate_config/" class="md-nav__link">
+      <a href="../../reference/allocator/lablink_allocator_service/validate_config/" class="md-nav__link">
         
   
   
@@ -3529,31 +3711,28 @@
                 
   
   
-    
   
   
-  
     
     
     
     
       
       
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
         
           
-          
         
-      
-    
-    
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_3" checked>
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7_3" >
         
           
-          <label class="md-nav__link" for="__nav_7_3" id="__nav_7_3_label" tabindex="">
+          <label class="md-nav__link" for="__nav_7_3" id="__nav_7_3_label" tabindex="0">
             
   
   
@@ -3571,7 +3750,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_3_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_3_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_7_3">
             <span class="md-nav__icon md-icon"></span>
             
@@ -3586,8 +3765,6 @@
                 
   
   
-    
-  
   
   
     
@@ -3600,15 +3777,17 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_3_1" checked>
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7_3_1" >
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../" class="md-nav__link ">
+            <a href="../../reference/client/lablink_client_service/" class="md-nav__link ">
               
   
   
@@ -3632,7 +3811,7 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_7_3_1_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_7_3_1_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_7_3_1">
             <span class="md-nav__icon md-icon"></span>
             
@@ -3669,7 +3848,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../agent/" class="md-nav__link ">
+            <a href="../../reference/client/lablink_client_service/agent/" class="md-nav__link ">
               
   
   
@@ -3711,7 +3890,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../agent/api/" class="md-nav__link">
+      <a href="../../reference/client/lablink_client_service/agent/api/" class="md-nav__link">
         
   
   
@@ -3739,7 +3918,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../agent/kasmvnc/" class="md-nav__link">
+      <a href="../../reference/client/lablink_client_service/agent/kasmvnc/" class="md-nav__link">
         
   
   
@@ -3775,7 +3954,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../check_gpu/" class="md-nav__link">
+      <a href="../../reference/client/lablink_client_service/check_gpu/" class="md-nav__link">
         
   
   
@@ -3822,7 +4001,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../conf/" class="md-nav__link ">
+            <a href="../../reference/client/lablink_client_service/conf/" class="md-nav__link ">
               
   
   
@@ -3864,7 +4043,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../conf/structured_config/" class="md-nav__link">
+      <a href="../../reference/client/lablink_client_service/conf/structured_config/" class="md-nav__link">
         
   
   
@@ -3900,7 +4079,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../heartbeat/" class="md-nav__link">
+      <a href="../../reference/client/lablink_client_service/heartbeat/" class="md-nav__link">
         
   
   
@@ -3928,7 +4107,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../http_utils/" class="md-nav__link">
+      <a href="../../reference/client/lablink_client_service/http_utils/" class="md-nav__link">
         
   
   
@@ -3975,7 +4154,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../monitoring/" class="md-nav__link ">
+            <a href="../../reference/client/lablink_client_service/monitoring/" class="md-nav__link ">
               
   
   
@@ -4017,7 +4196,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../monitoring/aggregator/" class="md-nav__link">
+      <a href="../../reference/client/lablink_client_service/monitoring/aggregator/" class="md-nav__link">
         
   
   
@@ -4045,7 +4224,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../monitoring/pusher/" class="md-nav__link">
+      <a href="../../reference/client/lablink_client_service/monitoring/pusher/" class="md-nav__link">
         
   
   
@@ -4092,7 +4271,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../monitoring/samplers/" class="md-nav__link ">
+            <a href="../../reference/client/lablink_client_service/monitoring/samplers/" class="md-nav__link ">
               
   
   
@@ -4134,7 +4313,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../monitoring/samplers/active_window/" class="md-nav__link">
+      <a href="../../reference/client/lablink_client_service/monitoring/samplers/active_window/" class="md-nav__link">
         
   
   
@@ -4162,7 +4341,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../monitoring/samplers/filesystem/" class="md-nav__link">
+      <a href="../../reference/client/lablink_client_service/monitoring/samplers/filesystem/" class="md-nav__link">
         
   
   
@@ -4190,7 +4369,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../monitoring/samplers/gpu/" class="md-nav__link">
+      <a href="../../reference/client/lablink_client_service/monitoring/samplers/gpu/" class="md-nav__link">
         
   
   
@@ -4218,7 +4397,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../monitoring/samplers/processes/" class="md-nav__link">
+      <a href="../../reference/client/lablink_client_service/monitoring/samplers/processes/" class="md-nav__link">
         
   
   
@@ -4259,37 +4438,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    session_anchor
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../reference/client/lablink_client_service/session_anchor/" class="md-nav__link">
         
   
   
@@ -4305,121 +4457,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#lablink_client_service.session_anchor" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;session_anchor
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label=" session_anchor">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#lablink_client_service.session_anchor-attributes" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Attributes
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Attributes">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#lablink_client_service.session_anchor.DEFAULT_ANCHOR_PATH" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;DEFAULT_ANCHOR_PATH
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#lablink_client_service.session_anchor-functions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Functions:
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Functions:">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#lablink_client_service.session_anchor.get_anchor_path" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;get_anchor_path
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#lablink_client_service.session_anchor.read_anchor" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;read_anchor
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#lablink_client_service.session_anchor.write_anchor" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;write_anchor
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -4432,7 +4469,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ship_logs/" class="md-nav__link">
+      <a href="../../reference/client/lablink_client_service/ship_logs/" class="md-nav__link">
         
   
   
@@ -4460,7 +4497,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../update_inuse_status/" class="md-nav__link">
+      <a href="../../reference/client/lablink_client_service/update_inuse_status/" class="md-nav__link">
         
   
   
@@ -4531,34 +4568,77 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#lablink_client_service.session_anchor" class="md-nav__link">
+  <a href="#when-to-use-this-page" class="md-nav__link">
     <span class="md-ellipsis">
       
-        <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;session_anchor
+        When to use this page
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label=" session_anchor">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#lablink_client_service.session_anchor-attributes" class="md-nav__link">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-1-configure" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Attributes
+        Step 1: Configure
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Attributes">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-2-create-the-cloudflare-tunnel-one-time-dashboard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2: Create the Cloudflare tunnel (one-time, dashboard)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-3-render-the-deployment-bundle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3: Render the deployment bundle
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-4-launch-the-allocator-workspace-runai" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4: Launch the allocator workspace (Run:AI)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Step 4: Launch the allocator workspace (Run:AI)">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#lablink_client_service.session_anchor.DEFAULT_ANCHOR_PATH" class="md-nav__link">
+  <a href="#configmap-route" class="md-nav__link">
     <span class="md-ellipsis">
       
-        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;DEFAULT_ANCHOR_PATH
+        ConfigMap route
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#no-kubectl-fallback-validated" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        No-kubectl fallback (validated)
       
     </span>
   </a>
@@ -4569,59 +4649,59 @@
     </nav>
   
 </li>
-        
-          <li class="md-nav__item">
-  <a href="#lablink_client_service.session_anchor-functions" class="md-nav__link">
+      
+        <li class="md-nav__item">
+  <a href="#step-5-verify-and-get-the-register-token" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Functions:
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Functions:">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#lablink_client_service.session_anchor.get_anchor_path" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;get_anchor_path
+        Step 5: Verify and get the register token
       
     </span>
   </a>
   
 </li>
-        
-          <li class="md-nav__item">
-  <a href="#lablink_client_service.session_anchor.read_anchor" class="md-nav__link">
+      
+        <li class="md-nav__item">
+  <a href="#step-6-client-workspaces-on-the-same-platform-optional" class="md-nav__link">
     <span class="md-ellipsis">
       
-        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;read_anchor
+        Step 6: Client workspaces on the same platform (optional)
       
     </span>
   </a>
   
 </li>
-        
-          <li class="md-nav__item">
-  <a href="#lablink_client_service.session_anchor.write_anchor" class="md-nav__link">
+      
+        <li class="md-nav__item">
+  <a href="#day-2-operations" class="md-nav__link">
     <span class="md-ellipsis">
       
-        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;write_anchor
+        Day-2 operations
       
     </span>
   </a>
   
 </li>
-        
-      </ul>
-    </nav>
+      
+        <li class="md-nav__item">
+  <a href="#limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Limitations
+      
+    </span>
+  </a>
   
 </li>
-        
-      </ul>
-    </nav>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next steps
+      
+    </span>
+  </a>
   
 </li>
       
@@ -4645,209 +4725,270 @@
   
 
 
-<h1 id="lablink_client_servicesession_anchor">lablink_client_service.session_anchor<a class="headerlink" href="#lablink_client_servicesession_anchor" title="Permanent link">&para;</a></h1>
-
-
-<div class="doc doc-object doc-module">
-
-
-
-<h2 id="lablink_client_service.session_anchor" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-module"></code>            <code>lablink_client_service.session_anchor</code>
-
-
-<a href="#lablink_client_service.session_anchor" class="headerlink" title="Permanent link">&para;</a></h2>
-
-    <div class="doc doc-contents first">
-
-        <p>Inter-process session-start anchor.</p>
-<p>The client container runs two long-lived processes started by start.sh: the
-agent (:7070) that receives <code>POST /api/session/start</code> from the allocator
-when a user is assigned the seat, and the monitoring agent that pushes
-session counters to the allocator. The monitoring agent's counters
-(<code>seconds_to_first_sleap_train</code>, <code>seconds_in_subject_software</code>, …) must
-be anchored at user-assignment time, not VM boot, so the metrics describe
-user behavior rather than infrastructure idle time.</p>
-<p>The two processes don't share memory, so the agent writes the assignment
-timestamp here and the monitoring loop polls the file each tick. When it
-sees a timestamp it hasn't acted on yet, it resets its counters with the
-new anchor.</p>
-<p>File contents: a single ISO-8601 UTC string (microsecond precision).
-Path: $LABLINK_SESSION_ANCHOR_PATH or /tmp/lablink-session-anchor.</p>
-
-
-
-
-
-
-
-
-
-
-<div class="doc doc-children">
-
-
-
-
-
-<h3 id="lablink_client_service.session_anchor-attributes">Attributes<a href="#lablink_client_service.session_anchor-attributes" class="headerlink" title="Permanent link">&para;</a></h3>
-
-<div class="doc doc-object doc-attribute">
-
-
-
-<h4 id="lablink_client_service.session_anchor.DEFAULT_ANCHOR_PATH" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <code class="highlight language-python"><span class="n">DEFAULT_ANCHOR_PATH</span> <span class="o">=</span> <span class="s1">'/tmp/lablink-session-anchor'</span></code>
-
-  <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
-  </span>
-
-<a href="#lablink_client_service.session_anchor.DEFAULT_ANCHOR_PATH" class="headerlink" title="Permanent link">&para;</a></h4>
-
-
-    <div class="doc doc-contents ">
-
-    </div>
-
+<h1 id="external-runtime-runai-walkthrough">External Runtime (Run:AI Walkthrough)<a class="headerlink" href="#external-runtime-runai-walkthrough" title="Permanent link">&para;</a></h1>
+<p>A third way to run the allocator: not as an EC2 instance, not as a
+docker-compose stack you <code>docker run</code> yourself, but as a <strong>workload on a
+container platform you don't control the Docker daemon for</strong> — a Run:AI
+workspace, a raw Kubernetes pod, or similar. <code>lablink deploy --render-only</code>
+renders the same allocator bundle the manual provider always renders, then
+hands it to you to launch on that platform instead of starting containers
+itself.</p>
+<p>This page walks through the whole path end to end on Run:AI, the platform it
+was validated against. The mechanics — render, submit a workload, read the
+register token from its logs — carry over to any platform that runs
+arbitrary container images.</p>
+<h2 id="when-to-use-this-page">When to use this page<a class="headerlink" href="#when-to-use-this-page" title="Permanent link">&para;</a></h2>
+<p>Use this instead of <a href="../byo-clients/">Bring-Your-Own Clients</a> when the
+allocator itself has to run <strong>inside</strong> a managed container platform rather
+than on a machine you can <code>docker run</code> on directly. The giveaway is that
+<code>lablink deploy</code> has no Docker daemon to talk to — the platform <em>is</em> the
+container runtime. Typically that's because the only compute you have access
+to is scheduler-hosted (a Run:AI cluster, a shared Kubernetes namespace), and
+starting a container from inside a container (docker-in-docker) either isn't
+possible or isn't something the platform allows.</p>
+<p>The rendered bundle is still a plain <code>provider: manual</code> deployment under the
+hood — same allocator image, same <code>config.yaml</code>, same register-token
+handshake. <code>--render-only</code> just stops short of running it, because there is
+no local daemon to run it <em>with</em>.</p>
+<div class="admonition info">
+<p class="admonition-title">Requirements</p>
+<ul>
+<li><code>manual.connectivity: reverse_tunnel</code> — clients dial <strong>out</strong> to the
+  allocator; the allocator never dials in.</li>
+<li><code>manual.participant_exposure: cloudflare_tunnel</code> — the allocator
+  publishes itself by dialing <strong>out</strong> to Cloudflare's edge.</li>
+<li>A domain on Cloudflare's nameservers (see
+  <a href="../../configuration/#exposure-mode-cloudflare_tunnel">Configuration</a>
+  for the one-time domain setup if you don't have one yet).</li>
+<li>The platform must allow the container to run as <strong>root</strong> — the
+  allocator image bundles Postgres and nginx, both of which need it.</li>
+</ul>
+<p>Every leg of this path dials out. The workload needs no inbound ports
+open and no privileges beyond running as root.</p>
 </div>
-
-
-<h3 id="lablink_client_service.session_anchor-functions">Functions:<a href="#lablink_client_service.session_anchor-functions" class="headerlink" title="Permanent link">&para;</a></h3>
-
-<div class="doc doc-object doc-function">
-
-
-<h4 id="lablink_client_service.session_anchor.get_anchor_path" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">get_anchor_path</span><span class="p">()</span></code>
-
-<a href="#lablink_client_service.session_anchor.get_anchor_path" class="headerlink" title="Permanent link">&para;</a></h4>
-
-
-    <div class="doc doc-contents ">
-
-
-            <details class="mkdocstrings-source">
-              <summary>Source code in <code>packages/client/src/lablink_client_service/session_anchor.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-26">26</a></span>
-<span class="normal"><a href="#__codelineno-0-27">27</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-26" name="__codelineno-0-26"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_anchor_path</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<a id="__codelineno-0-27" name="__codelineno-0-27"></a>    <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"LABLINK_SESSION_ANCHOR_PATH"</span><span class="p">,</span> <span class="n">DEFAULT_ANCHOR_PATH</span><span class="p">)</span>
-</code></pre></div></td></tr></table></div>
-            </details>
-    </div>
-
+<h2 id="step-1-configure">Step 1: Configure<a class="headerlink" href="#step-1-configure" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>lablink<span class="w"> </span>configure
+</code></pre></div>
+<p>Choose the <strong>manual</strong> provider, then <strong>reverse_tunnel</strong> connectivity, then
+<strong>cloudflare_tunnel</strong> participant exposure, and enter your public hostname
+(e.g. <code>lab.smithlab.org</code>) when asked. The wizard writes
+<code>~/.lablink/config.yaml</code> and pins <code>ssl.provider: none</code> for you automatically
+— the allocator image ships no TLS terminator; Cloudflare terminates TLS at
+its edge instead.</p>
+<p>A minimal hand-written equivalent:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">provider</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">manual</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nt">deployment_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">smith-lab</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="nt">ssl</span><span class="p">:</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span><span class="nt">provider</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">none</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="nt">manual</span><span class="p">:</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">  </span><span class="nt">connectivity</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">reverse_tunnel</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">  </span><span class="nt">participant_exposure</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cloudflare_tunnel</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">  </span><span class="nt">public_hostname</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lab.smithlab.org</span>
+</code></pre></div>
+<p>If you edit <code>config.yaml</code> by hand rather than through the wizard, double
+check <code>ssl.provider: "none"</code> — <code>SSLConfig</code>'s own default is <code>letsencrypt</code>,
+and <code>lablink deploy</code> refuses anything else for the manual provider.</p>
+<h2 id="step-2-create-the-cloudflare-tunnel-one-time-dashboard">Step 2: Create the Cloudflare tunnel (one-time, dashboard)<a class="headerlink" href="#step-2-create-the-cloudflare-tunnel-one-time-dashboard" title="Permanent link">&para;</a></h2>
+<p>This is the same Cloudflare Tunnel every <code>cloudflare_tunnel</code> deployment uses
+(see <a href="../../configuration/#exposure-mode-cloudflare_tunnel">Configuration</a> for
+the full one-time domain setup — signing up, delegating nameservers, opening
+Zero Trust). What differs here is only <em>where</em> <code>cloudflared</code> ends up
+running: normally it's a process inside a container on your own machine;
+here it's a process inside the allocator container running as a platform
+workload. Either way, <code>cloudflared</code> is baked into the allocator image and
+only starts when the config asks for it — there's no separate connector to
+install.</p>
+<p>In the Cloudflare <strong>Zero Trust</strong> dashboard:</p>
+<ol>
+<li><strong>Networks → Tunnels → Create a tunnel</strong> → choose the remotely-managed
+   (Cloudflared) connector type, and name it.</li>
+<li>On the <strong>Public Hostname</strong> tab, add a hostname on your domain (e.g.
+   <code>lab.smithlab.org</code>) with service <strong><code>http://localhost:5000</code></strong> — that's the
+   allocator container's own nginx listener, whichever machine or platform
+   it ends up running on.</li>
+<li>Copy the <strong>tunnel token</strong> from the connector's install command
+   (<code>eyJhIjoiN…</code>). You'll pass it to the workload as an environment
+   variable, not run any <code>cloudflared</code> install command yourself.</li>
+</ol>
+<h2 id="step-3-render-the-deployment-bundle">Step 3: Render the deployment bundle<a class="headerlink" href="#step-3-render-the-deployment-bundle" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>lablink<span class="w"> </span>deploy<span class="w"> </span>--render-only<span class="w"> </span>--cloudflare-tunnel-token<span class="w"> </span>&lt;token&gt;
+</code></pre></div>
+<p>No Docker is used or required on this machine — <code>--render-only</code> writes the
+same files a compose deploy would (<code>config.yaml</code>, <code>custom-startup.sh</code>, a
+canonical-URL file) into <code>~/.lablink/compose/&lt;deployment_name&gt;/</code>, marks the
+deployment as externally managed, and prints a launch sheet instead of
+starting containers:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>Bundle rendered — launch it on your platform:
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>  Image:    ghcr.io/talmolab/lablink-allocator-image:linux-amd64-latest  (default command)
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>  Env vars:
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    PARTICIPANT_EXPOSURE=cloudflare_tunnel
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    CLOUDFLARE_TUNNEL_TOKEN=eyJhIjoiN...
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>  Mounts (read-only files, all rendered in this dir):
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>    ~/.lablink/compose/smith-lab/config.yaml        -&gt; /config/config.yaml
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>    ~/.lablink/compose/smith-lab/custom-startup.sh  -&gt; /config/custom-startup.sh
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>    ~/.lablink/compose/smith-lab/allocator-url      -&gt; /config/allocator-url
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>  Persistent volume (optional): /var/lib/postgresql (DB survives pod restarts)
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>  Inbound ports: none required — every leg dials out.
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>  The image expects to run as root (postgres + nginx).
+<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>
+<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>  After boot, the BYO register token prints in the workload's log
+<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>  (also at /var/log/lablink/allocator.log inside the container).
+</code></pre></div>
+<p>Everything after this step is about getting that image, those two env vars,
+and those three files onto your platform.</p>
+<div class="admonition note">
+<p class="admonition-title">Tailscale-based modes are rejected here</p>
+<p><code>--render-only</code> refuses a config that needs the Tailscale sidecar
+(<code>connectivity: mesh_overlay</code> and/or <code>participant_exposure:
+tailscale_funnel</code>) — that sidecar needs a kernel TUN device and
+<code>NET_ADMIN</code>, which managed platforms don't grant workloads. Use
+<code>reverse_tunnel</code> + <code>cloudflare_tunnel</code>, as above.</p>
 </div>
-
-<div class="doc doc-object doc-function">
-
-
-<h4 id="lablink_client_service.session_anchor.read_anchor" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">read_anchor</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
-
-<a href="#lablink_client_service.session_anchor.read_anchor" class="headerlink" title="Permanent link">&para;</a></h4>
-
-
-    <div class="doc doc-contents ">
-
-        <p>Return the parsed anchor timestamp, or None if missing/unreadable.</p>
-<p>Any IO or parse error returns None — the caller treats "no anchor" the
-same as "anchor unchanged", so a transient read failure just defers the
-reset to the next tick.</p>
-
-
-            <details class="mkdocstrings-source">
-              <summary>Source code in <code>packages/client/src/lablink_client_service/session_anchor.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-43">43</a></span>
-<span class="normal"><a href="#__codelineno-0-44">44</a></span>
-<span class="normal"><a href="#__codelineno-0-45">45</a></span>
-<span class="normal"><a href="#__codelineno-0-46">46</a></span>
-<span class="normal"><a href="#__codelineno-0-47">47</a></span>
-<span class="normal"><a href="#__codelineno-0-48">48</a></span>
-<span class="normal"><a href="#__codelineno-0-49">49</a></span>
-<span class="normal"><a href="#__codelineno-0-50">50</a></span>
-<span class="normal"><a href="#__codelineno-0-51">51</a></span>
-<span class="normal"><a href="#__codelineno-0-52">52</a></span>
-<span class="normal"><a href="#__codelineno-0-53">53</a></span>
-<span class="normal"><a href="#__codelineno-0-54">54</a></span>
-<span class="normal"><a href="#__codelineno-0-55">55</a></span>
-<span class="normal"><a href="#__codelineno-0-56">56</a></span>
-<span class="normal"><a href="#__codelineno-0-57">57</a></span>
-<span class="normal"><a href="#__codelineno-0-58">58</a></span>
-<span class="normal"><a href="#__codelineno-0-59">59</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-43" name="__codelineno-0-43"></a><span class="k">def</span><span class="w"> </span><span class="nf">read_anchor</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">datetime</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-44" name="__codelineno-0-44"></a><span class="w">    </span><span class="sd">"""Return the parsed anchor timestamp, or None if missing/unreadable.</span>
-<a id="__codelineno-0-45" name="__codelineno-0-45"></a>
-<a id="__codelineno-0-46" name="__codelineno-0-46"></a><span class="sd">    Any IO or parse error returns None — the caller treats "no anchor" the</span>
-<a id="__codelineno-0-47" name="__codelineno-0-47"></a><span class="sd">    same as "anchor unchanged", so a transient read failure just defers the</span>
-<a id="__codelineno-0-48" name="__codelineno-0-48"></a><span class="sd">    reset to the next tick.</span>
-<a id="__codelineno-0-49" name="__codelineno-0-49"></a><span class="sd">    """</span>
-<a id="__codelineno-0-50" name="__codelineno-0-50"></a>    <span class="n">target</span> <span class="o">=</span> <span class="n">path</span> <span class="ow">or</span> <span class="n">get_anchor_path</span><span class="p">()</span>
-<a id="__codelineno-0-51" name="__codelineno-0-51"></a>    <span class="k">try</span><span class="p">:</span>
-<a id="__codelineno-0-52" name="__codelineno-0-52"></a>        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">target</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-<a id="__codelineno-0-53" name="__codelineno-0-53"></a>            <span class="n">raw</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
-<a id="__codelineno-0-54" name="__codelineno-0-54"></a>    <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
-<a id="__codelineno-0-55" name="__codelineno-0-55"></a>        <span class="k">return</span> <span class="kc">None</span>
-<a id="__codelineno-0-56" name="__codelineno-0-56"></a>    <span class="k">try</span><span class="p">:</span>
-<a id="__codelineno-0-57" name="__codelineno-0-57"></a>        <span class="k">return</span> <span class="n">datetime</span><span class="o">.</span><span class="n">fromisoformat</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span>
-<a id="__codelineno-0-58" name="__codelineno-0-58"></a>    <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
-<a id="__codelineno-0-59" name="__codelineno-0-59"></a>        <span class="k">return</span> <span class="kc">None</span>
-</code></pre></div></td></tr></table></div>
-            </details>
-    </div>
-
+<h2 id="step-4-launch-the-allocator-workspace-runai">Step 4: Launch the allocator workspace (Run:AI)<a class="headerlink" href="#step-4-launch-the-allocator-workspace-runai" title="Permanent link">&para;</a></h2>
+<p>The image's default command (<code>start.sh</code>) needs no override, there's no GPU
+request for the allocator itself, and the Postgres volume is optional — the
+allocator's database is created fresh per deployment either way.</p>
+<h3 id="configmap-route">ConfigMap route<a class="headerlink" href="#configmap-route" title="Permanent link">&para;</a></h3>
+<p>Stage the three rendered files as a ConfigMap and mount it at <code>/config</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>kubectl<span class="w"> </span>create<span class="w"> </span>configmap<span class="w"> </span>lablink-config<span class="w"> </span>-n<span class="w"> </span>runai-&lt;project&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span>--from-file<span class="w"> </span>~/.lablink/compose/&lt;deployment&gt;/config.yaml<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span>--from-file<span class="w"> </span>~/.lablink/compose/&lt;deployment&gt;/custom-startup.sh<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span>--from-file<span class="w"> </span>~/.lablink/compose/&lt;deployment&gt;/allocator-url
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>runai<span class="w"> </span>workspace<span class="w"> </span>submit<span class="w"> </span>lablink-allocator<span class="w"> </span>-p<span class="w"> </span>&lt;project&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">  </span>-i<span class="w"> </span>ghcr.io/talmolab/lablink-allocator-image:&lt;image_tag&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">PARTICIPANT_EXPOSURE</span><span class="o">=</span>cloudflare_tunnel<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">  </span>-e<span class="w"> </span><span class="s1">'CLOUDFLARE_TUNNEL_TOKEN=&lt;token&gt;'</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">  </span>--configmap-map-volume<span class="w"> </span><span class="nv">name</span><span class="o">=</span>lablink-config,path<span class="o">=</span>/config<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">  </span>--existing-pvc<span class="w"> </span><span class="nv">claimname</span><span class="o">=</span>&lt;pvc&gt;,path<span class="o">=</span>/var/lib/postgresql<span class="w">   </span><span class="c1"># optional</span>
+</code></pre></div>
+<h3 id="no-kubectl-fallback-validated">No-kubectl fallback (validated)<a class="headerlink" href="#no-kubectl-fallback-validated" title="Permanent link">&para;</a></h3>
+<p>If you don't have <code>kubectl</code> access to the cluster — only the <code>runai</code> CLI or
+UI — skip the ConfigMap entirely and inject the config through the
+environment instead, decoding it back to a file in a command override:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>runai<span class="w"> </span>workspace<span class="w"> </span>submit<span class="w"> </span>lablink-allocator<span class="w"> </span>-p<span class="w"> </span>&lt;project&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span>-i<span class="w"> </span>ghcr.io/talmolab/lablink-allocator-image:&lt;image_tag&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">LABLINK_CONFIG_B64</span><span class="o">=</span><span class="k">$(</span>base64<span class="w"> </span>-i<span class="w"> </span>~/.lablink/compose/&lt;deployment&gt;/config.yaml<span class="k">)</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">ALLOCATOR_URL</span><span class="o">=</span>https://&lt;public_hostname&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">PARTICIPANT_EXPOSURE</span><span class="o">=</span>cloudflare_tunnel<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">  </span>-e<span class="w"> </span><span class="s1">'CLOUDFLARE_TUNNEL_TOKEN=&lt;token&gt;'</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">  </span>--command<span class="w"> </span>--<span class="w"> </span>bash<span class="w"> </span>-c<span class="w"> </span><span class="s1">'mkdir -p /config &amp;&amp; echo "$LABLINK_CONFIG_B64" | base64 -d &gt; /config/config.yaml &amp;&amp; touch /config/custom-startup.sh &amp;&amp; printf %s "$ALLOCATOR_URL" &gt; /config/allocator-url &amp;&amp; exec /app/start.sh'</span>
+</code></pre></div>
+<p>This reconstructs the same <code>/config</code> layout the ConfigMap route mounts —
+<code>custom-startup.sh</code> is just touched empty (no custom startup script in this
+example) and <code>allocator-url</code> gets the public hostname directly — then hands
+off to the image's normal entrypoint.</p>
+<h2 id="step-5-verify-and-get-the-register-token">Step 5: Verify and get the register token<a class="headerlink" href="#step-5-verify-and-get-the-register-token" title="Permanent link">&para;</a></h2>
+<p>Watch the workload boot:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>runai<span class="w"> </span>workspace<span class="w"> </span>logs<span class="w"> </span>lablink-allocator<span class="w"> </span>-p<span class="w"> </span>&lt;project&gt;<span class="w"> </span>-f
+</code></pre></div>
+<p>Look for Postgres and Flask coming up — this is where a line of the form
+<code>REGISTER_TOKEN=...</code> prints, the bootstrap token BYO clients register
+with — followed by nginx passing its config check and the <code>cloudflared</code>
+connector's own startup lines.</p>
+<p>Once it's up, confirm the public path end to end:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>curl<span class="w"> </span>https://&lt;public_hostname&gt;/api/health
+</code></pre></div>
+<p>A <code>200</code> response means DNS, the Cloudflare edge, the tunnel, nginx, and
+Flask are all working together. The admin UI is at
+<code>https://&lt;public_hostname&gt;/admin</code>.</p>
+<div class="admonition tip">
+<p class="admonition-title">Lost the token?</p>
+<p>Re-run the <code>logs -f</code> command above and grep for <code>REGISTER_TOKEN</code> — the
+allocator only prints it once, at startup, but it stays in the
+workload's log for as long as the workload does.</p>
 </div>
-
-<div class="doc doc-object doc-function">
-
-
-<h4 id="lablink_client_service.session_anchor.write_anchor" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">write_anchor</span><span class="p">(</span><span class="n">ts</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
-
-<a href="#lablink_client_service.session_anchor.write_anchor" class="headerlink" title="Permanent link">&para;</a></h4>
-
-
-    <div class="doc doc-contents ">
-
-        <p>Atomically write the anchor timestamp.</p>
-<p>Write to a sibling temp file then rename so a concurrent reader never
-sees a half-written line.</p>
-
-
-            <details class="mkdocstrings-source">
-              <summary>Source code in <code>packages/client/src/lablink_client_service/session_anchor.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-30">30</a></span>
-<span class="normal"><a href="#__codelineno-0-31">31</a></span>
-<span class="normal"><a href="#__codelineno-0-32">32</a></span>
-<span class="normal"><a href="#__codelineno-0-33">33</a></span>
-<span class="normal"><a href="#__codelineno-0-34">34</a></span>
-<span class="normal"><a href="#__codelineno-0-35">35</a></span>
-<span class="normal"><a href="#__codelineno-0-36">36</a></span>
-<span class="normal"><a href="#__codelineno-0-37">37</a></span>
-<span class="normal"><a href="#__codelineno-0-38">38</a></span>
-<span class="normal"><a href="#__codelineno-0-39">39</a></span>
-<span class="normal"><a href="#__codelineno-0-40">40</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-30" name="__codelineno-0-30"></a><span class="k">def</span><span class="w"> </span><span class="nf">write_anchor</span><span class="p">(</span><span class="n">ts</span><span class="p">:</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-31" name="__codelineno-0-31"></a><span class="w">    </span><span class="sd">"""Atomically write the anchor timestamp.</span>
-<a id="__codelineno-0-32" name="__codelineno-0-32"></a>
-<a id="__codelineno-0-33" name="__codelineno-0-33"></a><span class="sd">    Write to a sibling temp file then rename so a concurrent reader never</span>
-<a id="__codelineno-0-34" name="__codelineno-0-34"></a><span class="sd">    sees a half-written line.</span>
-<a id="__codelineno-0-35" name="__codelineno-0-35"></a><span class="sd">    """</span>
-<a id="__codelineno-0-36" name="__codelineno-0-36"></a>    <span class="n">target</span> <span class="o">=</span> <span class="n">path</span> <span class="ow">or</span> <span class="n">get_anchor_path</span><span class="p">()</span>
-<a id="__codelineno-0-37" name="__codelineno-0-37"></a>    <span class="n">tmp</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">target</span><span class="si">}</span><span class="s2">.tmp"</span>
-<a id="__codelineno-0-38" name="__codelineno-0-38"></a>    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">tmp</span><span class="p">,</span> <span class="s2">"w"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-<a id="__codelineno-0-39" name="__codelineno-0-39"></a>        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">ts</span><span class="o">.</span><span class="n">isoformat</span><span class="p">())</span>
-<a id="__codelineno-0-40" name="__codelineno-0-40"></a>    <span class="n">os</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">tmp</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
-</code></pre></div></td></tr></table></div>
-            </details>
-    </div>
-
-</div>
-
-
-
-  </div>
-
-    </div>
-
-</div>
+<h2 id="step-6-client-workspaces-on-the-same-platform-optional">Step 6: Client workspaces on the same platform (optional)<a class="headerlink" href="#step-6-client-workspaces-on-the-same-platform-optional" title="Permanent link">&para;</a></h2>
+<p>Clients don't have to run anywhere special — they're ordinary
+reverse-tunnel BYO clients that happen to also be platform workloads. Since
+you generally can't <code>docker run</code> from your own laptop onto someone else's
+cluster, register each client <strong>ahead of time</strong>, from your own machine, with
+<code>--no-run-locally</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>lablink<span class="w"> </span>client<span class="w"> </span>register<span class="w"> </span>--allocator-url<span class="w"> </span>https://&lt;public_hostname&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span>--register-token<span class="w"> </span>&lt;token&gt;<span class="w"> </span>--tunnel<span class="w"> </span>--no-run-locally<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">  </span>--hostname<span class="w"> </span>runai-client-1<span class="w"> </span>--machine-identity<span class="w"> </span>runai-client-1<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">  </span>--env-file<span class="w"> </span>./client-1.env
+</code></pre></div>
+<p><code>--tunnel</code> registers a reverse-tunnel client (no extra arguments — the
+allocator mints every value the tunnel needs); <code>--no-run-locally</code> means
+nothing gets <code>docker run</code> here, and instead the secrets are written to
+<code>./client-1.env</code> and printed for you to paste into a workload submission.
+<code>--hostname</code>/<code>--machine-identity</code> are required in this mode since there's no
+local box to auto-detect them from.</p>
+<p>Submit the client workload with the client image and every non-comment line
+of that env file as a <code>-e</code> variable:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>runai<span class="w"> </span>workspace<span class="w"> </span>submit<span class="w"> </span>lablink-runai-client-1<span class="w"> </span>-p<span class="w"> </span>&lt;project&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">  </span>-i<span class="w"> </span>ghcr.io/talmolab/lablink-client-base-image:&lt;tag&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">  </span>--gpu-devices-request<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">CLIENT_ID</span><span class="o">=</span>...<span class="w"> </span>-e<span class="w"> </span><span class="nv">CLIENT_SECRET</span><span class="o">=</span>...<span class="w"> </span><span class="c1"># …every line from client-1.env</span>
+</code></pre></div>
+<p>Add <code>--gpu-present --gpu-model "&lt;model&gt;"</code> to the <code>register</code> call itself when
+the workload will actually have a GPU attached — that's what shows up in the
+allocator's inventory, independent of whatever <code>--gpu-devices-request</code> you
+pass to Run:AI. Confirm registration with:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>lablink<span class="w"> </span>status
+</code></pre></div>
+<p>or by hitting <code>GET /api/v1/clients</code> on the allocator directly (admin basic
+auth).</p>
+<h2 id="day-2-operations">Day-2 operations<a class="headerlink" href="#day-2-operations" title="Permanent link">&para;</a></h2>
+<p>Run the CLI from your own machine — nothing needs to run on the platform
+itself besides the workloads:</p>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Command</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Check health</td>
+<td><code>lablink status</code></td>
+<td>Reads the public URL straight from the local rendered bundle; there's no local container to show <code>docker ps</code> status for, so it prints a note pointing you at the platform's own workload view for that.</td>
+</tr>
+<tr>
+<td>Read logs</td>
+<td><code>lablink logs</code></td>
+<td>No local <code>lablink-allocator</code> container to <code>docker logs</code> — this fetches a redacted tail of the allocator's own log over HTTPS from <code>/api/allocator-logs</code> (admin basic-auth) instead.</td>
+</tr>
+<tr>
+<td>Tear down</td>
+<td><code>lablink destroy</code></td>
+<td>Only removes the local rendered bundle. It does <strong>not</strong> touch the platform — delete the allocator workload yourself (e.g. <code>runai workspace delete lablink-allocator -p &lt;project&gt;</code>), <strong>and delete every client workload you submitted there too</strong>. Any Postgres data lives in whatever volume you attached there, not on this machine.</td>
+</tr>
+</tbody>
+</table>
+<p><code>lablink client launch</code> stays unavailable under the manual provider exactly
+as it is for docker-compose deployments — register each client with
+<code>lablink client register</code> instead.</p>
+<p><code>lablink stats</code> and <code>lablink export-metrics</code> work the same as for any
+manual-provider deployment: they resolve the allocator's address from the
+same recorded public URL <code>status</code>/<code>logs</code> use, so no extra configuration is
+needed.</p>
+<h2 id="limitations">Limitations<a class="headerlink" href="#limitations" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>No <code>mesh_overlay</code> or <code>tailscale_funnel</code>.</strong> Both need a Tailscale sidecar
+  with a kernel TUN device and <code>NET_ADMIN</code> — access managed container
+  platforms don't grant workloads. Use <code>reverse_tunnel</code> +
+  <code>cloudflare_tunnel</code>, as this page does.</li>
+<li><strong>Cloudflare needs a domain you control on Cloudflare's nameservers.</strong>
+  Cloudflare's free plan requires full nameserver delegation, so an
+  institutional domain (e.g. a university's) generally can't be used this
+  way — see
+  <a href="../../configuration/#exposure-mode-cloudflare_tunnel">Configuration</a> for
+  the reasoning and alternatives.</li>
+<li><strong>The image runs as root.</strong> Postgres and nginx inside the allocator
+  container both need it. Clusters that force workloads onto non-root UIDs
+  can't run this image yet.</li>
+</ul>
+<h2 id="next-steps">Next steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../../configuration/#manual-provider-options-manual">Configuration</a> — every <code>manual.*</code> setting, plus the full Cloudflare Tunnel one-time setup.</li>
+<li><a href="../byo-clients/">Bring-Your-Own Clients</a> — the docker-compose path this shares its <code>config.yaml</code>/register flow with.</li>
+<li><a href="../../reference/cli/#deployment-commands">CLI Reference</a> — full flag list for <code>deploy</code>, <code>status</code>, <code>logs</code>, <code>destroy</code>.</li>
+<li><a href="../../troubleshooting/">Troubleshooting</a> — general LabLink issues.</li>
+</ul>
 
 
 
@@ -4919,10 +5060,10 @@ sees a half-written line.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../../../..", "features": ["content.code.copy", "content.code.annotate", "navigation.tracking", "navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.highlight", "search.share", "toc.follow"], "search": "../../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["content.code.copy", "content.code.annotate", "navigation.tracking", "navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.highlight", "search.share", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
         <script src="https://unpkg.com/mermaid@10.6.1/dist/mermaid.min.js"></script>
       

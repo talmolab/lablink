@@ -742,6 +742,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../cli/external-runtime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    External runtime (Run:AI)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../cli/managing-deployments/" class="md-nav__link">
         
   
@@ -5248,7 +5276,7 @@ tell you what's missing. Exit code is non-zero if any check fails.</p>
 <h3 id="deploy"><code>deploy</code><a class="headerlink" href="#deploy" title="Permanent link">&para;</a></h3>
 <p>Deploy LabLink infrastructure (AWS OpenTofu or docker-compose).</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>lablink<span class="w"> </span>deploy<span class="w"> </span><span class="o">[</span>--config<span class="w"> </span>PATH<span class="o">]</span><span class="w"> </span><span class="o">[</span>--template-version<span class="w"> </span>V<span class="o">]</span><span class="w"> </span><span class="o">[</span>--terraform-bundle<span class="w"> </span>PATH<span class="o">]</span><span class="w"> </span><span class="o">[</span>--yes<span class="o">]</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">               </span><span class="o">[</span>--tailscale-authkey<span class="w"> </span>KEY<span class="o">]</span><span class="w"> </span><span class="o">[</span>--cloudflare-tunnel-token<span class="w"> </span>TOKEN<span class="o">]</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">               </span><span class="o">[</span>--tailscale-authkey<span class="w"> </span>KEY<span class="o">]</span><span class="w"> </span><span class="o">[</span>--cloudflare-tunnel-token<span class="w"> </span>TOKEN<span class="o">]</span><span class="w"> </span><span class="o">[</span>--render-only<span class="o">]</span>
 </code></pre></div>
 <p><strong>AWS provider:</strong> downloads the pinned <code>lablink-template</code> OpenTofu files (or uses a
 cached / bundled copy), renders your config into OpenTofu variables, and runs
@@ -5293,10 +5321,14 @@ the container only.</p>
 <td><code>--cloudflare-tunnel-token TOKEN</code></td>
 <td>Token for publishing the allocator at <code>manual.public_hostname</code>. Required on the first deploy when <code>manual.participant_exposure</code> is <code>cloudflare_tunnel</code>; optional on redeploys. Supply it again to rotate. <strong>Manual provider only.</strong></td>
 </tr>
+<tr>
+<td><code>--render-only</code></td>
+<td>Render the compose bundle and print a launch sheet instead of starting containers — for running the allocator image as a workload on an external container platform (Run:AI, Kubernetes) with no local Docker daemon. See <a href="../../cli/external-runtime/">External Runtime</a>. <strong>Manual provider only.</strong></td>
+</tr>
 </tbody>
 </table>
-<p>Secrets passed with the last two flags are written only to the deployment's <code>.env</code>
-(mode <code>0600</code>), never to <code>config.yaml</code>.</p>
+<p>Secrets passed via <code>--tailscale-authkey</code> / <code>--cloudflare-tunnel-token</code> are written
+only to the deployment's <code>.env</code> (mode <code>0600</code>), never to <code>config.yaml</code>.</p>
 <hr />
 <h3 id="destroy"><code>destroy</code><a class="headerlink" href="#destroy" title="Permanent link">&para;</a></h3>
 <p>Tear down LabLink infrastructure.</p>

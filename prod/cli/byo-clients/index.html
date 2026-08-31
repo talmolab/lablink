@@ -16,7 +16,7 @@
         <link rel="prev" href="../first-deployment/">
       
       
-        <link rel="next" href="../managing-deployments/">
+        <link rel="next" href="../external-runtime/">
       
       
         
@@ -890,6 +890,34 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../external-runtime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    External runtime (Run:AI)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -4679,6 +4707,10 @@ differences:</p>
 <p>Good fits: a lab with GPU workstations already on a bench, a workshop on
 institution-owned machines, or a scheduler-hosted workload (e.g. Run:AI) you can't
 provision from OpenTofu.</p>
+<p>Running the allocator itself on a container platform such as Run:AI? See
+<a href="../external-runtime/">External runtime</a> instead — same config and register
+flow, but the allocator is submitted as a workload rather than started with
+<code>lablink deploy</code> on a machine you control Docker on.</p>
 <h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>docker</strong> and the <strong><code>docker compose</code> v2 plugin</strong> on the allocator host and on every client box.</li>

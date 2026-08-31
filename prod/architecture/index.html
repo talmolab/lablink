@@ -742,6 +742,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../cli/external-runtime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    External runtime (Run:AI)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../cli/managing-deployments/" class="md-nav__link">
         
   
@@ -5551,14 +5579,28 @@ registration. GPU health lands in the <code>Healthy</code> column rather than fl
 <code>Status</code> directly — the auto-reboot service decides what to do about an
 unhealthy VM.</p>
 <h2 id="deployment-paths">Deployment Paths<a class="headerlink" href="#deployment-paths" title="Permanent link">&para;</a></h2>
-<p>There are two ways to stand up an allocator, both driving the same Terraform
-configs from <code>talmolab/lablink-template</code>:</p>
+<p>There are four ways to stand up an allocator. Three drive <code>lablink deploy</code>,
+selected by <code>provider</code> in <code>config.yaml</code> (and, for the manual provider, by
+whether Docker runs the container for you or you hand the rendered bundle to
+something else); the fourth uses the template repo directly:</p>
 <ul>
-<li><strong>CLI (recommended)</strong>: <code>lablink deploy</code> downloads a pinned, checksummed
-  template release, runs OpenTofu locally, and stores state remotely in an
-  S3 bucket (<code>lablink-tf-state-&lt;account-id&gt;</code>) with a DynamoDB lock table —
-  one state key per named deployment. See
+<li><strong>CLI → AWS</strong> (<code>provider: aws</code>, the default): downloads a pinned,
+  checksummed OpenTofu template release from <code>talmolab/lablink-template</code>,
+  applies it locally, and stores state remotely in an S3 bucket
+  (<code>lablink-tf-state-&lt;account-id&gt;</code>) with a DynamoDB lock table — one state
+  key per named deployment. See
   <a href="../cli/first-deployment/">CLI First Deployment</a>.</li>
+<li><strong>CLI → docker-compose</strong> (<code>provider: manual</code>): renders a docker-compose
+  stack (allocator + optional Tailscale sidecar) into
+  <code>~/.lablink/compose/&lt;deployment_name&gt;/</code> and runs it with
+  <code>docker compose up -d</code>, on a machine you already have — no AWS account, no
+  OpenTofu. See <a href="../cli/byo-clients/">Bring-Your-Own Clients</a>.</li>
+<li><strong>CLI → external runtime</strong> (<code>provider: manual</code>, with
+  <code>lablink deploy --render-only</code>): renders the same bundle as the
+  docker-compose path, then stops short of starting containers — for when
+  the allocator has to run as a workload on a platform you don't control the
+  Docker daemon for (a Run:AI workspace, a Kubernetes pod). See
+  <a href="../cli/external-runtime/">External runtime</a>.</li>
 <li><strong>Template repo fork</strong>: GitHub Actions workflows in the template repo run
   <code>tofu apply</code>/<code>destroy</code> for isolated <code>dev</code>/<code>test</code>/<code>prod</code> environments, each
   with its own backend config and resource-name suffix. See
