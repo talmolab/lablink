@@ -48,7 +48,22 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
-command -v vhs >/dev/null || { echo "vhs not installed: brew install vhs" >&2; exit 1; }
+command -v vhs >/dev/null || {
+  echo "vhs not found on PATH." >&2
+  echo "  macOS:   brew install vhs" >&2
+  echo "  Windows: scoop install vhs   (then install ttyd separately --" >&2
+  echo "           Windows package managers do not ship it, and vhs needs" >&2
+  echo "           both ttyd and ffmpeg on PATH). Open a NEW shell after" >&2
+  echo "           installing: scoop edits the Windows user PATH, which" >&2
+  echo "           already-running shells do not pick up." >&2
+  exit 1; }
+command -v ttyd >/dev/null || {
+  echo "ttyd not found on PATH -- vhs needs it to render a tape." >&2
+  echo "https://github.com/tsl0922/ttyd/releases" >&2
+  exit 1; }
+command -v ffmpeg >/dev/null || {
+  echo "ffmpeg not found on PATH -- vhs needs it to encode the .mp4." >&2
+  exit 1; }
 
 # Record against the working tree, not whatever `lablink` happens to be on
 # PATH. The workspace venv installs the CLI editable, so prepending its bin
@@ -56,11 +71,19 @@ command -v vhs >/dev/null || { echo "vhs not installed: brew install vhs" >&2; e
 # where it would contradict the bare `lablink …` the docs tell readers to
 # type. vhs inherits this shell's environment (the same mechanism the AWS
 # tapes use for credentials), so no tape needs to know about it.
-VENV_BIN="$PWD/.venv/bin"
-[ -x "$VENV_BIN/lablink" ] || {
-  echo "No $VENV_BIN/lablink." >&2
+# uv puts console scripts in .venv/bin on POSIX and .venv/Scripts on
+# Windows (where they are .exe). --box is meant to run on whatever the
+# operator's second machine happens to be, so handle both rather than
+# assuming the allocator host's platform.
+if [ -x "$PWD/.venv/bin/lablink" ]; then
+  VENV_BIN="$PWD/.venv/bin"
+elif [ -x "$PWD/.venv/Scripts/lablink.exe" ] || [ -x "$PWD/.venv/Scripts/lablink" ]; then
+  VENV_BIN="$PWD/.venv/Scripts"
+else
+  echo "No lablink in $PWD/.venv (looked in bin/ and Scripts/)." >&2
   echo "Run: uv sync --all-packages --extra dev   (from the repo root)" >&2
-  exit 1; }
+  exit 1
+fi
 export PATH="$VENV_BIN:$PATH"
 
 # The tapes run `Set Shell "bash"`, so the recorded shell sources ~/.bashrc
@@ -68,11 +91,20 @@ export PATH="$VENV_BIN:$PATH"
 # recording a different CLI than intended. Resolve it the same way vhs will
 # rather than trusting the export above; this box may not be the one whose
 # dotfiles were checked.
-RESOLVED="$(bash -ic 'command -v lablink' 2>/dev/null | tail -1)"
-[ "$RESOLVED" = "$VENV_BIN/lablink" ] || {
+# `|| RESOLVED=""` is load-bearing: `command -v` exits 1 when it finds
+# nothing, pipefail propagates that through `tail`, and set -e then kills
+# the script ON THE ASSIGNMENT — silently, before the check below can
+# report anything. The guard could never fire in the one case it exists for.
+RESOLVED="$(bash -ic 'command -v lablink' 2>/dev/null | tail -1)" || RESOLVED=""
+# Compare directories, not exact paths: on Windows the resolved name carries
+# a .exe suffix and Git Bash rewrites the drive prefix, so a string match
+# against "$VENV_BIN/lablink" fails on a perfectly correct setup.
+RESOLVED_DIR="$(cd "$(dirname "${RESOLVED:-/nonexistent}")" 2>/dev/null && pwd)" || RESOLVED_DIR=""
+EXPECTED_DIR="$(cd "$VENV_BIN" && pwd)"
+[ -n "$RESOLVED_DIR" ] && [ "$RESOLVED_DIR" = "$EXPECTED_DIR" ] || {
   echo "ERROR: an interactive bash resolves lablink to:" >&2
   echo "  ${RESOLVED:-(nothing)}" >&2
-  echo "  expected $VENV_BIN/lablink" >&2
+  echo "  expected it in $EXPECTED_DIR" >&2
   echo "A shell startup file is prepending to PATH; fix it before recording." >&2
   exit 1; }
 echo "Recording against: $RESOLVED ($(lablink --version 2>/dev/null | head -1))"
