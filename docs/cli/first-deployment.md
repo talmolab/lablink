@@ -19,6 +19,13 @@ Make sure you've completed [Installation](installation.md) and that `lablink doc
 lablink configure
 ```
 
+<div class="video-container">
+  <video controls width="100%">
+    <source src="../../assets/videos/cli-01-configure.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+</div>
+
 This launches an interactive TUI wizard that walks you through:
 
 - **Deployment name** — a short label (e.g. `sleap-workshop`, `dev`). Used to tag AWS resources and as the folder name under `~/.lablink/deploys/`.
@@ -48,6 +55,15 @@ lablink show-config
 lablink doctor
 ```
 
+<div class="video-container">
+  <video controls width="100%">
+    <source src="../../assets/videos/cli-02-doctor.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+</div>
+
+*The clip starts with `lablink show-config` from Step 1, then runs `doctor`.*
+
 All six AWS checks should now pass:
 
 ```text
@@ -70,6 +86,15 @@ If any row is `FAIL`, the detail column tells you which command to run next (usu
 ```bash
 lablink deploy
 ```
+
+<div class="video-container">
+  <video controls width="100%">
+    <source src="../../assets/videos/cli-03-deploy.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+</div>
+
+*Recorded at 4× — the real `tofu apply` and health wait take 3–8 minutes. Continues into Step 4's `lablink status`.*
 
 This will:
 
@@ -106,6 +131,15 @@ Open the allocator in a browser using `http://<ec2_public_ip>` (or your configur
 ```bash
 lablink client launch --num-vms 1
 ```
+
+<div class="video-container">
+  <video controls width="100%">
+    <source src="../../assets/videos/cli-04-launch-destroy.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+</div>
+
+*Also recorded at 4×, and continues through Step 6's `lablink destroy`.*
 
 The CLI calls the allocator's create-VM endpoint, which provisions the instance via the allocator's own OpenTofu workspace (not the CLI's). Run `lablink status` again to see the new VM appear.
 
