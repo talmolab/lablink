@@ -338,6 +338,26 @@ box)
     echo "usage: $0 --box URL TOKEN" >&2; exit 1; }
   require_docker
 
+  # Verify the allocator answers from THIS machine before recording a thing.
+  # Without it, an allocator that is down, not yet deployed, or unreachable
+  # from the box's network shows up as a tape sitting at a prompt anchor for
+  # the full 20m WaitTimeout, with nothing on screen to say why. curl ships
+  # with Git Bash, so this works on the Windows boxes too; skip the check
+  # rather than fail if it is genuinely absent.
+  if command -v curl >/dev/null; then
+    CODE="$(curl -s -m 15 -o /dev/null -w '%{http_code}' "$URL/api/health" || echo 000)"
+    [ "$CODE" = "200" ] || {
+      echo "ERROR: $URL/api/health returned $CODE (wanted 200)." >&2
+      if [ "$CODE" = "000" ]; then
+        echo "  Nothing answered — is the allocator up, and reachable from" >&2
+        echo "  this machine? Run '--byo' on the allocator host first." >&2
+      else
+        echo "  Something answered but is not a healthy allocator." >&2
+      fi
+      exit 1; }
+    echo "Allocator reachable at $URL"
+  fi
+
   # --tunnel is unconditional: the allocator these clips record is deployed
   # with connectivity: reverse_tunnel, and the allocator rejects a
   # registration whose shape does not match its configured mode with a 400.
