@@ -235,10 +235,14 @@ class TestReferenceData:
         assert not DEPLOYMENT_NAME_RE.match("-invalid")
         assert not DEPLOYMENT_NAME_RE.match("invalid-")
 
-    def test_ami_map_has_regions(self):
-        assert len(AMI_MAP) > 0
-        for region, ami in AMI_MAP.items():
+    def test_ami_map_gives_each_region_its_own_image(self):
+        """AMI IDs are region-scoped, so a repeated ID means some region is
+        pointing at another region's image — which is how this map used to
+        claim four regions with one us-west-2 AMI."""
+        assert "us-west-2" in AMI_MAP
+        for ami in AMI_MAP.values():
             assert ami.startswith("ami-")
+        assert len(set(AMI_MAP.values())) == len(AMI_MAP)
 
     def test_gpu_instance_types_structure(self):
         assert len(GPU_INSTANCE_TYPES) > 0

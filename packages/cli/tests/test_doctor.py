@@ -121,24 +121,67 @@ class TestCheckOpenTofu:
 # ------------------------------------------------------------------
 # _check_ami
 # ------------------------------------------------------------------
+def _ami_cfg(region, ami_id):
+    cfg = MagicMock()
+    cfg.app.region = region
+    cfg.machine.ami_id = ami_id
+    return cfg
+
+
 class TestCheckAmi:
     def test_no_config(self):
         result = _check_ami(None)
         assert result["status"] == "warn"
 
-    def test_supported_region(self):
-        cfg = MagicMock()
-        cfg.app.region = "us-east-1"
-        result = _check_ami(cfg)
-        assert result["status"] == "pass"
-        assert "ami-" in result["detail"]
-
-    def test_unsupported_region(self):
-        cfg = MagicMock()
-        cfg.app.region = "ap-south-1"
-        result = _check_ami(cfg)
+    def test_no_ami_id_suggests_the_published_one(self):
+        result = _check_ami(_ami_cfg("us-west-2", ""))
         assert result["status"] == "fail"
-        assert "No AMI" in result["detail"]
+        assert "ami-0601752c11b394251" in result["detail"]
+
+    @patch("lablink_cli.commands.setup._get_session")
+    def test_existing_ami_passes(self, mock_session):
+        result = _check_ami(_ami_cfg("us-west-2", "ami-0601752c11b394251"))
+        assert result["status"] == "pass"
+        mock_session.return_value.client.return_value.describe_images.assert_called_once_with(
+            ImageIds=["ami-0601752c11b394251"]
+        )
+
+    @patch("lablink_cli.commands.setup._get_session")
+    def test_missing_ami_fails(self, mock_session):
+        mock_session.return_value.client.return_value.describe_images.side_effect = (
+            Exception("An error occurred (InvalidAMIID.NotFound)")
+        )
+        result = _check_ami(_ami_cfg("us-west-2", "ami-00000000000000000"))
+        assert result["status"] == "fail"
+        assert "does not exist in us-west-2" in result["detail"]
+
+    @patch("lablink_cli.commands.setup._get_session")
+    def test_unpublished_region_with_its_own_image_passes(self, mock_session):
+        """The old check failed any region absent from AMI_MAP. An operator who
+        copied an image into eu-west-1 has a working config, and saying otherwise
+        sends them to fix something that is not broken."""
+        result = _check_ami(_ami_cfg("eu-west-1", "ami-0abcdef1234567890"))
+        assert result["status"] == "pass"
+        assert "eu-west-1" in result["detail"]
+
+    @patch("lablink_cli.commands.setup._get_session")
+    def test_unverifiable_warns_rather_than_fails(self, mock_session):
+        """No credentials or no ec2:DescribeImages means unknown, not wrong."""
+        mock_session.return_value.client.return_value.describe_images.side_effect = (
+            Exception("AuthFailure")
+        )
+        result = _check_ami(_ami_cfg("us-west-2", "ami-0601752c11b394251"))
+        assert result["status"] == "warn"
+
+    @patch("lablink_cli.commands.setup._get_session")
+    def test_us_east_1_no_longer_gets_a_us_west_2_ami(self, mock_session):
+        """AMI_MAP used to hand us-east-1 the us-west-2 ID and call it a pass."""
+        from lablink_cli.config.schema import AMI_MAP
+
+        assert AMI_MAP["us-east-1"] != AMI_MAP["us-west-2"]
+        result = _check_ami(_ami_cfg("us-east-1", AMI_MAP["us-west-2"]))
+        assert result["status"] == "pass"
+        assert "custom" in result["detail"]
 
 
 # ------------------------------------------------------------------
