@@ -7,10 +7,10 @@
 # `scripts/record-docs.sh --box <allocator-url> <token>` on the second
 # machine, then copy the .mp4 back into docs/assets/videos/.
 #
-# PS1 is "box$ " here, not "$ ", so the change of machine is visible on
-# camera rather than merely asserted in the caption. Every Wait+Line that
-# anchors on the prompt returning below matches that prompt, NOT the
-# allocator host's.
+# PS1 is the same bare "$ " as every other clip. The change of machine is
+# carried by the doc's caption and by what the commands themselves show,
+# not by dressing the prompt up: a "box$ " prompt no reader will ever see
+# on their own machine looks like a typo in a copy-pasteable transcript.
 #
 # The deployment being registered against is manual.connectivity:
 # reverse_tunnel, so the command carries --tunnel: the box dials OUT to the
@@ -31,6 +31,14 @@
 Source "_common.tape"
 Output "../assets/videos/byo-03-register.mp4"
 
+# Puts the recording venv's bin on PATH. Written per run by
+# scripts/record-docs.sh because it is an absolute, machine-specific path.
+# It carries its own Hide/Show: VHS 0.11 silently ignores a Source that
+# appears INSIDE a Hide block — the sourced Type never executes and every
+# `lablink …` records as "command not found", with nothing in the log to
+# say why. Keep this Source at top level.
+Source ".path.tape"
+
 Hide
 # `unset PROMPT_COMMAND` before PS1, not after: Git Bash (and any
 # distro whose bashrc sets one) REBUILDS PS1 on every prompt from
@@ -38,7 +46,7 @@ Hide
 # then waits on a prompt regex that can never match and hangs for
 # the full WaitTimeout. Cost a recording session on Windows to find.
 Type `unset PROMPT_COMMAND` Enter
-Type `export PS1="box$ "` Enter
+Type `export PS1="$ "` Enter
 Type "clear" Enter
 Show
 
@@ -51,7 +59,7 @@ Enter
 
 # Auto-detection (hostname, LAN IP, machine identity, GPU), the 0600
 # ~/.lablink/client.env write, and the container start.
-Wait+Line /^box\$$/
+Wait+Line /^\$$/
 Sleep 8s
 
 # --- Confirm the box's own health ----------------------------------------
@@ -62,5 +70,5 @@ Sleep 8s
 Type "clear" Sleep 500ms Enter
 Sleep 1s
 Type "lablink client doctor" Sleep 500ms Enter
-Wait+Line /^box\$$/
+Wait+Line /^\$$/
 Sleep 8s

@@ -65,12 +65,46 @@ command -v ffmpeg >/dev/null || {
   echo "ffmpeg not found on PATH -- vhs needs it to encode the .mp4." >&2
   exit 1; }
 
+# vhs 0.11.0 predates charmbracelet/vhs#773: on Windows, ttyd 1.7.7 crashes
+# when it is spawned without an explicit working directory (CreateProcessW
+# gets a malformed path and fails with error 267). ttyd dies the moment the
+# browser connects, vhs never notices, and it blocks on its first Wait
+# FOREVER — WaitTimeout does not fire, because execution never reaches a
+# Wait. The symptom is a run that hangs with zero frames captured.
+#
+# Inject ttyd's `-w .` with a shim ahead of the real binary on PATH. It is
+# PREPENDED to vhs's own arguments, not appended: ttyd requires options to
+# precede the shell command, and vhs passes that command last.
+#
+# Git Bash's `command -v ttyd` does not consider .cmd, so the guard above
+# still resolves the real ttyd.exe; vhs is a Go program and honours PATHEXT,
+# so it picks up the shim. Delete this block once #773 ships in a release.
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*)
+    TTYD_SHIM_DIR="$(mktemp -d)"
+    printf '@echo off\r\n"%s" -w . %%*\r\n' \
+      "$(cygpath -w "$(command -v ttyd)")" > "$TTYD_SHIM_DIR/ttyd.cmd"
+    export PATH="$TTYD_SHIM_DIR:$PATH"
+    ;;
+  *) TTYD_SHIM_DIR="" ;;
+esac
+
 # Record against the working tree, not whatever `lablink` happens to be on
 # PATH. The workspace venv installs the CLI editable, so prepending its bin
 # is equivalent to `uv run lablink …` — without putting `uv run` on camera,
 # where it would contradict the bare `lablink …` the docs tell readers to
-# type. vhs inherits this shell's environment (the same mechanism the AWS
-# tapes use for credentials), so no tape needs to know about it.
+# type.
+#
+# On macOS and Linux vhs passes this shell's environment straight through
+# to the recorded shell, so prepending here would be enough on its own. On
+# Windows it is NOT: ttyd hands the shell a fresh environment, and bash
+# falls back to its compiled-in default PATH
+# (/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin), so the
+# venv is simply absent and every `lablink …` records as "command not
+# found". The tapes therefore set PATH themselves, from the gitignored
+# .path.tape fragment written below. The same gap means AWS credentials do
+# not reach the recorded shell on Windows either.
+#
 # uv puts console scripts in .venv/bin on POSIX and .venv/Scripts on
 # Windows (where they are .exe). --box is meant to run on whatever the
 # operator's second machine happens to be, so handle both rather than
@@ -109,11 +143,29 @@ EXPECTED_DIR="$(cd "$VENV_BIN" && pwd)"
   exit 1; }
 echo "Recording against: $RESOLVED ($(lablink --version 2>/dev/null | head -1))"
 
+# The shell VHS records is not necessarily this one. On Windows, ttyd spawns
+# `bash` through CreateProcess, which searches System32 BEFORE PATH — so it
+# finds C:\Windows\System32\bash.exe, the WSL launcher, and the recording
+# runs inside WSL however this script was started. Prepending PATH here
+# cannot reach that shell, and a Windows venv path is meaningless inside it
+# (there is no /c/... there), so the recorded `lablink` would be "command
+# not found". Name the recorded shell's venv explicitly instead:
+#
+#   LABLINK_RECORDED_VENV_BIN=/home/you/lablink/.venv/bin \
+#     ./scripts/record-docs.sh --box https://host TOKEN
+#
+# That venv must be a checkout of THIS commit, or the clip silently records
+# a different CLI than the tree it ships with.
+RECORDED_VENV_BIN="${LABLINK_RECORDED_VENV_BIN:-$VENV_BIN}"
+[ "$RECORDED_VENV_BIN" = "$VENV_BIN" ] \
+  || echo "Recorded shell will use: $RECORDED_VENV_BIN"
+
 CONFIG="$HOME/.lablink/config.yaml"
 BACKUP="$HOME/.lablink/config.yaml.record-backup"
 PASSWORD_TAPE="docs/tapes/.password.tape"
 REGISTER_TAPE="docs/tapes/.byo-register.tape"
 CFTOKEN_TAPE="docs/tapes/.cftoken.tape"
+PATH_TAPE="docs/tapes/.path.tape"
 
 # The hostname clip 01's wizard types. Keep the two in step: `lablink
 # deploy` polls this name after the stack is up (_verify_public_hostname)
@@ -133,11 +185,29 @@ ALLOCATOR_IMAGE="${LABLINK_ALLOCATOR_IMAGE:-ghcr.io/talmolab/lablink-allocator-i
 CLIENT_IMAGE="${LABLINK_CLIENT_IMAGE:-ghcr.io/talmolab/lablink-client-base-image:latest}"
 
 cleanup() {
-  rm -f "$PASSWORD_TAPE" "$REGISTER_TAPE" "$CFTOKEN_TAPE"
+  rm -f "$PASSWORD_TAPE" "$REGISTER_TAPE" "$CFTOKEN_TAPE" "$PATH_TAPE"
+  [ -n "${TTYD_SHIM_DIR:-}" ] && rm -rf "$TTYD_SHIM_DIR"
   [ -f "$BACKUP" ] && mv -f "$BACKUP" "$CONFIG"
   return 0
 }
 trap cleanup EXIT INT TERM
+
+# Written after the trap is armed, like every other fragment, so an early
+# exit cannot leave it behind. It carries an absolute, machine-specific
+# path, hence generated per run and gitignored.
+#
+# The fragment brings its own Hide/Show and every tape Sources it at TOP
+# LEVEL. It cannot go inside a tape's own Hide block: VHS 0.11 silently
+# ignores a Source there — the sourced Type never runs, nothing appears in
+# the execution log, and the only symptom is `lablink: command not found`
+# in the finished recording.
+#
+# Backticks, not double quotes: VHS's `Type` cannot contain escaped double
+# quotes and the value needs them. $PATH stays literal for the recorded
+# shell to expand — printf sees no variable, the format string is single
+# quoted.
+printf 'Hide\nType `export PATH="%s:$PATH"`\nEnter\nShow\n' \
+  "$RECORDED_VENV_BIN" > "$PATH_TAPE"
 
 record() {
   echo "==> $1"

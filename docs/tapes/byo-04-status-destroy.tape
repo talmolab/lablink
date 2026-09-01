@@ -25,6 +25,8 @@ Output "../assets/videos/byo-04-status-destroy.mp4"
 Set PlaybackSpeed 2
 Set TypingSpeed 120ms
 
+Source ".path.tape"
+
 Hide
 # `unset PROMPT_COMMAND` before PS1, not after: Git Bash (and any
 # distro whose bashrc sets one) REBUILDS PS1 on every prompt from

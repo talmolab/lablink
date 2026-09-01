@@ -18,6 +18,8 @@ Output "../assets/videos/cli-04-launch-destroy.mp4"
 Set PlaybackSpeed 4
 Set TypingSpeed 240ms
 
+Source ".path.tape"
+
 Hide
 Type `export PS1="$ "` Enter
 Type "clear" Enter

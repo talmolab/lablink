@@ -31,6 +31,8 @@
 Source "_common.tape"
 Output "../assets/videos/byo-01-configure.mp4"
 
+Source ".path.tape"
+
 Hide
 # `unset PROMPT_COMMAND` before PS1, not after: Git Bash (and any
 # distro whose bashrc sets one) REBUILDS PS1 on every prompt from
