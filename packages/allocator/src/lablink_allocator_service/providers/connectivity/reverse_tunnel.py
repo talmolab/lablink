@@ -1,7 +1,21 @@
 """Reverse-tunnel connectivity: browser -> allocator nginx -> client
 KasmVNC, reached through a tunnel the client dials OUT to the allocator's
-own HTTPS address and holds open. For clients that can neither accept
-inbound connections nor run Tailscale.
+own address and holds open. For clients that can neither accept inbound
+connections nor run Tailscale.
+
+Either scheme works: the CLI derives the tunnel's `ws://`/`wss://` URL
+from whichever `--allocator-url` it proved reachable at registration time
+(see `register.py`). A manual deployment pinned to `ssl.provider: none`
+and reached over plain HTTP is a supported configuration, not a
+degraded one.
+
+Independent of `manual.participant_exposure`, which concerns where
+*participants* are rather than where clients are. With exposure `none`
+the allocator stays LAN-only and participants must be on that LAN — but
+sessions still reach the desktop, because this mode proxies them through
+the allocator's own nginx (see `_resolve_tunnel_alias`) rather than
+sending the browser to the client. That is exactly why `lan_direct` is
+the one mode the validator refuses to combine with an exposure mode.
 
 The tunnel implementation is an internal detail; nothing in this module's
 public shape names it. See tunnel_manager."""

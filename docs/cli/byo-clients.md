@@ -64,6 +64,19 @@ Reaching the **allocator** from off-LAN is a separate axis —
 lablink configure
 ```
 
+<div class="video-container">
+  <video controls width="100%">
+    <source src="../../assets/videos/byo-01-configure.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+</div>
+
+*The manual path is seven screens and never shows the DNS/SSL one — that skip
+is the `ssl.provider: none` note below, on camera. The clip sets both axes on
+the connectivity screen: `reverse_tunnel` for the clients and
+`cloudflare_tunnel` exposure at a hostname the operator owns. Other
+combinations are the same flow with different radio buttons.*
+
 The wizard writes `~/.lablink/config.yaml`. Choose the manual provider, then the
 connectivity mode. Unlike the AWS path, it does **not** run `lablink setup`
 afterwards — there is no remote state to bootstrap.
@@ -106,6 +119,20 @@ lablink doctor
 ```bash
 lablink deploy
 ```
+
+<div class="video-container">
+  <video controls width="100%">
+    <source src="../../assets/videos/byo-02-deploy.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+</div>
+
+*Starts with Step 2's `lablink doctor`, then deploys. Because this deployment
+is Cloudflare-exposed, `deploy` asks for the tunnel token first — hidden, like
+the admin password — then publishes the allocator at the configured hostname
+and verifies it before printing the summary. Recorded at 2×, with the
+allocator image already pulled; a cold first run adds a few minutes of
+download before anything in this clip happens.*
 
 This renders `docker-compose.yml`, a `.env`, and a copy of your `config.yaml` into
 `~/.lablink/compose/<deployment_name>/`, then runs `docker compose up -d` and waits
@@ -160,6 +187,21 @@ Run this **on the machine you're adding**, not on the allocator host:
 ```bash
 lablink client register --allocator-url http://192.168.1.42:5000 --register-token Xf3k9…
 ```
+
+<div class="video-container">
+  <video controls width="100%">
+    <source src="../../assets/videos/byo-03-register.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+</div>
+
+*Recorded **on the box**, not on the allocator host — this is the machine being
+added, which is why the command is the one you run there rather than beside the
+allocator. The box reaches the allocator at its public `https://` hostname, so
+it needn't be on the allocator's LAN at all. `--tunnel` makes it dial out and
+hold the connection open; the auto-detected values report no LAN IP, because
+nothing ever dials in to it. The client image was pulled beforehand; a cold run
+adds a long download.*
 
 It auto-detects hostname, LAN IP, machine identity, and GPU presence/model, writes
 the returned secrets to `~/.lablink/client.env` (mode `0600`), and `docker run`s the
@@ -241,6 +283,16 @@ lablink client reset-overlay
 lablink destroy              # stops the stack, wipes the Postgres volume
 lablink destroy --keep-data  # stops the stack, preserves registration history
 ```
+
+<div class="video-container">
+  <video controls width="100%">
+    <source src="../../assets/videos/byo-04-status-destroy.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+</div>
+
+*Back on the allocator host: `lablink status` with the box in the pool, then
+`destroy`. Recorded at 2×.*
 
 `--keep-data` is the one to use between sessions of the same workshop — sessions and
 registration history survive the next `lablink deploy`.
