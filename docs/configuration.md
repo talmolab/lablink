@@ -176,10 +176,11 @@ Set it explicitly to use a specific image:
 | `us-east-1` | `ami-0c3412413810adacc` |
 | `us-east-2` | `ami-0cd7567480c4840a0` |
 
-These are leaner than the Deep Learning AMI — faster to boot and a smaller root volume —
-so prefer them where they exist. **AMI IDs are region-scoped**: an ID from one region is
-meaningless in another, and `lablink doctor` verifies that whatever you set actually
-exists in `app.region`.
+LabLink's own image carries less preinstalled software than the Deep Learning AMI, so a
+first boot from it should be quicker. The provisioned root volume is 80 GiB either way —
+the client terraform pins it — so there is no storage cost difference between the two.
+**AMI IDs are region-scoped**: an ID from one region is meaningless in another, and
+`lablink doctor` verifies that whatever you set actually exists in `app.region`.
 
 You would also set this explicitly for a custom image with your own software baked in;
 it must still provide Docker, the NVIDIA driver and `nvidia-container-runtime`.
