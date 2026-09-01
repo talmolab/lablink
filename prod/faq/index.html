@@ -4801,11 +4801,43 @@
 </details>
 <details class="note">
 <summary>Can I use a different AWS region?</summary>
-<p>Yes. Update the region in configuration:</p>
+<p>Yes, any region. The allocator boots stock Ubuntu resolved per region, so the only
+region-scoped value is the <strong>client</strong> AMI. LabLink publishes one in <code>us-west-2</code>,
+<code>us-east-1</code> and <code>us-east-2</code> — set the region and the client AMI together:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">app</span><span class="p">:</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="s">"us-east-1"</span><span class="w">  </span><span class="c1"># Change to your preferred region</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="s">"us-east-1"</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="nt">machine</span><span class="p">:</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span><span class="nt">ami_id</span><span class="p">:</span><span class="w"> </span><span class="s">"ami-0c3412413810adacc"</span>
 </code></pre></div>
-<p><strong>Important</strong>: AMI IDs are region-specific. You'll need to find the appropriate AMI for your region.</p>
+<table>
+<thead>
+<tr>
+<th>Region</th>
+<th><code>machine.ami_id</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>us-west-2</code></td>
+<td><code>ami-0601752c11b394251</code></td>
+</tr>
+<tr>
+<td><code>us-east-1</code></td>
+<td><code>ami-0c3412413810adacc</code></td>
+</tr>
+<tr>
+<td><code>us-east-2</code></td>
+<td><code>ami-0cd7567480c4840a0</code></td>
+</tr>
+</tbody>
+</table>
+<p>In any other region, copy one of those images into your own account
+(<code>aws ec2 copy-image</code>, the sources are public and your copy can stay private) and
+use the new ID, or use an AWS Deep Learning Base AMI — Ubuntu with Docker, the
+NVIDIA driver and <code>nvidia-container-toolkit</code> already installed.</p>
+<p><code>lablink doctor</code> checks that whatever you set actually exists in the region, so a
+wrong or wrong-region AMI ID is caught before the deploy rather than as a failed VM
+launch.</p>
 </details>
 <details class="note">
 <summary>Can I use a custom AMI?</summary>
