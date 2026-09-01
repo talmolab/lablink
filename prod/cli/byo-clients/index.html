@@ -4763,6 +4763,18 @@ all.</p>
 <h2 id="step-1-configure">Step 1: Configure<a class="headerlink" href="#step-1-configure" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>lablink<span class="w"> </span>configure
 </code></pre></div>
+<div class="video-container">
+  <video controls width="100%">
+    <source src="../../assets/videos/byo-01-configure.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+</div>
+
+<p><em>The manual path is seven screens and never shows the DNS/SSL one — that skip
+is the <code>ssl.provider: none</code> note below, on camera. The clip sets both axes on
+the connectivity screen: <code>reverse_tunnel</code> for the clients and
+<code>cloudflare_tunnel</code> exposure at a hostname the operator owns. Other
+combinations are the same flow with different radio buttons.</em></p>
 <p>The wizard writes <code>~/.lablink/config.yaml</code>. Choose the manual provider, then the
 connectivity mode. Unlike the AWS path, it does <strong>not</strong> run <code>lablink setup</code>
 afterwards — there is no remote state to bootstrap.</p>
@@ -4795,6 +4807,19 @@ proxy.</p>
 <h2 id="step-3-deploy-the-allocator">Step 3: Deploy the allocator<a class="headerlink" href="#step-3-deploy-the-allocator" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>lablink<span class="w"> </span>deploy
 </code></pre></div>
+<div class="video-container">
+  <video controls width="100%">
+    <source src="../../assets/videos/byo-02-deploy.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+</div>
+
+<p><em>Starts with Step 2's <code>lablink doctor</code>, then deploys. Because this deployment
+is Cloudflare-exposed, <code>deploy</code> asks for the tunnel token first — hidden, like
+the admin password — then publishes the allocator at the configured hostname
+and verifies it before printing the summary. Recorded at 2×, with the
+allocator image already pulled; a cold first run adds a few minutes of
+download before anything in this clip happens.</em></p>
 <p>This renders <code>docker-compose.yml</code>, a <code>.env</code>, and a copy of your <code>config.yaml</code> into
 <code>~/.lablink/compose/&lt;deployment_name&gt;/</code>, then runs <code>docker compose up -d</code> and waits
 for the allocator's health endpoint. Postgres runs inside the same stack, with its
@@ -4834,6 +4859,20 @@ pass it again to rotate it.</p>
 <p>Run this <strong>on the machine you're adding</strong>, not on the allocator host:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>lablink<span class="w"> </span>client<span class="w"> </span>register<span class="w"> </span>--allocator-url<span class="w"> </span>http://192.168.1.42:5000<span class="w"> </span>--register-token<span class="w"> </span>Xf3k9…
 </code></pre></div>
+<div class="video-container">
+  <video controls width="100%">
+    <source src="../../assets/videos/byo-03-register.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+</div>
+
+<p><em>Recorded </em><em>on the box</em><em>, not on the allocator host — this is the machine being
+added, which is why the command is the one you run there rather than beside the
+allocator. The box reaches the allocator at its public <code>https://</code> hostname, so
+it needn't be on the allocator's LAN at all. <code>--tunnel</code> makes it dial out and
+hold the connection open; the auto-detected values report no LAN IP, because
+nothing ever dials in to it. The client image was pulled beforehand; a cold run
+adds a long download.</em></p>
 <p>It auto-detects hostname, LAN IP, machine identity, and GPU presence/model, writes
 the returned secrets to <code>~/.lablink/client.env</code> (mode <code>0600</code>), and <code>docker run</code>s the
 client container. Every auto-detected value has an override flag if you need one.</p>
@@ -4920,6 +4959,15 @@ won't detach a volume that's in use.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>lablink<span class="w"> </span>destroy<span class="w">              </span><span class="c1"># stops the stack, wipes the Postgres volume</span>
 <a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>lablink<span class="w"> </span>destroy<span class="w"> </span>--keep-data<span class="w">  </span><span class="c1"># stops the stack, preserves registration history</span>
 </code></pre></div>
+<div class="video-container">
+  <video controls width="100%">
+    <source src="../../assets/videos/byo-04-status-destroy.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+</div>
+
+<p><em>Back on the allocator host: <code>lablink status</code> with the box in the pool, then
+<code>destroy</code>. Recorded at 2×.</em></p>
 <p><code>--keep-data</code> is the one to use between sessions of the same workshop — sessions and
 registration history survive the next <code>lablink deploy</code>.</p>
 <p>To also remove the compose working directory and its volumes outright:</p>

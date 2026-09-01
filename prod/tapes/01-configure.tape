@@ -16,6 +16,8 @@
 Source "_common.tape"
 Output "../assets/videos/cli-01-configure.mp4"
 
+Source ".path.tape"
+
 Hide
 Type `export PS1="$ "` Enter
 Type "clear" Enter
