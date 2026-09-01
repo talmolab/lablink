@@ -1,386 +1,155 @@
-# DNS Configuration Guide
+# DNS Configuration
 
-## Overview
+Giving the allocator a hostname instead of a bare IP, using AWS Route53.
 
-LabLink uses AWS Route53 for DNS management with a delegated subdomain structure. This document describes the DNS architecture and configuration for internal reference.
+This page covers the **DNS setup around** LabLink — hosted zones, NS delegation,
+and which record OpenTofu creates. For the `dns:` and `ssl:` config keys
+themselves, their validation rules, and copy-paste config examples, see
+[Configuration](configuration.md#dns-options-dns). For diagnosing a deployment
+that is already broken, see [Troubleshooting](troubleshooting.md).
 
-## DNS Architecture
+DNS is optional. With `dns.enabled: false` the allocator is reachable at its
+Elastic IP over HTTP, and none of this page applies.
 
-### Domain Structure
+## The fast path: `lablink setup`
 
-- **Parent Domain**: `sleap.ai` (managed in Cloudflare)
-- **Delegated Subdomain**: `lablink.sleap.ai` (managed in AWS Route53)
-- **Example Deployment**: `test.lablink.sleap.ai` → allocator instance
-
-### Why Delegated Subdomain?
-
-The main `sleap.ai` domain is managed in Cloudflare for the primary website. To avoid conflicts and allow AWS-based automation, we use NS delegation to hand off the `lablink.sleap.ai` subdomain to AWS Route53.
-
-**Benefits**:
-- OpenTofu can manage DNS records automatically
-- No Cloudflare API credentials needed
-- Separation of concerns (website vs LabLink infrastructure)
-- Let's Encrypt can validate domain ownership via DNS
-
-## Route53 Setup
-
-### Hosted Zone Configuration
-
-**Zone Name**: `lablink.sleap.ai`
-**Zone ID**: `Z010760118DSWF5IYKMOM`
-**Type**: Public hosted zone
-
-**Nameservers** (AWS-assigned):
-```
-ns-158.awsdns-19.com
-ns-697.awsdns-23.net
-ns-1839.awsdns-37.co.uk
-ns-1029.awsdns-00.org
-```
-
-### Cloudflare NS Delegation
-
-In Cloudflare DNS for `sleap.ai`, the following NS records delegate the subdomain to AWS:
-
-**Record Type**: NS
-**Name**: `lablink`
-**Content** (4 records):
-```
-ns-158.awsdns-19.com
-ns-697.awsdns-23.net
-ns-1839.awsdns-37.co.uk
-ns-1029.awsdns-00.org
-```
-
-**TTL**: Auto (or 300 seconds)
-
-### Verification
+If `dns.enabled: true` and `dns.terraform_managed: true` are already in your
+config, `lablink setup` does the Route53 work for you:
 
 ```bash
-# Query AWS nameservers directly
-dig @ns-158.awsdns-19.com lablink.sleap.ai
-
-# Check NS delegation
-dig NS lablink.sleap.ai
-
-# Should show AWS nameservers, not Cloudflare
+lablink setup
 ```
 
-## LabLink DNS Configuration
+It finds or creates a hosted zone for the registrable part of `dns.domain`
+(`example.com` for `test.example.com`), writes the resulting `dns.zone_id` back
+into your config file, and — if it created the zone — prints the four AWS
+nameservers to hand to your registrar.
 
-### Configuration File
+Your config file is `~/.lablink/config.yaml` for CLI deployments, or
+`lablink-infrastructure/config/config.yaml` in a
+[lablink-template](https://github.com/talmolab/lablink-template) checkout.
 
-**Location**: `lablink-infrastructure/config/config.yaml`
+!!! warning "Not for delegated subdomains"
+    `lablink setup` always targets the registrable domain, so for
+    `test.lablink.example.com` it creates a zone for `example.com` — not
+    `lablink.example.com`. If the parent domain is managed somewhere else and
+    you only control a subdomain, use the delegated setup below and set
+    `zone_id` yourself.
+
+## Delegated subdomain (parent domain managed elsewhere)
+
+The usual situation for a lab: `example.com` lives in Cloudflare or with
+university IT, and you want `lablink.example.com` under your own control. Hand
+that one subdomain to Route53 with an NS delegation.
+
+**Why bother** — OpenTofu can then create and destroy the allocator's A record
+on its own, with no third-party DNS credentials in your deployment, and Let's
+Encrypt can validate the domain without anyone touching the parent zone.
+
+**1. Create the subdomain zone in Route53:**
+
+```bash
+aws route53 create-hosted-zone \
+  --name lablink.example.com \
+  --caller-reference "lablink-$(date +%s)"
+
+# Note the zone ID and the four nameservers from the response
+aws route53 get-hosted-zone --id <zone-id> \
+  --query 'DelegationSet.NameServers'
+```
+
+**2. Delegate from the parent zone.** At whoever hosts `example.com`, add four
+NS records:
+
+| Field | Value |
+|-------|-------|
+| Type | `NS` |
+| Name | `lablink` |
+| Content | the four `awsdns` nameservers from step 1 (one record each) |
+| TTL | 300 |
+
+**3. Verify, after 5–15 minutes:**
+
+```bash
+dig NS lablink.example.com     # must return the four awsdns nameservers
+```
+
+If it still returns the parent's nameservers, the delegation has not taken
+effect — see [Troubleshooting](troubleshooting.md) for the NS delegation checks.
+
+**4. Point your config at that zone explicitly:**
 
 ```yaml
 dns:
   enabled: true
-  terraform_managed: true            # true = OpenTofu manages Route53 records
-  domain: "test.lablink.sleap.ai"    # Full domain name for the allocator
-  zone_id: "Z010760118DSWF5IYKMOM"   # Optional: Route53 zone ID (skips lookup)
+  terraform_managed: true
+  domain: "test.lablink.example.com"
+  zone_id: "Z0123456789ABCDEFGHIJ"    # the subdomain zone from step 1
 ```
 
-### Configuration Options
+## Always set `zone_id`
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `enabled` | boolean | `false` | Enable DNS-based URLs |
-| `terraform_managed` | boolean | `true` | Let OpenTofu manage Route53 records. Set to `false` for external DNS (CloudFlare, etc.) |
-| `domain` | string | `""` | Full domain name (e.g., `lablink.sleap.ai` or `test.lablink.sleap.ai`) |
-| `zone_id` | string | `""` | Route53 zone ID (optional, skips lookup if provided) |
+When `zone_id` is empty, OpenTofu looks the zone up by name — and it strips
+exactly **one** label off `dns.domain` to guess the zone. So
+`test.lablink.example.com` is looked up as `lablink.example.com`, and the deploy
+fails outright if that intermediate zone does not exist. Setting `zone_id`
+skips the lookup and removes the guess.
 
-### Domain Naming
-
-Specify the full domain name directly in the `domain` field. This supports:
-
-- **Root domain**: `domain: "lablink.sleap.ai"`
-- **Environment subdomains**: `domain: "test.lablink.sleap.ai"`
-- **Custom subdomains**: `domain: "myapp.lablink.sleap.ai"`
-
-### Zone ID Configuration
-
-**Why hardcode zone_id?**
-
-The OpenTofu data source `aws_route53_zone` can incorrectly match parent zones when searching by domain name. To ensure the correct zone is always used, we hardcode the zone ID in the config:
-
-```yaml
-dns:
-  zone_id: "Z010760118DSWF5IYKMOM"  # Forces use of lablink.sleap.ai zone
-```
-
-**How to find your zone ID**:
 ```bash
-aws route53 list-hosted-zones --query "HostedZones[?Name=='lablink.sleap.ai.'].Id" --output text
+# Find it for an existing zone
+aws route53 list-hosted-zones \
+  --query "HostedZones[?Name=='lablink.example.com.'].Id" --output text
 ```
 
-## OpenTofu DNS Management
+## What OpenTofu creates
 
-### Main Configuration
+With `dns.enabled: true` and `dns.terraform_managed: true`, the template creates
+one record in `zone_id`, named `dns.domain`:
 
-**Location**: `lablink-infrastructure/main.tf`
+| `ssl.provider` | Record |
+|----------------|--------|
+| `none`, `letsencrypt`, `cloudflare` | `A` record, TTL 300, pointing at the allocator's Elastic IP |
+| `acm` | `A` alias record pointing at the ALB (no EIP record is created) |
 
-```hcl
-# DNS configuration from config.yaml
-locals {
-  dns_enabled          = try(local.config_file.dns.enabled, false)
-  dns_terraform_managed = try(local.config_file.dns.terraform_managed, true)
-  dns_domain           = try(local.config_file.dns.domain, "")
-  dns_zone_id          = try(local.config_file.dns.zone_id, "")
-}
+With `terraform_managed: false` no record is created at all — you are expected
+to point the hostname at the allocator yourself, in whatever DNS you use. This
+is required for `ssl.provider: "cloudflare"`.
 
-# Zone selection: use provided zone_id or lookup by domain
-locals {
-  zone_id = local.dns_enabled && local.dns_terraform_managed ? (
-    local.dns_zone_id != "" ? local.dns_zone_id : data.aws_route53_zone.existing[0].zone_id
-  ) : ""
-}
-```
+## SSL
 
-### DNS Record Creation
+`ssl.provider: "letsencrypt"` installs Caddy on the allocator, which requests a
+certificate on first boot and renews it automatically. It needs the DNS record
+already resolving publicly, and ports 80 and 443 open.
 
-```hcl
-resource "aws_route53_record" "allocator" {
-  count   = local.dns_enabled ? 1 : 0
-  zone_id = local.zone_id
-  name    = local.fqdn
-  type    = "A"
-  ttl     = 300
-  records = [local.allocator_public_ip]
-}
-```
+!!! warning "Redeploying the same domain hits the Let's Encrypt rate limit"
+    Every deploy requests a fresh certificate, and Let's Encrypt allows only
+    **5 duplicate certificates per week** per hostname. Past that, the site
+    fails in the browser with `ERR_SSL_PROTOCOL_ERROR` and nothing else says
+    why. For repeated test deploys use a fresh subdomain each cycle, or
+    `ssl.provider: "none"`.
 
-## SSL/TLS Configuration
+Certificate problems show up in Caddy's log on the allocator:
 
-### Let's Encrypt Integration
-
-LabLink uses Caddy for automatic SSL certificate acquisition from Let's Encrypt.
-
-**Prerequisites**:
-- Valid DNS record pointing to allocator IP
-- DNS propagated to public resolvers (Google DNS 8.8.8.8, Cloudflare DNS 1.1.1.1)
-- Port 80 and 443 accessible
-
-**Configuration**:
-```yaml
-ssl:
-  provider: "letsencrypt"
-  email: "admin@example.com"
-```
-
-**Caddy Configuration** (`lablink-infrastructure/user_data.sh`):
-```bash
-cat > /etc/caddy/Caddyfile <<EOF
-${fqdn} {
-    reverse_proxy localhost:5000
-}
-EOF
-```
-
-Caddy automatically:
-1. Requests certificate from Let's Encrypt
-2. Validates domain ownership via HTTP-01 challenge
-3. Renews certificates before expiration
-4. Redirects HTTP to HTTPS
-
-### SSL Troubleshooting
-
-Check Caddy logs:
 ```bash
 ssh -i ~/lablink-key.pem ubuntu@<allocator-ip>
 sudo journalctl -u caddy -f
 ```
 
-Common issues:
-- DNS not propagated → Wait 5-10 minutes
-- Port 80/443 blocked → Check security group rules
-- Invalid domain → Verify DNS record exists
+The full provider comparison — `none`, `letsencrypt`, `cloudflare`, `acm` —
+is in [Configuration](configuration.md#ssl-providers).
 
-## DNS Troubleshooting
+## Verifying a deployment
 
-### Issue: Record Created in Wrong Zone
-
-**Symptom**: DNS record appears in `sleap.ai` zone instead of `lablink.sleap.ai` zone
-
-**Cause**: OpenTofu data source matched parent zone
-
-**Solution**: Add `zone_id` to config.yaml:
-```yaml
-dns:
-  zone_id: "Z010760118DSWF5IYKMOM"
-```
-
-### Issue: DNS Not Resolving
-
-**Check DNS propagation**:
-```bash
-# Check Google DNS
-nslookup test.lablink.sleap.ai 8.8.8.8
-
-# Check Cloudflare DNS
-nslookup test.lablink.sleap.ai 1.1.1.1
-
-# Check authoritative nameservers
-nslookup test.lablink.sleap.ai ns-158.awsdns-19.com
-```
-
-**Verify Route53 record**:
-```bash
-aws route53 list-resource-record-sets \
-  --hosted-zone-id Z010760118DSWF5IYKMOM \
-  --query "ResourceRecordSets[?Name=='test.lablink.sleap.ai.']"
-```
-
-**Check NS delegation**:
-```bash
-dig NS lablink.sleap.ai
-# Should return AWS nameservers, not Cloudflare
-```
-
-### Issue: NS Delegation Not Working
-
-**Symptom**: DNS queries return NXDOMAIN even though record exists in Route53
-
-**Cause**: NS records not properly configured in Cloudflare
-
-**Solution**:
-1. Log into Cloudflare
-2. Go to DNS settings for `sleap.ai`
-3. Add/verify NS records for `lablink` pointing to all 4 AWS nameservers
-4. Wait 5-15 minutes for propagation
-
-### Issue: Multiple Hosted Zones Conflict
-
-**Symptom**: Both `sleap.ai` and `lablink.sleap.ai` zones exist in Route53
-
-**Solution**: Delete the parent zone from Route53 if it's managed elsewhere (Cloudflare)
-```bash
-# List zones
-aws route53 list-hosted-zones
-
-# Delete parent zone (if managed in Cloudflare)
-aws route53 delete-hosted-zone --id <zone-id>
-```
-
-## DNS Verification Script
-
-Use the deployment verification script to check DNS:
+The template repo ships a script that checks DNS, HTTP, and SSL together:
 
 ```bash
-cd lablink-infrastructure
-./verify-deployment.sh test.lablink.sleap.ai 52.40.142.146
+./scripts/verify-deployment.sh prod            # reads config.yaml + tofu outputs
+./scripts/verify-deployment.sh <domain> <ip>   # or pass them explicitly
 ```
-
-This checks:
-1. DNS resolution via Google/Cloudflare DNS
-2. HTTP connectivity
-3. HTTPS/SSL certificate (if enabled)
-
-## Configuration Templates
-
-!!! tip "Full configuration examples"
-    The templates below show only DNS and SSL sections. For complete, copy-paste-ready config files, see [Configuration Examples](configuration.md#full-configuration-examples).
-
-### Development Environment
-```yaml
-dns:
-  enabled: true
-  terraform_managed: true
-  domain: "dev.lablink.sleap.ai"
-  zone_id: "Z010760118DSWF5IYKMOM"
-
-ssl:
-  provider: "letsencrypt"
-  email: "dev@example.com"
-```
-
-### Test Environment
-```yaml
-dns:
-  enabled: true
-  terraform_managed: true
-  domain: "test.lablink.sleap.ai"
-  zone_id: "Z010760118DSWF5IYKMOM"
-
-ssl:
-  provider: "letsencrypt"
-  email: "test@example.com"
-```
-
-### Production Environment
-```yaml
-dns:
-  enabled: true
-  terraform_managed: true
-  domain: "lablink.sleap.ai"  # Root domain for production
-  zone_id: "Z010760118DSWF5IYKMOM"
-
-ssl:
-  provider: "letsencrypt"
-  email: "admin@example.com"
-```
-
-### External DNS (CloudFlare)
-```yaml
-dns:
-  enabled: true
-  terraform_managed: false  # DNS managed externally
-  domain: "lablink.example.com"
-
-ssl:
-  provider: "cloudflare"  # CloudFlare handles SSL
-```
-
-### IP-Only Deployment (No DNS)
-```yaml
-dns:
-  enabled: false
-
-ssl:
-  provider: "none"
-```
-
-## Best Practices
-
-1. **Always hardcode zone_id** - Prevents zone lookup issues
-2. **Use custom pattern** - Explicit control over subdomain names
-3. **Verify NS delegation** - Check before first deployment
-4. **Wait for DNS propagation** - Allow 5-15 minutes after changes
-5. **Test with verification script** - Automate DNS/SSL checks
-6. **Document all changes** - Record zone IDs and nameservers
-
-## Security Considerations
-
-### DNS Security
-- Route53 hosted zones are public by default
-- Use IAM policies to restrict who can modify DNS records
-- Consider DNSSEC for additional security (advanced)
-
-### SSL/TLS Security
-- Let's Encrypt certificates are valid for 90 days
-- Caddy handles automatic renewal
-- Monitor certificate expiration in Caddy logs
-- Use strong cipher suites (Caddy defaults are secure)
-
-## Monitoring and Maintenance
-
-### Regular Checks
-- Verify DNS records exist in correct zone
-- Check SSL certificate expiration
-- Monitor Caddy logs for renewal issues
-- Review Route53 query metrics
-
-### Backup Information
-Keep this information documented:
-- Zone ID: `Z010760118DSWF5IYKMOM`
-- Nameservers: (listed above)
-- Parent domain registrar: Cloudflare
-- SSL provider: Let's Encrypt via Caddy
 
 ## References
 
-- [AWS Route53 Documentation](https://docs.aws.amazon.com/route53/)
-- [Cloudflare DNS Documentation](https://developers.cloudflare.com/dns/)
-- [Let's Encrypt Documentation](https://letsencrypt.org/docs/)
-- [Caddy Documentation](https://caddyserver.com/docs/)
-- [LabLink Configuration Guide](configuration.md)
-- [LabLink Deployment Guide](deployment.md)
+- [Configuration](configuration.md) — every `dns:` and `ssl:` key, with examples
+- [Troubleshooting](troubleshooting.md) — records in the wrong zone, NS delegation, SSL not ready
+- [AWS Route53 documentation](https://docs.aws.amazon.com/route53/)
+- [Caddy automatic HTTPS](https://caddyserver.com/docs/automatic-https)
