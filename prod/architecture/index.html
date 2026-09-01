@@ -5573,7 +5573,7 @@ while one is in progress is rejected with the in-flight job's id.</p>
         Flask--&gt;&gt;Client: ACK
     end
 
-    Note over DB: Unhealthy VMs are picked up by the&lt;br/&gt;auto-reboot service; stale LastSeen&lt;br/&gt;marks the VM unreachable</div>
+    Note over DB: Unhealthy VMs are picked up by the&lt;br/&gt;auto-reboot service. Stale LastSeen&lt;br/&gt;marks the VM unreachable</div>
 <p>Both endpoints authenticate with the per-client secret issued at
 registration. GPU health lands in the <code>Healthy</code> column rather than flipping
 <code>Status</code> directly — the auto-reboot service decides what to do about an
