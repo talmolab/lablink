@@ -33,7 +33,12 @@ variable "repository" {
 
 variable "client_ami_id" {
   type        = string
-  description = "AMI ID for the client VM"
+  default     = ""
+  description = <<-EOT
+    AMI ID for the client VM. Empty resolves AWS's Deep Learning Base AMI for this
+    region — see data.aws_ami.default_client in main.tf. Set it to use a specific
+    image, such as LabLink's leaner published one where that exists.
+  EOT
 }
 
 variable "resource_prefix" {

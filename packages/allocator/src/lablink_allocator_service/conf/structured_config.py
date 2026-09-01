@@ -81,14 +81,19 @@ class MachineConfig:
         machine_type (str): The type of the machine to be used.
         repository (Optional[str]): The repository URL for the machine image.
         image (str): The Docker image ID to be used for the machine.
-        ami_id (str): The Amazon Machine Image (AMI) ID for the machine.
+        ami_id (str): AMI for client VMs. Empty (the default) resolves AWS's
+            Deep Learning Base AMI for the deployment's region, which carries
+            Docker, the NVIDIA driver and nvidia-container-runtime — all three
+            required, since the client's boot script installs none of them. Set
+            this to use a specific image, such as LabLink's leaner published one
+            where that exists.
         software (str): The software to be installed on the machine.
     """
 
     machine_type: str = field(default="g4dn.xlarge")
     repository: Optional[str] = field(default=None)
     image: str = field(default="ghcr.io/talmolab/lablink-client-base-image:latest")
-    ami_id: str = field(default="ami-00c257e12d6828491")
+    ami_id: str = field(default="")
     software: str = field(default="sleap")
 
 

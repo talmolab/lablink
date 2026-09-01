@@ -79,9 +79,33 @@ resource "aws_iam_instance_profile" "lablink_instance_profile" {
 }
 
 # EC2 Instance for the LabLink Client
+# user_data.sh installs nothing: it requires the image to already provide docker,
+# nvidia-smi and nvidia-container-runtime, and it rewrites /etc/docker/daemon.json to
+# register the nvidia runtime. AWS's Deep Learning Base AMI ships all three and is
+# published in every region, so an empty client_ami_id still yields a working client
+# outside the regions LabLink copies its own image into. Verified on g4dn.xlarge in
+# eu-west-1: driver 595.91.07, Docker 29.7.2, and a GPU container under --runtime=nvidia.
+#
+# Ubuntu 24.04 is pinned on purpose — 26.04 is published on the same dates, so an
+# unpinned filter would drift onto a new Ubuntu major release by itself. most_recent is
+# safe here in a way it would not be for a long-lived instance: client VMs are
+# provisioned per session, so taking the newest at launch is the intent.
+data "aws_ami" "default_client" {
+  count       = var.client_ami_id == "" ? 1 : 0
+  owners      = ["amazon"]
+  most_recent = true
+
+  filter {
+    name   = "name"
+    values = ["Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 24.04)*"]
+  }
+}
+
 resource "aws_instance" "lablink_vm" {
-  count                  = var.instance_count
-  ami                    = var.client_ami_id
+  count = var.instance_count
+  # one() over a splat rather than [0], so the unused branch of this conditional is not
+  # an index into an empty list when client_ami_id is set.
+  ami                    = var.client_ami_id != "" ? var.client_ami_id : one(data.aws_ami.default_client[*].id)
   instance_type          = var.machine_type
   vpc_security_group_ids = [aws_security_group.lablink_sg.id]
   key_name               = aws_key_pair.lablink_key_pair.key_name
