@@ -129,7 +129,7 @@ Configuration for client VM specifications. **These are the key options for adap
 |--------|------|---------|-------------|
 | `machine_type` | string | `g4dn.xlarge` | AWS EC2 instance type |
 | `image` | string | `ghcr.io/talmolab/lablink-client-base-image:latest` | Docker image for client container |
-| `ami_id` | string | `ami-00c257e12d6828491` | Amazon Machine Image (Ubuntu 24.04 + Docker + Nvidia) |
+| `ami_id` | string | `""` | Client VM image. Empty resolves an AWS Deep Learning Base AMI for your region |
 | `repository` | string (optional) | `None` | Git repository to clone on VM |
 | `software` | string | `sleap` | Software identifier (used by client) |
 
@@ -162,13 +162,27 @@ The Docker image determines what software runs on your VMs. Options:
 
 #### AMI ID
 
-**Default**: `ami-00c257e12d6828491` (Ubuntu 24.04 + Docker + Nvidia in us-west-2)
+**Default**: `""` — resolve an AWS Deep Learning Base AMI (Ubuntu 24.04) for whichever
+region the deployment is in. That image carries Docker, the NVIDIA driver and
+`nvidia-container-runtime`, all three of which the client boot script requires and none
+of which it installs, and AWS publishes it in every region. Leaving this empty is the
+way to run in a region LabLink has not published its own image to.
 
-The Amazon Machine Image determines the OS and pre-installed software. You may need different AMIs for:
+Set it explicitly to use a specific image:
 
-- Different AWS regions (AMI IDs are region-specific)
-- Different OS versions
-- Custom pre-configured images
+| Region | LabLink's published client AMI |
+|--------|-------------------------------|
+| `us-west-2` | `ami-0601752c11b394251` |
+| `us-east-1` | `ami-0c3412413810adacc` |
+| `us-east-2` | `ami-0cd7567480c4840a0` |
+
+These are leaner than the Deep Learning AMI — faster to boot and a smaller root volume —
+so prefer them where they exist. **AMI IDs are region-scoped**: an ID from one region is
+meaningless in another, and `lablink doctor` verifies that whatever you set actually
+exists in `app.region`.
+
+You would also set this explicitly for a custom image with your own software baked in;
+it must still provide Docker, the NVIDIA driver and `nvidia-container-runtime`.
 
 **Find AMIs**:
 ```bash
@@ -648,7 +662,7 @@ machine:
 ```yaml
 machine:
   machine_type: "g5.xlarge"
-  ami_id: "ami-00c257e12d6828491"
+  ami_id: ""  # resolves a Deep Learning Base AMI for app.region
 ```
 
 Use with Hydra:
