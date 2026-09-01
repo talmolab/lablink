@@ -195,12 +195,13 @@ lablink client register --allocator-url http://192.168.1.42:5000 --register-toke
   </video>
 </div>
 
-*Recorded **on the box**, not on the allocator host — note the `box$` prompt.
-The box reaches the allocator at its public `https://` hostname, so it needn't
-be on the allocator's LAN at all. `--tunnel` makes it dial out and hold the
-connection open; the auto-detected values report no LAN IP, because nothing
-ever dials in to it. The client image was pulled beforehand; a cold run adds a
-long download.*
+*Recorded **on the box**, not on the allocator host — this is the machine being
+added, which is why the command is the one you run there rather than beside the
+allocator. The box reaches the allocator at its public `https://` hostname, so
+it needn't be on the allocator's LAN at all. `--tunnel` makes it dial out and
+hold the connection open; the auto-detected values report no LAN IP, because
+nothing ever dials in to it. The client image was pulled beforehand; a cold run
+adds a long download.*
 
 It auto-detects hostname, LAN IP, machine identity, and GPU presence/model, writes
 the returned secrets to `~/.lablink/client.env` (mode `0600`), and `docker run`s the

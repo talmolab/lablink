@@ -206,6 +206,7 @@ trap cleanup EXIT INT TERM
 # quotes and the value needs them. $PATH stays literal for the recorded
 # shell to expand — printf sees no variable, the format string is single
 # quoted.
+# shellcheck disable=SC2016  # $PATH is literal on purpose — see above.
 printf 'Hide\nType `export PATH="%s:$PATH"`\nEnter\nShow\n' \
   "$RECORDED_VENV_BIN" > "$PATH_TAPE"
 
