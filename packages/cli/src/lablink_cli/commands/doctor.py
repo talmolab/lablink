@@ -241,8 +241,19 @@ def _check_s3_bucket(cfg) -> dict:
 
 
 def _check_ami(cfg) -> dict:
-    """Check that an AMI is available for the configured region."""
-    result = {"check": "AMI for region", "status": "fail"}
+    """Check that the configured client AMI exists in the configured region.
+
+    Client VMs are the only ones needing a custom image, since the GPU drivers are
+    baked in, which makes machine.ami_id the one region-scoped value a deployment
+    has to get right. The allocator boots stock Ubuntu resolved per region from an
+    SSM parameter and constrains nothing.
+
+    AMI_MAP is consulted only to suggest a value. Asking EC2 whether the configured
+    image actually exists is the whole point: a region absent from the table is fine
+    if the operator copied an image into it, and a region present in the table is no
+    guarantee that the ID in *their* config is right.
+    """
+    result = {"check": "Client AMI", "status": "fail"}
 
     if cfg is None:
         result["status"] = "warn"
@@ -252,19 +263,46 @@ def _check_ami(cfg) -> dict:
     from lablink_cli.config.schema import AMI_MAP
 
     region = cfg.app.region
-    if region in AMI_MAP:
-        result["status"] = "pass"
-        result["detail"] = (
-            f"{region} → {AMI_MAP[region]}"
-        )
-    else:
-        supported = ", ".join(AMI_MAP)
-        result["status"] = "fail"
-        result["detail"] = (
-            f"AMI IDs are region-scoped and LabLink has no image in '{region}', "
-            f"so it cannot deploy there — OpenTofu refuses to plan. Set "
-            f"app.region to one of: {supported}"
-        )
+    ami_id = getattr(getattr(cfg, "machine", None), "ami_id", None)
+    published = AMI_MAP.get(region)
+
+    if not ami_id:
+        if published:
+            result["detail"] = f"No machine.ami_id set. For {region}, use {published}"
+        else:
+            result["detail"] = (
+                f"No machine.ami_id set, and LabLink publishes no client image in "
+                f"{region}. Copy one from {', '.join(AMI_MAP)} into {region}, or use "
+                f"an AWS Deep Learning Base AMI"
+            )
+        return result
+
+    try:
+        from lablink_cli.commands.setup import _get_session
+
+        session = _get_session(region)
+        session.client("ec2").describe_images(ImageIds=[ami_id])
+    except Exception as e:
+        if "InvalidAMIID" in str(e):
+            if published:
+                hint = f"use {published}"
+            else:
+                hint = (
+                    f"copy an image from {', '.join(AMI_MAP)} into {region}, or use "
+                    f"an AWS Deep Learning Base AMI"
+                )
+            result["detail"] = f"{ami_id} does not exist in {region} — {hint}"
+        else:
+            # No credentials, no ec2:DescribeImages, network trouble: unverified is
+            # not the same as wrong, so warn rather than failing a good config.
+            result["status"] = "warn"
+            result["detail"] = f"Could not verify {ami_id} in {region}: {e}"
+        return result
+
+    result["status"] = "pass"
+    result["detail"] = f"{ami_id} exists in {region}"
+    if published and ami_id != published:
+        result["detail"] += " (custom, not the image LabLink publishes there)"
 
     return result
 
@@ -290,7 +328,7 @@ def _check_aws_prereqs() -> None:
     # 5. S3 state bucket
     checks.append(_check_s3_bucket(cfg))
 
-    # 6. AMI for region
+    # 6. Client AMI
     checks.append(_check_ami(cfg))
 
     _render_checks(

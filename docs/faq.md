@@ -61,8 +61,9 @@ Common questions about LabLink. If something here doesn't resolve your problem, 
     See [Adapting LabLink](adapting.md) for the full guide.
 
 ??? note "Can I use a different AWS region?"
-    Yes, within the regions LabLink publishes images to: `us-west-2`, `us-east-1` and
-    `us-east-2`. Set the region and the matching client AMI together:
+    Yes, any region. The allocator boots stock Ubuntu resolved per region, so the only
+    region-scoped value is the **client** AMI. LabLink publishes one in `us-west-2`,
+    `us-east-1` and `us-east-2` — set the region and the client AMI together:
 
     ```yaml
     app:
@@ -77,9 +78,14 @@ Common questions about LabLink. If something here doesn't resolve your problem, 
     | `us-east-1` | `ami-0c3412413810adacc` |
     | `us-east-2` | `ami-0cd7567480c4840a0` |
 
-    AMI IDs are region-scoped, so a region LabLink has not published images to is
-    refused at plan time rather than half-deploying. `lablink doctor` catches it first.
-    If you need another region, open an issue.
+    In any other region, copy one of those images into your own account
+    (`aws ec2 copy-image`, the sources are public and your copy can stay private) and
+    use the new ID, or use an AWS Deep Learning Base AMI — Ubuntu with Docker, the
+    NVIDIA driver and `nvidia-container-toolkit` already installed.
+
+    `lablink doctor` checks that whatever you set actually exists in the region, so a
+    wrong or wrong-region AMI ID is caught before the deploy rather than as a failed VM
+    launch.
 
 ??? note "Can I use a custom AMI?"
     Yes. Create an AMI with your software pre-installed:

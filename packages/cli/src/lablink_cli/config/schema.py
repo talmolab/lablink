@@ -114,14 +114,18 @@ def validate_config(cfg: Config) -> list[str]:
     return errors
 
 
-# Client AMI by region (Ubuntu 24.04 with Docker + Nvidia GPU Driver), and by
-# extension the set of regions LabLink can deploy to. AMI IDs are region-scoped, so
-# every region needs its own copy of the image and every entry here is a distinct ID
-# — a repeated ID means one of these regions is pointing at another region's image,
-# which is a config that passes every local check and then fails to launch.
-# lablink-template carries the matching per-region map for the allocator's own AMI
-# and refuses to plan for a region missing from it. Adding a region means copying
-# both images into it and making the copies public, then updating both maps.
+# Regions LabLink publishes a client image in (Ubuntu 24.04 + Docker + NVIDIA driver).
+#
+# This is a suggestion, not a limit. Only client VMs need a custom image, because the
+# GPU drivers are baked in; the allocator boots stock Ubuntu resolved per region from
+# an SSM parameter, so it constrains nothing. Any region works if machine.ami_id names
+# an image that exists there — a copy of one of these, or an AWS Deep Learning Base
+# AMI — and doctor asks EC2 rather than trusting this table.
+#
+# AMI IDs are region-scoped, so every entry here is a distinct ID. A repeated ID means
+# some region points at another region's image, which is a config that passes every
+# local check and then fails to launch: that is exactly what this map used to do, with
+# four regions sharing one us-west-2 ID.
 AMI_MAP: dict[str, str] = {
     "us-west-2": "ami-0601752c11b394251",
     "us-east-1": "ami-0c3412413810adacc",
