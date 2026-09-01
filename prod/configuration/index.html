@@ -5874,8 +5874,8 @@ allocator container with a fixed identity (database <code>lablink_db</code>, use
 <tr>
 <td><code>ami_id</code></td>
 <td>string</td>
-<td><code>ami-00c257e12d6828491</code></td>
-<td>Amazon Machine Image (Ubuntu 24.04 + Docker + Nvidia)</td>
+<td><code>""</code></td>
+<td>Client VM image. Empty resolves an AWS Deep Learning Base AMI for your region</td>
 </tr>
 <tr>
 <td><code>repository</code></td>
@@ -5960,13 +5960,41 @@ allocator container with a fixed identity (database <code>lablink_db</code>, use
 <li><code>:v1.0.0</code> - specific version</li>
 </ol>
 <h4 id="ami-id">AMI ID<a class="headerlink" href="#ami-id" title="Permanent link">&para;</a></h4>
-<p><strong>Default</strong>: <code>ami-00c257e12d6828491</code> (Ubuntu 24.04 + Docker + Nvidia in us-west-2)</p>
-<p>The Amazon Machine Image determines the OS and pre-installed software. You may need different AMIs for:</p>
-<ul>
-<li>Different AWS regions (AMI IDs are region-specific)</li>
-<li>Different OS versions</li>
-<li>Custom pre-configured images</li>
-</ul>
+<p><strong>Default</strong>: <code>""</code> — resolve an AWS Deep Learning Base AMI (Ubuntu 24.04) for whichever
+region the deployment is in. That image carries Docker, the NVIDIA driver and
+<code>nvidia-container-runtime</code>, all three of which the client boot script requires and none
+of which it installs, and AWS publishes it in every region. Leaving this empty is the
+way to run in a region LabLink has not published its own image to.</p>
+<p>Set it explicitly to use a specific image:</p>
+<table>
+<thead>
+<tr>
+<th>Region</th>
+<th>LabLink's published client AMI</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>us-west-2</code></td>
+<td><code>ami-0601752c11b394251</code></td>
+</tr>
+<tr>
+<td><code>us-east-1</code></td>
+<td><code>ami-0c3412413810adacc</code></td>
+</tr>
+<tr>
+<td><code>us-east-2</code></td>
+<td><code>ami-0cd7567480c4840a0</code></td>
+</tr>
+</tbody>
+</table>
+<p>LabLink's own image carries less preinstalled software than the Deep Learning AMI, so a
+first boot from it should be quicker. The provisioned root volume is 80 GiB either way —
+the client terraform pins it — so there is no storage cost difference between the two.
+<strong>AMI IDs are region-scoped</strong>: an ID from one region is meaningless in another, and
+<code>lablink doctor</code> verifies that whatever you set actually exists in <code>app.region</code>.</p>
+<p>You would also set this explicitly for a custom image with your own software baked in;
+it must still provide Docker, the NVIDIA driver and <code>nvidia-container-runtime</code>.</p>
 <p><strong>Find AMIs</strong>:
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>aws<span class="w"> </span>ec2<span class="w"> </span>describe-images<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span>--owners<span class="w"> </span><span class="m">099720109477</span><span class="w"> </span><span class="se">\</span>
@@ -6564,7 +6592,7 @@ on your own machine. If your data cannot transit a third party in cleartext, use
 <p><strong><code>config-gpu.yaml</code></strong> (for production):
 <div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="nt">machine</span><span class="p">:</span>
 <a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="w">  </span><span class="nt">machine_type</span><span class="p">:</span><span class="w"> </span><span class="s">"g5.xlarge"</span>
-<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">  </span><span class="nt">ami_id</span><span class="p">:</span><span class="w"> </span><span class="s">"ami-00c257e12d6828491"</span>
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">  </span><span class="nt">ami_id</span><span class="p">:</span><span class="w"> </span><span class="s">""</span><span class="w">  </span><span class="c1"># resolves a Deep Learning Base AMI for app.region</span>
 </code></pre></div></p>
 <p>Use with Hydra:
 <div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>python<span class="w"> </span>main.py<span class="w"> </span>--config-name<span class="o">=</span>config-gpu

@@ -7201,7 +7201,7 @@ lowercase kebab-case.</p>
       instance-attribute
    (lablink_allocator_service.conf.structured_config.Config.machine)" href="#lablink_allocator_service.conf.structured_config.Config.machine">machine</a></code></td>
             <td>
-                  <code><a class="autorefs autorefs-internal" title="              MachineConfig(machine_type='g4dn.xlarge', repository=None, image='ghcr.io/talmolab/lablink-client-base-image:latest', ami_id='ami-00c257e12d6828491', software='sleap')
+                  <code><a class="autorefs autorefs-internal" title="              MachineConfig(machine_type='g4dn.xlarge', repository=None, image='ghcr.io/talmolab/lablink-client-base-image:latest', ami_id='', software='sleap')
 
   
       dataclass
@@ -8052,7 +8052,7 @@ everything else is fixed — see the DB_* constants above.</p>
 
 
 <h4 id="lablink_allocator_service.conf.structured_config.MachineConfig" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>              <code class="highlight language-python"><span class="n">MachineConfig</span><span class="p">(</span><span class="n">machine_type</span><span class="o">=</span><span class="s1">'g4dn.xlarge'</span><span class="p">,</span> <span class="n">repository</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">image</span><span class="o">=</span><span class="s1">'ghcr.io/talmolab/lablink-client-base-image:latest'</span><span class="p">,</span> <span class="n">ami_id</span><span class="o">=</span><span class="s1">'ami-00c257e12d6828491'</span><span class="p">,</span> <span class="n">software</span><span class="o">=</span><span class="s1">'sleap'</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>              <code class="highlight language-python"><span class="n">MachineConfig</span><span class="p">(</span><span class="n">machine_type</span><span class="o">=</span><span class="s1">'g4dn.xlarge'</span><span class="p">,</span> <span class="n">repository</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">image</span><span class="o">=</span><span class="s1">'ghcr.io/talmolab/lablink-client-base-image:latest'</span><span class="p">,</span> <span class="n">ami_id</span><span class="o">=</span><span class="s1">''</span><span class="p">,</span> <span class="n">software</span><span class="o">=</span><span class="s1">'sleap'</span><span class="p">)</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
@@ -8129,7 +8129,7 @@ software to be used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code><a class="autorefs autorefs-internal" title="            ami_id = field(default='ami-00c257e12d6828491')
+            <td><code><a class="autorefs autorefs-internal" title="            ami_id = field(default='')
 
   
       class-attribute
@@ -8140,7 +8140,12 @@ software to be used.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>The Amazon Machine Image (AMI) ID for the machine.</p>
+                <p>AMI for client VMs. Empty (the default) resolves AWS's
+Deep Learning Base AMI for the deployment's region, which carries
+Docker, the NVIDIA driver and nvidia-container-runtime — all three
+required, since the client's boot script installs none of them. Set
+this to use a specific image, such as LabLink's leaner published one
+where that exists.</p>
               </div>
             </td>
           </tr>
@@ -8186,7 +8191,7 @@ software to be used.</p>
 
 
 <h6 id="lablink_allocator_service.conf.structured_config.MachineConfig.ami_id" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <code class="highlight language-python"><span class="n">ami_id</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="s1">'ami-00c257e12d6828491'</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <code class="highlight language-python"><span class="n">ami_id</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="s1">''</span><span class="p">)</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
