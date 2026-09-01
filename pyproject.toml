@@ -23,7 +23,6 @@ docs = [
     "mkdocs-literate-nav>=0.6.0",
     "mkdocs-section-index>=0.3.0",
     "mkdocstrings[python]>=0.24.0",
-    "mike>=2.0.0",
     "pymdown-extensions>=10.0",
     "mkdocstrings-python>=1.8.0",
 ]
