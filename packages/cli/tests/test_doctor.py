@@ -133,10 +133,51 @@ class TestCheckAmi:
         result = _check_ami(None)
         assert result["status"] == "warn"
 
-    def test_no_ami_id_suggests_the_published_one(self):
+    @patch("lablink_cli.commands.setup._get_session")
+    def test_empty_ami_id_resolves_the_fallback(self, mock_session):
+        """Empty is the recommended value, not a gap: the client terraform resolves a
+        Deep Learning Base AMI for the region, so doctor resolves the same image and
+        reports which one."""
+        mock_session.return_value.client.return_value.describe_images.return_value = {
+            "Images": [
+                {"ImageId": "ami-old", "Name": "DLAMI 24.04 20260101",
+                 "CreationDate": "2026-01-01T00:00:00.000Z"},
+                {"ImageId": "ami-new", "Name": "DLAMI 24.04 20260828",
+                 "CreationDate": "2026-08-28T00:00:00.000Z"},
+            ]
+        }
+        result = _check_ami(_ami_cfg("eu-west-1", ""))
+        assert result["status"] == "pass"
+        assert "ami-new" in result["detail"], "must pick the newest, like most_recent"
+        assert "ami-old" not in result["detail"]
+
+    @patch("lablink_cli.commands.setup._get_session")
+    def test_empty_ami_id_fails_where_no_fallback_is_published(self, mock_session):
+        mock_session.return_value.client.return_value.describe_images.return_value = {
+            "Images": []
+        }
         result = _check_ami(_ami_cfg("us-west-2", ""))
         assert result["status"] == "fail"
+        # should suggest the published image for the region
         assert "ami-0601752c11b394251" in result["detail"]
+
+    @patch("lablink_cli.commands.setup._get_session")
+    def test_empty_ami_id_warns_when_unverifiable(self, mock_session):
+        mock_session.return_value.client.return_value.describe_images.side_effect = (
+            Exception("AuthFailure")
+        )
+        result = _check_ami(_ami_cfg("eu-west-1", ""))
+        assert result["status"] == "warn"
+
+    @patch("lablink_cli.commands.setup._get_session")
+    def test_wrong_region_ami_suggests_clearing_the_field(self, mock_session):
+        """The fix an operator most wants in an unpublished region is 'clear it'."""
+        mock_session.return_value.client.return_value.describe_images.side_effect = (
+            Exception("An error occurred (InvalidAMIID.NotFound)")
+        )
+        result = _check_ami(_ami_cfg("eu-west-1", "ami-0601752c11b394251"))
+        assert result["status"] == "fail"
+        assert "clear machine.ami_id" in result["detail"]
 
     @patch("lablink_cli.commands.setup._get_session")
     def test_existing_ami_passes(self, mock_session):
