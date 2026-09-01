@@ -2,12 +2,40 @@
 
 **Cloud-based virtual teaching lab accessible through Chrome browser.**
 
+Run a hands-on workshop without the install day. LabLink gives every participant
+their own cloud GPU desktop with your software already installed, reachable from a
+Chrome tab — no local install, no GPU on their laptop, no per-machine debugging.
+
 [![PyPI - lablink-allocator-service](https://img.shields.io/pypi/v/lablink-allocator-service?label=allocator)](https://pypi.org/project/lablink-allocator-service/)
 [![PyPI - lablink-client-service](https://img.shields.io/pypi/v/lablink-client-service?label=client)](https://pypi.org/project/lablink-client-service/)
 [![PyPI - lablink-cli](https://img.shields.io/pypi/v/lablink-cli?label=cli)](https://pypi.org/project/lablink-cli/)
 [![CI](https://img.shields.io/github/actions/workflow/status/talmolab/lablink/ci.yml?event=pull_request&label=CI)](https://github.com/talmolab/lablink/actions/workflows/ci.yml)
 [![Documentation](https://img.shields.io/badge/docs-latest-blue)](https://talmolab.github.io/lablink/)
 [![License](https://img.shields.io/github/license/talmolab/lablink)](LICENSE)
+
+[![LabLink admin dashboard showing 30 healthy participant VMs](docs/assets/images/admin-panel-overview.png)](https://talmolab.github.io/lablink/workshop-guide/)
+
+<sub>The admin dashboard: every participant VM, its health, and a one-click desktop link. See the [Workshop Guide](https://talmolab.github.io/lablink/workshop-guide/).</sub>
+
+---
+
+## 🧭 How It Works
+
+```mermaid
+flowchart LR
+    You["You<br/>lablink CLI"] -->|deploy| Alloc
+    subgraph Cloud["Your cloud account"]
+        Alloc["Allocator<br/>web UI · API · Postgres"]
+        Alloc -->|provisions| VM1["Client VM 1"]
+        Alloc -->|provisions| VMN["Client VM N"]
+    end
+    P["Participants<br/>Chrome"] -->|claim a seat| Alloc
+    P -.->|KasmVNC desktop| VM1
+```
+
+You deploy one **allocator** into your own cloud account. It provisions **client VMs**
+— one per participant — and hands each person a browser desktop when they claim a
+seat. Full detail: [Architecture](https://talmolab.github.io/lablink/architecture/).
 
 ---
 
@@ -83,11 +111,24 @@ See [Docker Image Tags](https://talmolab.github.io/lablink/workflows/#image-tagg
 |           | **Path A — CLI (recommended)**        | **Path B — Template fork**                                            |
 | --------- | ------------------------------------- | --------------------------------------------------------------------- |
 | Install   | `uv tool install lablink-cli`         | Fork [lablink-template](https://github.com/talmolab/lablink-template) |
-| Configure | Interactive TUI (`lablink configure`) | Edit `lablink.yaml` by hand                                           |
+| Configure | Interactive TUI (`lablink configure`) | Edit `config/config.yaml` by hand                                     |
 | Deploy    | `lablink deploy`                      | `terraform apply`                                                     |
 | Best for  | Most users                            | Custom Terraform workflows                                            |
 
+Either path ends at the same admin panel, where you create VMs before the session
+and share one link with the room:
+
+[![LabLink admin panel](docs/assets/images/admin-panel.png)](https://talmolab.github.io/lablink/workshop-guide/)
+
+**What your participants see:** they open the link, enter their email, and land in a
+full desktop with your software running — nothing to install.
+[Watch the 30-second demo](https://talmolab.github.io/lablink/#see-it-in-action).
+
 ### Using the CLI
+
+![lablink configure — the interactive setup wizard](docs/assets/images/cli-configure.gif)
+
+<sub>`lablink configure` walks the whole deployment: region, instance types, DNS &amp; SSL, then writes `~/.lablink/config.yaml`.</sub>
 
 ```bash
 # Install from PyPI (see docs/cli/installation.md)
@@ -126,6 +167,9 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Install all three packages into one shared venv at the repo root.
 uv sync --all-packages --extra dev
+
+# Run a package's tests (terraform tests need AWS credentials, so skip them locally)
+cd packages/allocator && PYTHONPATH=src uv run pytest --ignore=tests/terraform
 ```
 
 See the [Contributing Guide](https://talmolab.github.io/lablink/contributing/) for detailed development instructions.
@@ -190,15 +234,6 @@ We welcome contributions! Please see:
 - **[Contributing Guide](https://talmolab.github.io/lablink/contributing/)** - How to contribute
 - **[Developer Guide (CLAUDE.md)](CLAUDE.md)** - Developer-focused overview
 - **[Code of Conduct](https://talmolab.github.io/lablink/contributing/#code-of-conduct)** - Community guidelines
-
-### Quick Contributing Workflow
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/my-feature`
-3. Make changes and add tests
-4. Run tests: `cd packages/allocator && uv run pytest`
-5. Commit: `git commit -m "feat: add my feature"`
-6. Push and open a Pull Request
 
 ---
 
