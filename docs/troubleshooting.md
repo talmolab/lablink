@@ -407,6 +407,46 @@ lablink client doctor   # on a BYO client box: registration, container, log ship
 
     `lablink doctor` under the `manual` provider checks the Docker side for you.
 
+## Custom client images
+
+Symptoms specific to running your own research image instead of the default —
+see [Adapting for Your Software](adapting.md).
+
+??? note "The client container never starts on a fresh VM"
+    ```bash
+    ssh -i ~/lablink-key.pem ubuntu@<client-vm-ip>
+    sudo docker ps -a                    # did it exit, or was it never created?
+    sudo docker logs <client-container>
+    ```
+
+    An image that exits immediately is almost always a missing dependency or a
+    broken entrypoint — reproduce it locally with the same command before
+    blaming the deployment:
+
+    ```bash
+    docker run --rm -it your-image:tag bash
+    ```
+
+    If the container was never created, the failure is earlier than your image:
+    read `sudo cat /var/log/cloud-init-output.log` for the pull, and confirm the
+    tag in `machine.image` exists and is publicly readable (private registries
+    need credentials baked into the AMI).
+
+??? note "`machine.repository` isn't cloned onto the desktop"
+    Check the URL, that the repository is public (LabLink clones over HTTPS with
+    no credentials), and that the VM has outbound network access. The clone runs
+    at startup, so its output is in the client container logs.
+
+??? note "Your software isn't found inside the session"
+    The desktop session doesn't inherit the Dockerfile's build-time shell. Set
+    `PATH` (and any activation, e.g. a virtualenv) via `ENV` in the image rather
+    than in `~/.bashrc` or a `RUN` line, then verify from inside the running
+    container:
+
+    ```bash
+    sudo docker exec <client-container> which your-software
+    ```
+
 ## Inside the allocator
 
 ??? note "Cannot connect to PostgreSQL"

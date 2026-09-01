@@ -390,41 +390,6 @@ if __name__ == "__main__":
     main()
 ```
 
-## Troubleshooting
-
-### Image Won't Start
-
-**Check**:
-```bash
-docker logs <container>
-```
-
-**Common issues**:
-- Missing dependencies
-- Incorrect entrypoint
-- Permission errors
-
-### Repository Clone Fails
-
-**Check**:
-- Repository URL is correct
-- Repository is public (or SSH keys configured)
-- Network connectivity from VM
-
-### Software Not Found
-
-**Check**:
-- Software installed in Docker image
-- PATH environment variable set correctly
-- Dependencies installed
-
-### Performance Issues
-
-**Check**:
-- Instance type appropriate for workload
-- GPU drivers installed (for GPU instances)
-- Sufficient disk space
-
 ## Best Practices
 
 1. **Test locally first**: Always test Docker images locally before AWS deployment
@@ -444,6 +409,6 @@ docker logs <container>
 
 ## Need Help?
 
-- Check [Troubleshooting](troubleshooting.md) for common issues
+- Check [Troubleshooting](troubleshooting.md#custom-client-images) for problems specific to custom images
 - Review [example configurations](https://github.com/talmolab/lablink/tree/main/examples) (if available)
 - Open an [issue on GitHub](https://github.com/talmolab/lablink/issues)
