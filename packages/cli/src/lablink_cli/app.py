@@ -258,19 +258,19 @@ def deploy(
         None,
         "--tailscale-authkey",
         help="Tailscale auth key for the allocator's own tailnet sidecar. "
-        "Required on the first deploy when manual.connectivity is "
+        "Needed on the first deploy when manual.connectivity is "
         "'mesh_overlay' and/or manual.participant_exposure is "
-        "'tailscale_funnel'; optional on redeploys (the previous value is "
-        "carried forward). Manual provider only.",
+        "'tailscale_funnel' (prompted if omitted); optional on redeploys "
+        "(the previous value is carried forward). Manual provider only.",
     ),
     cloudflare_tunnel_token: str = typer.Option(
         None,
         "--cloudflare-tunnel-token",
         help="Cloudflare Tunnel token for publishing the allocator at "
-        "manual.public_hostname. Required on the first deploy when "
-        "manual.participant_exposure is 'cloudflare_tunnel'; optional on "
-        "redeploys (the previous value is carried forward). Supply it again "
-        "to rotate. Manual provider only.",
+        "manual.public_hostname. Needed on the first deploy when "
+        "manual.participant_exposure is 'cloudflare_tunnel' (prompted if "
+        "omitted); optional on redeploys (the previous value is carried "
+        "forward). Supply it again to rotate. Manual provider only.",
     ),
     render_only: bool = typer.Option(
         False,

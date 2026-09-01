@@ -171,12 +171,13 @@ the container only.
 | `--template-version V` | Override the pinned template version (e.g. `v0.2.0`). Skips checksum verification. **AWS provider only.** |
 | `--terraform-bundle PATH` | Path to a local template tarball for offline deploys. **AWS provider only.** |
 | `-y`, `--yes` | Skip confirmation prompts. Does not bypass credential prompts (the admin password is still required interactively). |
-| `--tailscale-authkey KEY` | Auth key for the allocator's own tailnet sidecar. Required on the **first** deploy when `manual.connectivity` is `mesh_overlay` and/or `manual.participant_exposure` is `tailscale_funnel`; optional on redeploys (the previous value is carried forward from the deployment's `.env`). **Manual provider only.** |
-| `--cloudflare-tunnel-token TOKEN` | Token for publishing the allocator at `manual.public_hostname`. Required on the first deploy when `manual.participant_exposure` is `cloudflare_tunnel`; optional on redeploys. Supply it again to rotate. **Manual provider only.** |
+| `--tailscale-authkey KEY` | Auth key for the allocator's own tailnet sidecar. Needed on the **first** deploy when `manual.connectivity` is `mesh_overlay` and/or `manual.participant_exposure` is `tailscale_funnel` — **prompted for (hidden) if omitted**, so the key never lands in your shell history. Optional on redeploys (the previous value is carried forward from the deployment's `.env`). **Manual provider only.** |
+| `--cloudflare-tunnel-token TOKEN` | Token for publishing the allocator at `manual.public_hostname`. Needed on the first deploy when `manual.participant_exposure` is `cloudflare_tunnel` — **prompted for (hidden) if omitted**. Optional on redeploys. Supply it again to rotate. **Manual provider only.** |
 | `--render-only` | Render the compose bundle and print a launch sheet instead of starting containers — for running the allocator image as a workload on an external container platform (Run:AI, Kubernetes) with no local Docker daemon. See [External Runtime](../cli/external-runtime.md). **Manual provider only.** |
 
-Secrets passed via `--tailscale-authkey` / `--cloudflare-tunnel-token` are written
-only to the deployment's `.env` (mode `0600`), never to `config.yaml`.
+Secrets passed via `--tailscale-authkey` / `--cloudflare-tunnel-token` — or typed
+at their prompts — are written only to the deployment's `.env` (mode `0600`),
+never to `config.yaml`.
 
 ---
 

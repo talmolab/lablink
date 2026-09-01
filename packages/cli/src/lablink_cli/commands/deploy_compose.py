@@ -89,6 +89,27 @@ def _read_env_value(env_path: Path, key: str) -> str | None:
     return None
 
 
+def _prompt_secret(label: str, hint: str) -> str:
+    """Prompt for a credential the deploy needs but was not given a flag for.
+
+    Typer's own `prompt=` on the flag would fire on every deploy that omits
+    it, including AWS ones that never want the value. The two callers below
+    already know the credential is required, so the prompt lives there.
+
+    getpass keeps the value off the terminal (and out of a `vhs` recording),
+    matching how the admin password is collected in `deploy.py`.
+    """
+    import getpass
+
+    console.print(hint)
+    value = getpass.getpass(f"  {label}: ").strip()
+    if not value:
+        console.print(f"[red]A {label.lower()} is required.[/red]")
+        raise SystemExit(1)
+    console.print()
+    return value
+
+
 def _needs_tailscale_sidecar(cfg: Config) -> bool:
     """True if a tailnet join is needed for either of two independent
     reasons: reaching mesh-overlay clients, or publishing the allocator
@@ -303,8 +324,8 @@ def run_deploy_compose(
     (Run:AI, Kubernetes) instead of via `docker compose up`. Rejected
     up front when the config needs the Tailscale sidecar, which such
     platforms do not grant kernel TUN/NET_ADMIN access for.
-    `tailscale_authkey` is required when a tailnet join is needed for
-    either `cfg.manual.connectivity == "mesh_overlay"` or
+    `tailscale_authkey` is prompted for (hidden) when a tailnet join is
+    needed for either `cfg.manual.connectivity == "mesh_overlay"` or
     `cfg.manual.participant_exposure == "tailscale_funnel"`, unless a
     value is already on record in this deployment's existing `.env`
     (carried forward on ordinary redeploys by `render_compose_dir`) or
@@ -313,7 +334,7 @@ def run_deploy_compose(
     `lablink destroy`, which wipes the working directory — including
     `.env` — but keeps that volume specifically so this doesn't force a
     needless re-auth).
-    `cloudflare_tunnel_token` is required when
+    `cloudflare_tunnel_token` is prompted for (hidden) when
     `cfg.manual.participant_exposure == "cloudflare_tunnel"`, unless a
     value is already on record in this deployment's existing `.env`. There
     is no state-volume equivalent here: the tunnel's identity lives in
@@ -350,24 +371,22 @@ def run_deploy_compose(
         # enough: a redeploy that *switches* to needing the sidecar has
         # an existing .env, but that .env has no TS_AUTHKEY line to carry
         # forward. Read the actual prior value (if any) so that case
-        # still requires --tailscale-authkey instead of silently
-        # rendering an empty key.
+        # still prompts instead of silently rendering an empty key.
         previous_authkey = _read_env_value(target / ".env", "TS_AUTHKEY")
         if (
             not tailscale_authkey
             and not previous_authkey
             and not _tailscale_state_volume_exists(target, docker=docker)
         ):
-            console.print(
-                "[red]A Tailscale sidecar is needed (manual.connectivity "
-                "is 'mesh_overlay' and/or manual.participant_exposure is "
-                "'tailscale_funnel') but no --tailscale-authkey was given, "
-                "and no previous value is on record for this "
-                "deployment.[/red]\n"
-                "Generate an authkey from your Tailscale admin console "
-                "and re-run with --tailscale-authkey <key>."
+            tailscale_authkey = _prompt_secret(
+                "Tailscale authkey",
+                "A Tailscale sidecar is needed (manual.connectivity is "
+                "'mesh_overlay' and/or manual.participant_exposure is "
+                "'tailscale_funnel') and no authkey is on record for this "
+                "deployment.\n"
+                "Generate one from your Tailscale admin console "
+                "(Settings > Keys).",
             )
-            raise SystemExit(1)
 
     # Preflight: cloudflare_tunnel needs a hostname and a token. The
     # hostname is also checked by get_config_errors(), but `lablink deploy`
@@ -403,16 +422,14 @@ def run_deploy_compose(
             raise SystemExit(1)
         previous_cf_token = _read_env_value(target / ".env", "CLOUDFLARE_TUNNEL_TOKEN")
         if not cloudflare_tunnel_token and not previous_cf_token:
-            console.print(
-                "[red]manual.participant_exposure is 'cloudflare_tunnel' but "
-                "no --cloudflare-tunnel-token was given, and no previous "
-                "value is on record for this deployment.[/red]\n"
+            cloudflare_tunnel_token = _prompt_secret(
+                "Cloudflare tunnel token",
+                "manual.participant_exposure is 'cloudflare_tunnel' and no "
+                "token is on record for this deployment.\n"
                 "Create a tunnel in Cloudflare's Zero Trust dashboard "
-                "(Networks > Tunnels), copy the token from its Docker "
-                "install command, and re-run with "
-                "--cloudflare-tunnel-token <token>."
+                "(Networks > Tunnels) and copy the token from its Docker "
+                "install command.",
             )
-            raise SystemExit(1)
 
     # Preflight: SSL provider must be one the compose template supports.
     # The allocator image has no TLS terminator, so only ssl=none works
