@@ -63,10 +63,6 @@ plugins:
             filters:
               - "!^_"
   - autorefs
-  - mike:
-      alias_type: symlink
-      canonical_version: latest
-      version_selector: true
 
 markdown_extensions:
   - admonition
@@ -131,8 +127,6 @@ nav:
   - Reference: reference/
 
 extra:
-  version:
-    provider: mike
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/talmolab/lablink
