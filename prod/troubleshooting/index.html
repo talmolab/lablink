@@ -1301,6 +1301,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#custom-client-images" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Custom client images
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#inside-the-allocator" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4606,6 +4617,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#custom-client-images" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Custom client images
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#inside-the-allocator" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -5026,51 +5048,85 @@ comes back, but anything running in the session meanwhile was frozen.</p>
 </code></pre></div>
 <p><code>lablink doctor</code> under the <code>manual</code> provider checks the Docker side for you.</p>
 </details>
+<h2 id="custom-client-images">Custom client images<a class="headerlink" href="#custom-client-images" title="Permanent link">&para;</a></h2>
+<p>Symptoms specific to running your own research image instead of the default —
+see <a href="../adapting/">Adapting for Your Software</a>.</p>
+<details class="note">
+<summary>The client container never starts on a fresh VM</summary>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;client-vm-ip&gt;
+<a id="__codelineno-30-2" name="__codelineno-30-2" href="#__codelineno-30-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span>ps<span class="w"> </span>-a<span class="w">                    </span><span class="c1"># did it exit, or was it never created?</span>
+<a id="__codelineno-30-3" name="__codelineno-30-3" href="#__codelineno-30-3"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>&lt;client-container&gt;
+</code></pre></div>
+<p>An image that exits immediately is almost always a missing dependency or a
+broken entrypoint — reproduce it locally with the same command before
+blaming the deployment:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>-it<span class="w"> </span>your-image:tag<span class="w"> </span>bash
+</code></pre></div>
+<p>If the container was never created, the failure is earlier than your image:
+read <code>sudo cat /var/log/cloud-init-output.log</code> for the pull, and confirm the
+tag in <code>machine.image</code> exists and is publicly readable (private registries
+need credentials baked into the AMI).</p>
+</details>
+<details class="note">
+<summary><code>machine.repository</code> isn't cloned onto the desktop</summary>
+<p>Check the URL, that the repository is public (LabLink clones over HTTPS with
+no credentials), and that the VM has outbound network access. The clone runs
+at startup, so its output is in the client container logs.</p>
+</details>
+<details class="note">
+<summary>Your software isn't found inside the session</summary>
+<p>The desktop session doesn't inherit the Dockerfile's build-time shell. Set
+<code>PATH</code> (and any activation, e.g. a virtualenv) via <code>ENV</code> in the image rather
+than in <code>~/.bashrc</code> or a <code>RUN</code> line, then verify from inside the running
+container:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;client-container&gt;<span class="w"> </span>which<span class="w"> </span>your-software
+</code></pre></div>
+</details>
 <h2 id="inside-the-allocator">Inside the allocator<a class="headerlink" href="#inside-the-allocator" title="Permanent link">&para;</a></h2>
 <details class="note">
 <summary>Cannot connect to PostgreSQL</summary>
 <p><code>psycopg2.OperationalError: could not connect to server</code>. The container's <code>start.sh</code> starts Postgres and blocks on <code>pg_isready</code> before Flask boots, so a refused connection normally means the cluster died rather than that it was never started.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container&gt;<span class="w"> </span>pg_isready<span class="w"> </span>-U<span class="w"> </span>lablink
-<a id="__codelineno-30-2" name="__codelineno-30-2" href="#__codelineno-30-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container&gt;<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="s2">"SELECT 1;"</span>
-<a id="__codelineno-30-3" name="__codelineno-30-3" href="#__codelineno-30-3"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container&gt;<span class="w"> </span>tail<span class="w"> </span>-f<span class="w"> </span>/var/log/postgresql/postgresql-*-main.log
+<div class="highlight"><pre><span></span><code><a id="__codelineno-33-1" name="__codelineno-33-1" href="#__codelineno-33-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container&gt;<span class="w"> </span>pg_isready<span class="w"> </span>-U<span class="w"> </span>lablink
+<a id="__codelineno-33-2" name="__codelineno-33-2" href="#__codelineno-33-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container&gt;<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="s2">"SELECT 1;"</span>
+<a id="__codelineno-33-3" name="__codelineno-33-3" href="#__codelineno-33-3"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container&gt;<span class="w"> </span>tail<span class="w"> </span>-f<span class="w"> </span>/var/log/postgresql/postgresql-*-main.log
 </code></pre></div>
 <p>To restart the cluster in place:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>&lt;container&gt;<span class="w"> </span>pg_ctlcluster<span class="w"> </span><span class="m">17</span><span class="w"> </span>main<span class="w"> </span>restart
+<div class="highlight"><pre><span></span><code><a id="__codelineno-34-1" name="__codelineno-34-1" href="#__codelineno-34-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>&lt;container&gt;<span class="w"> </span>pg_ctlcluster<span class="w"> </span><span class="m">17</span><span class="w"> </span>main<span class="w"> </span>restart
 </code></pre></div>
 </details>
 <details class="note">
 <summary>Running out of database connections</summary>
 <p>The allocator reports its own connection usage — check <code>/admin</code> (a line under the title) or hit the endpoint directly:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a>curl<span class="w"> </span>-u<span class="w"> </span>admin:&lt;password&gt;<span class="w"> </span>http://&lt;allocator&gt;:5000/api/health/connections
+<div class="highlight"><pre><span></span><code><a id="__codelineno-35-1" name="__codelineno-35-1" href="#__codelineno-35-1"></a>curl<span class="w"> </span>-u<span class="w"> </span>admin:&lt;password&gt;<span class="w"> </span>http://&lt;allocator&gt;:5000/api/health/connections
 </code></pre></div>
 <p>At the critical level, new connections can be refused, which fails VM registration and admin actions. Raise Postgres <code>max_connections</code> and <code>LABLINK_DB_POOL_MAX_SIZE</code> together, and check for connections stuck idle in transaction.</p>
 </details>
 <details class="note">
 <summary>Container runs but Flask doesn't start</summary>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-33-1" name="__codelineno-33-1" href="#__codelineno-33-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>&lt;container&gt;<span class="w">          </span><span class="c1"># port in use, import error, bad config?</span>
-<a id="__codelineno-33-2" name="__codelineno-33-2" href="#__codelineno-33-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container&gt;<span class="w"> </span>cat<span class="w"> </span>/app/config/config.yaml
-<a id="__codelineno-33-3" name="__codelineno-33-3" href="#__codelineno-33-3"></a>sudo<span class="w"> </span>netstat<span class="w"> </span>-tulpn<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="m">5000</span>
-<a id="__codelineno-33-4" name="__codelineno-33-4" href="#__codelineno-33-4"></a>sudo<span class="w"> </span>docker<span class="w"> </span>restart<span class="w"> </span>&lt;container&gt;
+<div class="highlight"><pre><span></span><code><a id="__codelineno-36-1" name="__codelineno-36-1" href="#__codelineno-36-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>&lt;container&gt;<span class="w">          </span><span class="c1"># port in use, import error, bad config?</span>
+<a id="__codelineno-36-2" name="__codelineno-36-2" href="#__codelineno-36-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container&gt;<span class="w"> </span>cat<span class="w"> </span>/app/config/config.yaml
+<a id="__codelineno-36-3" name="__codelineno-36-3" href="#__codelineno-36-3"></a>sudo<span class="w"> </span>netstat<span class="w"> </span>-tulpn<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="m">5000</span>
+<a id="__codelineno-36-4" name="__codelineno-36-4" href="#__codelineno-36-4"></a>sudo<span class="w"> </span>docker<span class="w"> </span>restart<span class="w"> </span>&lt;container&gt;
 </code></pre></div>
 <p>A config that fails schema validation stops the app before it serves anything — the log names the offending key.</p>
 </details>
 <h2 id="diagnostic-commands">Diagnostic commands<a class="headerlink" href="#diagnostic-commands" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-34-1" name="__codelineno-34-1" href="#__codelineno-34-1"></a><span class="c1"># Host health</span>
-<a id="__codelineno-34-2" name="__codelineno-34-2" href="#__codelineno-34-2"></a>df<span class="w"> </span>-h<span class="p">;</span><span class="w"> </span>free<span class="w"> </span>-h<span class="p">;</span><span class="w"> </span>top
-<a id="__codelineno-34-3" name="__codelineno-34-3" href="#__codelineno-34-3"></a>sudo<span class="w"> </span>docker<span class="w"> </span>ps<span class="w"> </span>-a
-<a id="__codelineno-34-4" name="__codelineno-34-4" href="#__codelineno-34-4"></a>sudo<span class="w"> </span>docker<span class="w"> </span>stats
-<a id="__codelineno-34-5" name="__codelineno-34-5" href="#__codelineno-34-5"></a>sudo<span class="w"> </span>netstat<span class="w"> </span>-tulpn
-<a id="__codelineno-34-6" name="__codelineno-34-6" href="#__codelineno-34-6"></a>
-<a id="__codelineno-34-7" name="__codelineno-34-7" href="#__codelineno-34-7"></a><span class="c1"># Allocator</span>
-<a id="__codelineno-34-8" name="__codelineno-34-8" href="#__codelineno-34-8"></a>curl<span class="w"> </span>localhost:5000/api/health
-<a id="__codelineno-34-9" name="__codelineno-34-9" href="#__codelineno-34-9"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>-f<span class="w"> </span>&lt;allocator-container&gt;
-<a id="__codelineno-34-10" name="__codelineno-34-10" href="#__codelineno-34-10"></a>
-<a id="__codelineno-34-11" name="__codelineno-34-11" href="#__codelineno-34-11"></a><span class="c1"># Database</span>
-<a id="__codelineno-34-12" name="__codelineno-34-12" href="#__codelineno-34-12"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container&gt;<span class="w"> </span>pg_isready<span class="w"> </span>-U<span class="w"> </span>lablink
-<a id="__codelineno-34-13" name="__codelineno-34-13" href="#__codelineno-34-13"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container&gt;<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="s2">"SELECT hostname, status, inuse FROM vms;"</span>
-<a id="__codelineno-34-14" name="__codelineno-34-14" href="#__codelineno-34-14"></a>
-<a id="__codelineno-34-15" name="__codelineno-34-15" href="#__codelineno-34-15"></a><span class="c1"># AWS reachability from inside the container</span>
-<a id="__codelineno-34-16" name="__codelineno-34-16" href="#__codelineno-34-16"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container&gt;<span class="w"> </span>aws<span class="w"> </span>sts<span class="w"> </span>get-caller-identity
+<div class="highlight"><pre><span></span><code><a id="__codelineno-37-1" name="__codelineno-37-1" href="#__codelineno-37-1"></a><span class="c1"># Host health</span>
+<a id="__codelineno-37-2" name="__codelineno-37-2" href="#__codelineno-37-2"></a>df<span class="w"> </span>-h<span class="p">;</span><span class="w"> </span>free<span class="w"> </span>-h<span class="p">;</span><span class="w"> </span>top
+<a id="__codelineno-37-3" name="__codelineno-37-3" href="#__codelineno-37-3"></a>sudo<span class="w"> </span>docker<span class="w"> </span>ps<span class="w"> </span>-a
+<a id="__codelineno-37-4" name="__codelineno-37-4" href="#__codelineno-37-4"></a>sudo<span class="w"> </span>docker<span class="w"> </span>stats
+<a id="__codelineno-37-5" name="__codelineno-37-5" href="#__codelineno-37-5"></a>sudo<span class="w"> </span>netstat<span class="w"> </span>-tulpn
+<a id="__codelineno-37-6" name="__codelineno-37-6" href="#__codelineno-37-6"></a>
+<a id="__codelineno-37-7" name="__codelineno-37-7" href="#__codelineno-37-7"></a><span class="c1"># Allocator</span>
+<a id="__codelineno-37-8" name="__codelineno-37-8" href="#__codelineno-37-8"></a>curl<span class="w"> </span>localhost:5000/api/health
+<a id="__codelineno-37-9" name="__codelineno-37-9" href="#__codelineno-37-9"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>-f<span class="w"> </span>&lt;allocator-container&gt;
+<a id="__codelineno-37-10" name="__codelineno-37-10" href="#__codelineno-37-10"></a>
+<a id="__codelineno-37-11" name="__codelineno-37-11" href="#__codelineno-37-11"></a><span class="c1"># Database</span>
+<a id="__codelineno-37-12" name="__codelineno-37-12" href="#__codelineno-37-12"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container&gt;<span class="w"> </span>pg_isready<span class="w"> </span>-U<span class="w"> </span>lablink
+<a id="__codelineno-37-13" name="__codelineno-37-13" href="#__codelineno-37-13"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container&gt;<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="s2">"SELECT hostname, status, inuse FROM vms;"</span>
+<a id="__codelineno-37-14" name="__codelineno-37-14" href="#__codelineno-37-14"></a>
+<a id="__codelineno-37-15" name="__codelineno-37-15" href="#__codelineno-37-15"></a><span class="c1"># AWS reachability from inside the container</span>
+<a id="__codelineno-37-16" name="__codelineno-37-16" href="#__codelineno-37-16"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container&gt;<span class="w"> </span>aws<span class="w"> </span>sts<span class="w"> </span>get-caller-identity
 </code></pre></div>
 <h2 id="before-you-ask-for-help">Before you ask for help<a class="headerlink" href="#before-you-ask-for-help" title="Permanent link">&para;</a></h2>
 <ul class="task-list">

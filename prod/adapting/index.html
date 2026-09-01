@@ -1361,67 +1361,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#troubleshooting" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Troubleshooting
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Troubleshooting">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#image-wont-start" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Image Won't Start
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#repository-clone-fails" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Repository Clone Fails
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#software-not-found" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Software Not Found
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#performance-issues" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Performance Issues
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#best-practices" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -5112,67 +5051,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#troubleshooting" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Troubleshooting
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Troubleshooting">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#image-wont-start" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Image Won't Start
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#repository-clone-fails" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Repository Clone Fails
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#software-not-found" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Software Not Found
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#performance-issues" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Performance Issues
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#best-practices" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -5545,30 +5423,6 @@ path. A private image fails at pull time.</p>
 <a id="__codelineno-15-21" name="__codelineno-15-21" href="#__codelineno-15-21"></a><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">"__main__"</span><span class="p">:</span>
 <a id="__codelineno-15-22" name="__codelineno-15-22" href="#__codelineno-15-22"></a>    <span class="n">main</span><span class="p">()</span>
 </code></pre></div></p>
-<h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
-<h3 id="image-wont-start">Image Won't Start<a class="headerlink" href="#image-wont-start" title="Permanent link">&para;</a></h3>
-<p><strong>Check</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>docker<span class="w"> </span>logs<span class="w"> </span>&lt;container&gt;
-</code></pre></div></p>
-<p><strong>Common issues</strong>:
-- Missing dependencies
-- Incorrect entrypoint
-- Permission errors</p>
-<h3 id="repository-clone-fails">Repository Clone Fails<a class="headerlink" href="#repository-clone-fails" title="Permanent link">&para;</a></h3>
-<p><strong>Check</strong>:
-- Repository URL is correct
-- Repository is public (or SSH keys configured)
-- Network connectivity from VM</p>
-<h3 id="software-not-found">Software Not Found<a class="headerlink" href="#software-not-found" title="Permanent link">&para;</a></h3>
-<p><strong>Check</strong>:
-- Software installed in Docker image
-- PATH environment variable set correctly
-- Dependencies installed</p>
-<h3 id="performance-issues">Performance Issues<a class="headerlink" href="#performance-issues" title="Permanent link">&para;</a></h3>
-<p><strong>Check</strong>:
-- Instance type appropriate for workload
-- GPU drivers installed (for GPU instances)
-- Sufficient disk space</p>
 <h2 id="best-practices">Best Practices<a class="headerlink" href="#best-practices" title="Permanent link">&para;</a></h2>
 <ol>
 <li><strong>Test locally first</strong>: Always test Docker images locally before AWS deployment</li>
@@ -5588,7 +5442,7 @@ path. A private image fails at pull time.</p>
 </ul>
 <h2 id="need-help">Need Help?<a class="headerlink" href="#need-help" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Check <a href="../troubleshooting/">Troubleshooting</a> for common issues</li>
+<li>Check <a href="../troubleshooting/#custom-client-images">Troubleshooting</a> for problems specific to custom images</li>
 <li>Review <a href="https://github.com/talmolab/lablink/tree/main/examples">example configurations</a> (if available)</li>
 <li>Open an <a href="https://github.com/talmolab/lablink/issues">issue on GitHub</a></li>
 </ul>
