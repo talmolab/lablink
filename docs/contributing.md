@@ -28,12 +28,13 @@ This repo is a **uv workspace** — the three packages (`allocator`, `client`,
 flags:
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/lablink.git
+# With write access to talmolab/lablink:
+git clone https://github.com/talmolab/lablink.git
 cd lablink
 uv sync --all-packages --extra dev
 ```
 
-Without `--all-packages` the member packages are *uninstalled* from the venv and
+Without `--all-packages` the member packages are _uninstalled_ from the venv and
 entry-point tests fail; without `--extra dev` you get no pytest or ruff. A bare
 `uv sync` from inside a package directory re-resolves the same root venv and
 does not fix it.
@@ -49,8 +50,8 @@ ruff check packages/allocator packages/client packages/cli
 ```
 
 !!! warning "Two gotchas that silently mislead you"
-    Use `PYTHONPATH=src`, never `PYTHONPATH=.` — inside a git worktree, `.` can
-    resolve to another checkout's code, so you test the wrong tree.
+Use `PYTHONPATH=src`, never `PYTHONPATH=.` — inside a git worktree, `.` can
+resolve to another checkout's code, so you test the wrong tree.
 
     `--ignore=tests/terraform` skips tests that shell out to the `terraform`
     binary and need AWS credentials. They fail locally regardless of your
@@ -87,14 +88,27 @@ compatibility.
 
 ## Contribution workflow
 
-1. Fork, then branch: `feature/`, `fix/`, `docs/`, `refactor/`, or `test/` plus a short description.
-2. Make the change. Add tests for new behavior and regression tests for bug fixes.
-3. Run the tests and `ruff check` for every package you touched.
-4. Commit using [Conventional Commits](https://www.conventionalcommits.org/) — `<type>(<scope>): <description>`, where type is one of `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`:
+1. **Branch.** With write access, branch in `talmolab/lablink` directly — no fork
+   needed. Name the branch
+   `<your-name>/<type>-<description>`, where type is `feat`, `fix`, `docs`,
+   `refactor`, `test`, or `chore`:
+   ```bash
+   git checkout main && git pull origin main
+   git checkout -b yourname/fix-postgresql-connection
+   ```
+2. **Make the change.** Add tests for new behavior and regression tests for bug fixes.
+3. **Verify.** Run the tests and `ruff check` for every package you touched.
+4. **Commit** using [Conventional Commits](https://www.conventionalcommits.org/) —
+   `<type>(<scope>): <description>`:
    ```bash
    git commit -m "feat(allocator): add support for Spot Instances"
    ```
-5. Push to your fork and open a pull request against `main`.
+5. **Push and open a PR** against `main` — from your branch, or from your fork's
+   branch if you forked.
+   ```bash
+   git push -u origin yourname/fix-postgresql-connection
+   gh pr create --base main
+   ```
 
 ## Coding standards
 
