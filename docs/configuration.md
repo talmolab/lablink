@@ -2,8 +2,15 @@
 
 LabLink uses structured configuration files to customize behavior. This guide covers all configuration options and how to modify them.
 
-!!! info "Infrastructure Repository"
-    Configuration files are located in the [lablink-template](https://github.com/talmolab/lablink-template) repository under `lablink-infrastructure/config/config.yaml`. Clone the template repository to deploy LabLink infrastructure.
+!!! info "Where your `config.yaml` lives"
+    Both deployment paths read the same schema, from different places:
+
+    - **CLI** (`lablink deploy`): `~/.lablink/config.yaml`, created and edited by
+      `lablink configure`. This is the path the [CLI guide](cli/first-deployment.md) uses.
+    - **Template repo** (GitHub Actions): `lablink-infrastructure/config/config.yaml` in a
+      [lablink-template](https://github.com/talmolab/lablink-template) checkout.
+      `lablink configure --template` writes that one, with `PLACEHOLDER_*` passwords for the
+      deploy workflow to substitute from your `ADMIN_PASSWORD` / `DB_PASSWORD` secrets.
 
 ## Configuration Examples
 
@@ -49,28 +56,36 @@ LabLink uses [Hydra](https://hydra.cc/) for configuration management, which prov
 
 ### Allocator Configuration
 
-**Location**: `lablink-infrastructure/config/config.yaml`
+**Location**: `~/.lablink/config.yaml` (CLI) or `lablink-infrastructure/config/config.yaml` (template repo)
+
+Every key in the schema, with its default. Only `deployment_name` has no usable
+default — everything else can be omitted.
 
 ```yaml
+deployment_name: "lablink"      # required; prefixes every AWS resource name
+environment: "prod"             # dev | test | ci-test | prod
+provider: "aws"                 # aws | manual
+
 db:
-  password: "PLACEHOLDER_DB_PASSWORD"  # Injected from GitHub secret at deploy time
+  password: "lablink"
 
 machine:
   machine_type: "g4dn.xlarge"
-  image: "ghcr.io/talmolab/lablink-client-base-image:linux-amd64-test"
-  ami_id: "ami-0601752c11b394251"
-  repository: "https://github.com/talmolab/sleap-tutorial-data.git"
+  image: "ghcr.io/talmolab/lablink-client-base-image:latest"
+  ami_id: ""                    # empty -> AWS Deep Learning Base AMI for app.region
+  repository: null
   software: "sleap"
 
 app:
-  admin_user: "admin"
-  admin_password: "PLACEHOLDER_ADMIN_PASSWORD"  # Injected from GitHub secret at deploy time
+  admin_user: "MISSING"         # resolved at deploy time; see below
+  admin_password: "MISSING"
   region: "us-west-2"
+  admin_session_timeout_minutes: 30
 
 dns:
-  enabled: true
-  terraform_managed: false
-  domain: "dev.lablink.sleap.ai"
+  enabled: false
+  terraform_managed: true
+  domain: ""
   zone_id: ""
 
 eip:
@@ -78,11 +93,11 @@ eip:
 
 ssl:
   provider: "letsencrypt"
-  email: "admin@sleap.ai"
+  email: ""
   certificate_arn: ""
 
 allocator:
-  image_tag: "linux-amd64-latest-test"
+  image_tag: "linux-amd64-latest"
 
 bucket_name: "tf-state-lablink-allocator-bucket"
 
@@ -90,12 +105,31 @@ startup_script:
   enabled: false
   path: ""
   on_error: "continue"
+  max_attempts: 3
+  base_delay_seconds: 30
+  success_check: ""
 
+monitoring:
+  enabled: false
+  subject_window_patterns: []
+  process_allowlist: ["sleap-train", "sleap-track", "sleap-label"]
+  watch_dir: "/home/client/Desktop"
+  sample_interval_seconds: 2
+  push_interval_seconds: 60
+
+manual:                         # only read when provider: manual
+  connectivity: "lan_direct"
+  overlay_tailnet: ""
+  participant_exposure: "none"
+  public_hostname: ""
 ```
 
 ### Client Configuration
 
-**Location**: `packages/client/src/lablink_client/conf/config.yaml`
+**Location**: `packages/client/src/lablink_client_service/conf/config.yaml`
+
+Baked into the client image. Deployments do not normally edit it — the allocator
+passes `allocator.host`/`port` and the `machine.software` value to each VM at boot.
 
 ```yaml
 allocator:
@@ -104,9 +138,32 @@ allocator:
 
 client:
   software: "sleap"
+
+monitoring:      # mirrors the allocator's monitoring block; see below
+  enabled: false
 ```
 
 ## Configuration Reference
+
+### Deployment Identity (top-level)
+
+Three top-level keys identify the deployment. They are not nested under a section.
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `deployment_name` | string | `""` | **Required.** 3-32 characters, lowercase kebab-case. Prefixes every AWS resource name and scopes the OpenTofu state key (`<deployment_name>/<environment>/…`). |
+| `environment` | string | `prod` | One of `dev`, `test`, `ci-test`, `prod`. Suffixes resource names, so the same `deployment_name` can run several environments side by side. |
+| `provider` | string | `aws` | `aws` provisions client VMs as EC2 instances via OpenTofu. `manual` provisions nothing — you bring your own client machines and they self-register with `lablink client register`. See [Manual Provider Options](#manual-provider-options-manual). |
+
+Together they produce names like `sleap-lablink-allocator-prod`, so changing either
+key points a deploy at a **different** set of resources rather than updating the
+existing one.
+
+```yaml
+deployment_name: "sleap-lablink"
+environment: "prod"
+provider: "aws"
+```
 
 ### Database Options (`db`)
 
@@ -185,14 +242,19 @@ the client terraform pins it — so there is no storage cost difference between 
 You would also set this explicitly for a custom image with your own software baked in;
 it must still provide Docker, the NVIDIA driver and `nvidia-container-runtime`.
 
-**Find AMIs**:
+**Find AMIs**. This is the same lookup the default performs, so it shows you exactly
+which image a given region would get:
+
 ```bash
-aws ec2 describe-images \
-  --owners 099720109477 \
-  --filters "Name=name,Values=ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*" \
-  --query 'Images[*].[ImageId,Name,CreationDate]' \
-  --output table
+aws ec2 describe-images --region us-west-2 \
+  --owners amazon \
+  --filters "Name=name,Values=Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 24.04)*" \
+  --query 'sort_by(Images, &CreationDate)[-1].[ImageId,Name]' \
+  --output text
 ```
+
+A stock Canonical Ubuntu AMI will **not** work — it has no Docker, NVIDIA driver or
+`nvidia-container-runtime`, and the client boot script installs none of them.
 
 #### Repository
 
@@ -222,10 +284,21 @@ General application settings.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `admin_user` | string | `admin` | Admin username for web UI |
-| `admin_password` | string | `admin_password` | Admin password (override with `PLACEHOLDER_ADMIN_PASSWORD` or GitHub secret) |
+| `admin_user` | string | `MISSING` | Admin username for web UI |
+| `admin_password` | string | `MISSING` | Admin password for web UI |
 | `region` | string | `us-west-2` | AWS region for deployments |
 | `admin_session_timeout_minutes` | integer | `30` | Fixed duration cap for an admin's VNC troubleshooting session on an unassigned VM before it's force-released |
+
+`MISSING` is a sentinel, not a usable credential — the allocator refuses to start if
+it is still there at runtime. How it gets filled in depends on the path:
+
+- **CLI**: `lablink configure` never asks for credentials. `lablink deploy` resolves them
+  at deploy time from `config.yaml`, then from the previous deployment's rendered config,
+  then by prompting you, and writes the result into the deployment's own config.
+- **Template repo**: the committed config carries `PLACEHOLDER_ADMIN_PASSWORD` /
+  `PLACEHOLDER_DB_PASSWORD`, which the deploy workflow substitutes from your GitHub
+  secrets. A `PLACEHOLDER_*` value that reaches a *running* allocator means the
+  substitution never happened, and the allocator refuses to start for that too.
 
 !!! danger "Configure Passwords"
     Configure `ADMIN_PASSWORD` secret for GitHub Actions deployments, or manually replace the placeholder. See [Security](security.md#change-default-passwords).
@@ -494,6 +567,23 @@ Note that `overlay_tailnet` is required whenever a tailnet is involved on *eithe
 axis, so a `reverse_tunnel` deployment that publishes itself via
 `tailscale_funnel` still needs one; `reverse_tunnel` on its own does not.
 
+#### Manual validation rules
+
+Enforced by both `lablink-validate-config` and the `lablink` CLI:
+
+- `connectivity` must be `lan_direct`, `mesh_overlay` or `reverse_tunnel`
+- `participant_exposure` must be `none`, `tailscale_funnel` or `cloudflare_tunnel`
+- any `participant_exposure` other than `none` rules out `connectivity: lan_direct`
+- `overlay_tailnet` is required for `connectivity: mesh_overlay` or
+  `participant_exposure: tailscale_funnel`
+- `participant_exposure: cloudflare_tunnel` requires `public_hostname`, and it must be a
+  bare FQDN — no scheme, port, path or whitespace. `https://lab.example.org` is rejected
+  because it would be interpolated into `https://https://lab.example.org`.
+- `participant_exposure: tailscale_funnel` requires an `app.admin_password` that is at
+  least 12 characters and not a known example value. A Funnel-published hostname shows up
+  in Certificate Transparency logs within minutes and is scanned by bots almost
+  immediately, so a weak admin password stops being survivable the moment you publish.
+
 #### Exposure mode: `tailscale_funnel`
 
 Publishes the allocator at `<machine>.<tailnet>.ts.net` using the same Tailscale
@@ -586,21 +676,26 @@ Use the built-in validation CLI to check your config against the schema:
 lablink-validate-config lablink-infrastructure/config/config.yaml
 
 # Output on success:
-# ✓ Config validation passed
+# [PASS] Config validation passed
 
 # Output on error:
-# ✗ Config validation failed: Error merging config with schema
-#   Unknown keys found: ['unknown_section']
+# [FAIL] Config validation failed: Error merging config with schema
+#        Unknown key: 'unknown_section'
+#        This key is not defined in the Config schema
 ```
 
 The validator checks:
 
 - File exists and is named `config.yaml`
 - All keys match the structured config schema
-- Required fields are present
 - Type mismatches (strings vs integers, etc.)
 - Unknown configuration sections
+- `provider`, `manual.connectivity` and `manual.participant_exposure` are known values
 - DNS/SSL dependency rules (e.g., SSL requires DNS enabled)
+- Manual-provider rules (see [Manual Provider Options](#manual-provider-options-manual))
+
+It does **not** check `deployment_name` or `environment` — those are validated by the
+`lablink` CLI (`lablink configure`, `lablink deploy`), not by this tool.
 
 **Important**: The validator requires the filename to be `config.yaml` to enable Hydra's strict schema matching. Using a different filename will bypass schema validation.
 
@@ -621,9 +716,10 @@ python -c "import yaml; yaml.safe_load(open('lablink-infrastructure/config/confi
 ### Test Locally
 
 ```bash
-# Run allocator with custom config
-cd packages/allocator
-python src/lablink_allocator_service/main.py
+# Point the allocator at your config's directory and run it.
+# Without CONFIG_DIR it reads /config/config.yaml, then falls back to the
+# config bundled in the package.
+CONFIG_DIR=$PWD/lablink-infrastructure/config lablink-allocator
 ```
 
 ### OpenTofu Validation
@@ -655,8 +751,8 @@ Create environment-specific configs:
 **`config-cpu.yaml`** (for testing):
 ```yaml
 machine:
-  machine_type: "t2.medium"
-  ami_id: "ami-0c55b159cbfafe1f0"
+  machine_type: "t3.large"
+  ami_id: ""  # resolves a Deep Learning Base AMI for app.region
 ```
 
 **`config-gpu.yaml`** (for production):
@@ -720,6 +816,9 @@ Access the allocator via public IP address over HTTP. No domain or SSL required.
 # LabLink Configuration: IP-Only (No DNS, No SSL)
 # Access allocator via public IP address over HTTP
 
+deployment_name: "lablink"  # required; prefixes every AWS resource name
+environment: "prod"
+
 db:
   password: "PLACEHOLDER_DB_PASSWORD"
 
@@ -781,6 +880,9 @@ Use Caddy as a reverse proxy with automatic SSL. Three options depending on your
     ```yaml
     # LabLink Configuration: Route53 + Let's Encrypt (OpenTofu-managed DNS)
 
+    deployment_name: "lablink"  # required; prefixes every AWS resource name
+    environment: "prod"
+
     db:
       password: "PLACEHOLDER_DB_PASSWORD"
 
@@ -837,6 +939,9 @@ Use Caddy as a reverse proxy with automatic SSL. Three options depending on your
 
     ```yaml
     # LabLink Configuration: Route53 + Let's Encrypt (Manual DNS)
+
+    deployment_name: "lablink"  # required; prefixes every AWS resource name
+    environment: "prod"
 
     db:
       password: "PLACEHOLDER_DB_PASSWORD"
@@ -895,6 +1000,9 @@ Use Caddy as a reverse proxy with automatic SSL. Three options depending on your
     ```yaml
     # LabLink Configuration: CloudFlare DNS + SSL
 
+    deployment_name: "lablink"  # required; prefixes every AWS resource name
+    environment: "prod"
+
     db:
       password: "PLACEHOLDER_DB_PASSWORD"
 
@@ -952,6 +1060,9 @@ Use AWS Application Load Balancer with ACM-managed SSL certificates. Enterprise-
 
 ```yaml
 # LabLink Configuration: Route53 + ACM (AWS Certificate Manager)
+
+deployment_name: "lablink"  # required; prefixes every AWS resource name
+environment: "prod"
 
 db:
   password: "PLACEHOLDER_DB_PASSWORD"

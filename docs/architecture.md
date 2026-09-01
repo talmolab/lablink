@@ -515,7 +515,7 @@ sequenceDiagram
         Flask-->>Client: ACK
     end
 
-    Note over DB: Unhealthy VMs are picked up by the<br/>auto-reboot service; stale LastSeen<br/>marks the VM unreachable
+    Note over DB: Unhealthy VMs are picked up by the<br/>auto-reboot service. Stale LastSeen<br/>marks the VM unreachable
 ```
 
 Both endpoints authenticate with the per-client secret issued at
