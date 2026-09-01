@@ -240,6 +240,55 @@ def _check_s3_bucket(cfg) -> dict:
     return result
 
 
+# Mirrors data.aws_ami.default_client in the client terraform. Ubuntu 24.04 is pinned
+# there because 26.04 is published on the same dates, and this filter has to match or
+# doctor would verify a different image than the deployment uses.
+DEFAULT_CLIENT_AMI_FILTER = (
+    "Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 24.04)*"
+)
+
+
+def _check_default_client_ami(region: str, published: str | None) -> dict:
+    """Resolve the image an empty machine.ami_id would get, in *region*."""
+    result = {"check": "Client AMI", "status": "fail"}
+
+    try:
+        from lablink_cli.commands.setup import _get_session
+
+        images = (
+            _get_session(region)
+            .client("ec2")
+            .describe_images(
+                Owners=["amazon"],
+                Filters=[{"Name": "name", "Values": [DEFAULT_CLIENT_AMI_FILTER]}],
+            )["Images"]
+        )
+    except Exception as e:
+        result["status"] = "warn"
+        result["detail"] = (
+            f"machine.ami_id is empty (resolve automatically); could not verify a "
+            f"Deep Learning Base AMI in {region}: {e}"
+        )
+        return result
+
+    if images:
+        newest = max(images, key=lambda i: i["CreationDate"])
+        result["status"] = "pass"
+        result["detail"] = (
+            f"empty → {newest['ImageId']} ({newest['Name']}) in {region}"
+        )
+        return result
+
+    hint = f"set it to {published}" if published else (
+        f"set it to an image that exists in {region}"
+    )
+    result["detail"] = (
+        f"machine.ami_id is empty, but AWS publishes no Deep Learning Base AMI in "
+        f"{region} to fall back to — {hint}"
+    )
+    return result
+
+
 def _check_ami(cfg) -> dict:
     """Check that the configured client AMI exists in the configured region.
 
@@ -252,6 +301,11 @@ def _check_ami(cfg) -> dict:
     image actually exists is the whole point: a region absent from the table is fine
     if the operator copied an image into it, and a region present in the table is no
     guarantee that the ID in *their* config is right.
+
+    An empty machine.ami_id is not a missing value — it asks the client terraform to
+    resolve AWS's Deep Learning Base AMI for the deployment's region (see
+    data.aws_ami.default_client). So the empty case resolves the same image the
+    deployment would and reports which one, rather than reporting a gap.
     """
     result = {"check": "Client AMI", "status": "fail"}
 
@@ -267,15 +321,7 @@ def _check_ami(cfg) -> dict:
     published = AMI_MAP.get(region)
 
     if not ami_id:
-        if published:
-            result["detail"] = f"No machine.ami_id set. For {region}, use {published}"
-        else:
-            result["detail"] = (
-                f"No machine.ami_id set, and LabLink publishes no client image in "
-                f"{region}. Copy one from {', '.join(AMI_MAP)} into {region}, or use "
-                f"an AWS Deep Learning Base AMI"
-            )
-        return result
+        return _check_default_client_ami(region, published)
 
     try:
         from lablink_cli.commands.setup import _get_session
@@ -288,8 +334,9 @@ def _check_ami(cfg) -> dict:
                 hint = f"use {published}"
             else:
                 hint = (
-                    f"copy an image from {', '.join(AMI_MAP)} into {region}, or use "
-                    f"an AWS Deep Learning Base AMI"
+                    f"clear machine.ami_id to resolve a Deep Learning Base AMI for "
+                    f"{region} automatically, or copy an image from "
+                    f"{', '.join(AMI_MAP)} into {region}"
                 )
             result["detail"] = f"{ami_id} does not exist in {region} — {hint}"
         else:
