@@ -12,31 +12,19 @@ LabLink uses structured configuration files to customize behavior. This guide co
       `lablink configure --template` writes that one, with `PLACEHOLDER_*` passwords for the
       deploy workflow to substitute from your `ADMIN_PASSWORD` / `DB_PASSWORD` secrets.
 
-## Configuration Examples
+## Choosing a Configuration
 
-Complete, copy-paste-ready `config.yaml` files for common deployment scenarios.
+How you expose the allocator is the one decision that shapes the rest of the file.
+Everything else has a working default.
 
-!!! info "Source"
-    These examples are maintained in the [lablink-template](https://github.com/talmolab/lablink-template) repository under `lablink-infrastructure/config/`.
+| Scenario | SSL | DNS required | Rate limits | Extra cost |
+|----------|-----|--------------|-------------|------------|
+| [IP only](#ip-only) | None | No | None | None |
+| [Let's Encrypt](#lets-encrypt) | Auto via Caddy | Route53 | 5 certs/domain/week | None |
+| [CloudFlare](#cloudflare) | CloudFlare proxy | CloudFlare | None | None |
+| [ACM + ALB](#acm-alb) | AWS-managed | Route53 | None | ~$20/month |
 
-### Choosing a Configuration
-
-| Scenario | SSL | DNS Required | Rate Limits | Extra Cost | Complexity |
-|----------|-----|-------------|-------------|------------|------------|
-| [IP Only](#ip-only) | None | No | None | None | Simplest |
-| [Let's Encrypt (OpenTofu DNS)](#caddy-ssl) | Auto via Caddy | Route53 | 5 certs/domain/week | None | Medium |
-| [Let's Encrypt (Manual DNS)](#caddy-ssl) | Auto via Caddy | Route53 (manual) | 5 certs/domain/week | None | Medium |
-| [CloudFlare](#caddy-ssl) | CloudFlare proxy | CloudFlare | None | None | Medium |
-| [ACM + ALB](#alb-with-acm) | AWS-managed | Route53 | None | ~$20/month | Higher |
-
-**Quick decision guide:**
-
-- **No domain?** Use [IP Only](#ip-only)
-- **Have a domain + want free auto-SSL?** Use [Let's Encrypt](#caddy-ssl) (pick OpenTofu-managed vs manual DNS)
-- **Domain in CloudFlare?** Use [CloudFlare](#caddy-ssl)
-- **Want enterprise-grade load balancing?** Use [ACM + ALB](#alb-with-acm)
-
-See the [Configuration Examples](#full-configuration-examples) section at the end of this page for complete YAML files for each scenario.
+Ready-to-use YAML for each is in [Full Configuration Examples](#full-configuration-examples).
 
 ## First Steps: Change Default Passwords
 
@@ -45,12 +33,14 @@ See the [Configuration Examples](#full-configuration-examples) section at the en
 
 ## Configuration System
 
-LabLink uses [Hydra](https://hydra.cc/) for configuration management, which provides:
+Config is a single YAML file, validated against the dataclass schema in
+`conf/structured_config.py` via [Hydra](https://hydra.cc/). Unknown keys and wrong
+types are rejected at load time rather than surfacing later as a failed deploy.
 
-- **Structured configs**: Type-safe dataclass-based configuration
-- **Hierarchical composition**: Override specific values
-- **Environment variables**: Override via `ENV_VAR` syntax
-- **Command-line overrides**: Pass config values as arguments
+There are no per-value environment variable or command-line overrides — edit the
+file. Two environment variables move the *file itself*: `CONFIG_DIR` (default
+`/config`) and `CONFIG_NAME` (default `config.yaml`). If no file is found there,
+the allocator falls back to the copy bundled in the package.
 
 ## Configuration Files
 
@@ -58,71 +48,29 @@ LabLink uses [Hydra](https://hydra.cc/) for configuration management, which prov
 
 **Location**: `~/.lablink/config.yaml` (CLI) or `lablink-infrastructure/config/config.yaml` (template repo)
 
-Every key in the schema, with its default. Only `deployment_name` has no usable
-default — everything else can be omitted.
+The file has one required key and ten optional sections:
 
 ```yaml
-deployment_name: "lablink"      # required; prefixes every AWS resource name
-environment: "prod"             # dev | test | ci-test | prod
-provider: "aws"                 # aws | manual
+deployment_name: "lablink"   # required — see Deployment Identity below
+environment: "prod"
+provider: "aws"
 
-db:
-  password: "lablink"
-
-machine:
-  machine_type: "g4dn.xlarge"
-  image: "ghcr.io/talmolab/lablink-client-base-image:latest"
-  ami_id: ""                    # empty -> AWS Deep Learning Base AMI for app.region
-  repository: null
-  software: "sleap"
-
-app:
-  admin_user: "MISSING"         # resolved at deploy time; see below
-  admin_password: "MISSING"
-  region: "us-west-2"
-  admin_session_timeout_minutes: 30
-
-dns:
-  enabled: false
-  terraform_managed: true
-  domain: ""
-  zone_id: ""
-
-eip:
-  strategy: "dynamic"
-
-ssl:
-  provider: "letsencrypt"
-  email: ""
-  certificate_arn: ""
-
-allocator:
-  image_tag: "linux-amd64-latest"
-
-bucket_name: "tf-state-lablink-allocator-bucket"
-
-startup_script:
-  enabled: false
-  path: ""
-  on_error: "continue"
-  max_attempts: 3
-  base_delay_seconds: 30
-  success_check: ""
-
-monitoring:
-  enabled: false
-  subject_window_patterns: []
-  process_allowlist: ["sleap-train", "sleap-track", "sleap-label"]
-  watch_dir: "/home/client/Desktop"
-  sample_interval_seconds: 2
-  push_interval_seconds: 60
-
-manual:                         # only read when provider: manual
-  connectivity: "lan_direct"
-  overlay_tailnet: ""
-  participant_exposure: "none"
-  public_hostname: ""
+db: {...}                    # Postgres password
+app: {...}                   # admin credentials, AWS region
+machine: {...}               # client VM type, image, AMI, software
+dns: {...}                   # hostname for the allocator
+eip: {...}                   # Elastic IP strategy
+ssl: {...}                   # certificate management
+allocator: {...}             # allocator image tag
+startup_script: {...}        # optional per-VM setup script
+monitoring: {...}            # optional usage telemetry
+manual: {...}                # only read when provider: manual
+bucket_name: "..."           # S3 bucket for OpenTofu state
 ```
+
+Every key and its default is documented under
+[Configuration Reference](#configuration-reference) below. For a file you can copy
+as-is, see [Full Configuration Examples](#full-configuration-examples).
 
 ### Client Configuration
 
@@ -341,54 +289,26 @@ Controls HTTPS/SSL certificate management.
 - HTTPS with trusted certificates
 - Automatic HTTP → HTTPS redirects
 - Requires `dns.enabled: true` and a valid `ssl.email`
-- Rate limited (5 duplicate certificates per week per domain)
+- Rate limited: 5 duplicate certificates per domain per week, 50 certificates per
+  registered domain per week, 300 pending authorizations per account
 
 !!! warning "Redeploying the same domain hits the rate limit"
     Every deploy requests a fresh certificate. After 5 deploys of the same
     domain within 7 days, Let's Encrypt refuses issuance and the site fails
     in the browser with `ERR_SSL_PROTOCOL_ERROR` — there is no clearer error
     surfaced anywhere. For repeated test deploys, use a fresh subdomain each
-    cycle (e.g. `test2.lablink.example.com`), or wait out the 7-day window.
-
-Configuration example:
-```yaml
-dns:
-  enabled: true
-  domain: "lablink.example.com"
-ssl:
-  provider: "letsencrypt"
-  email: "admin@example.com"
-```
+    cycle (e.g. `test2.lablink.example.com`), wait out the 7-day window, or
+    use `provider: "none"`.
 
 **`cloudflare`** - CloudFlare proxy handles SSL
 
 - Requires CloudFlare DNS configuration
 - Requires `dns.enabled: true` and `dns.terraform_managed: false`
 
-Configuration example:
-```yaml
-dns:
-  enabled: true
-  terraform_managed: false
-  domain: "lablink.example.com"
-ssl:
-  provider: "cloudflare"
-```
-
 **`acm`** - AWS Certificate Manager
 
 - Uses AWS-managed SSL certificates with an Application Load Balancer
 - Requires `dns.enabled: true` and a valid `ssl.certificate_arn`
-
-Configuration example:
-```yaml
-dns:
-  enabled: true
-  domain: "lablink.example.com"
-ssl:
-  provider: "acm"
-  certificate_arn: "arn:aws:acm:us-west-2:123456789012:certificate/abc-123"
-```
 
 **`none`** - No SSL, HTTP only
 
@@ -407,12 +327,6 @@ ssl:
   and open `http://localhost:8080` — then retest in an incognito window,
   since the viewer caches its codec-detection result in `localStorage`.
 
-Configuration example:
-```yaml
-ssl:
-  provider: "none"
-```
-
 #### SSL Validation Rules
 
 The following rules are enforced during configuration validation:
@@ -421,33 +335,6 @@ The following rules are enforced during configuration validation:
 - `provider: "letsencrypt"` requires a non-empty `ssl.email`
 - `provider: "acm"` requires a non-empty `ssl.certificate_arn`
 - `provider: "cloudflare"` requires `dns.terraform_managed: false`
-
-#### Let's Encrypt Rate Limits
-
-When using `provider: "letsencrypt"`:
-
-- 50 certificates per domain per week
-- **5 duplicate certificates per week** (same hostnames)
-- 300 pending authorizations per account
-
-Use `provider: "none"` for frequent testing to avoid these limits.
-
-#### Browser Access
-
-**With `provider: "none"` (HTTP only):**
-
-1. Type `http://` explicitly in address bar (e.g., `http://test.lablink.sleap.ai`)
-2. Clear HSTS cache if you previously accessed via HTTPS
-3. Expect "Not Secure" warning (this is normal)
-
-Alternatives:
-- Use incognito/private browsing
-- Access via IP: `http://<allocator-ip>`
-- Use curl: `curl http://test.lablink.sleap.ai`
-
-**With SSL enabled (`letsencrypt`, `cloudflare`, or `acm`):**
-
-Access via `https://your-domain.com` - browser shows secure padlock.
 
 !!! warning "HTTP-only Security"
     `provider: "none"` serves unencrypted HTTP. Never use for production or sensitive data. See [Security](security.md#http-only-deployments-sslprovider-none).
@@ -706,137 +593,67 @@ It does **not** check `deployment_name` or `environment` — those are validated
 lablink-validate-config config/config.yaml && tofu apply || exit 1
 ```
 
-### Check Syntax
+### Running Against a Config Locally
+
+The allocator reads `$CONFIG_DIR/$CONFIG_NAME`, so point it at your file:
 
 ```bash
-# YAML syntax check
-python -c "import yaml; yaml.safe_load(open('lablink-infrastructure/config/config.yaml'))"
-```
-
-### Test Locally
-
-```bash
-# Point the allocator at your config's directory and run it.
-# Without CONFIG_DIR it reads /config/config.yaml, then falls back to the
-# config bundled in the package.
 CONFIG_DIR=$PWD/lablink-infrastructure/config lablink-allocator
 ```
 
-### OpenTofu Validation
-
-```bash
-cd lablink-infrastructure
-tofu validate
-tofu plan  # Preview changes
-```
-
-## Common Configuration Patterns
-
-### Use Your Own Research Software
-
-```yaml
-machine:
-  machine_type: "g4dn.2xlarge"
-  image: "ghcr.io/yourorg/your-research-image:latest"
-  repository: "https://github.com/yourorg/your-research-code.git"
-  software: "your-software-name"
-```
-
-See [Adapting LabLink](adapting.md) for complete guide.
-
-### Multiple GPU Types
-
-Create environment-specific configs:
-
-**`config-cpu.yaml`** (for testing):
-```yaml
-machine:
-  machine_type: "t3.large"
-  ami_id: ""  # resolves a Deep Learning Base AMI for app.region
-```
-
-**`config-gpu.yaml`** (for production):
-```yaml
-machine:
-  machine_type: "g5.xlarge"
-  ami_id: ""  # resolves a Deep Learning Base AMI for app.region
-```
-
-Use with Hydra:
-```bash
-python main.py --config-name=config-gpu
-```
-
-## Configuration Best Practices
-
-1. **Never commit secrets**: Use environment variables or AWS Secrets Manager
-2. **Pin versions in production**: Use specific image tags, not `:latest`
-3. **Document custom values**: Add comments explaining non-standard configurations
-4. **Test configuration changes**: Validate with `tofu plan` before applying
-5. **Use separate configs per environment**: Don't reuse dev configs in production
-
-## Troubleshooting Configuration
-
-### Config Not Loading
-
-Check file location and syntax:
-```bash
-python -c "import yaml; print(yaml.safe_load(open('conf/config.yaml')))"
-```
-
-### Environment Variables Not Working
-
-Verify export and check case sensitivity:
-```bash
-env | grep -i lablink
-echo $DB_PASSWORD
-```
-
-### OpenTofu Variables Not Applied
-
-Ensure `-var` flags are passed:
-```bash
-tofu plan -var="resource_suffix=prod"
-```
+For the OpenTofu side, `tofu validate` and `tofu plan` in the deployment
+directory preview what the config will actually build.
 
 ## Full Configuration Examples
 
-### IP Only
+Five scenarios, one base file. Everything outside `dns`, `eip` and `ssl` is
+identical in all of them, so start from the base and apply one overlay.
 
-Access the allocator via public IP address over HTTP. No domain or SSL required.
+### Base
 
-!!! tip "No rate limits"
-    This is the simplest setup and has no certificate issuance limits. Perfect for frequent testing and development.
-
-**Prerequisites:** None
-
-**Access URL:** `http://<ALLOCATOR_IP>:5000`
+Copy this, then replace the two `PLACEHOLDER_*` passwords and `bucket_name`.
+The `dns`/`eip`/`ssl` values come from whichever scenario you pick below.
 
 ```yaml
-# LabLink Configuration: IP-Only (No DNS, No SSL)
-# Access allocator via public IP address over HTTP
+# LabLink base configuration — combine with one scenario overlay below.
 
-deployment_name: "lablink"  # required; prefixes every AWS resource name
-environment: "prod"
+deployment_name: "lablink"        # required; prefixes every AWS resource name
+environment: "prod"               # dev | test | ci-test | prod
+provider: "aws"
 
 db:
   password: "PLACEHOLDER_DB_PASSWORD"
-
-machine:
-  machine_type: "g4dn.xlarge"
-  image: "ghcr.io/talmolab/lablink-client-base-image:linux-amd64-latest-test"
-  ami_id: "ami-0601752c11b394251"  # us-west-2
-  repository: "https://github.com/talmolab/sleap-tutorial-data.git"
-  software: "sleap"
-
-allocator:
-  image_tag: "linux-amd64-latest-test"
 
 app:
   admin_user: "admin"
   admin_password: "PLACEHOLDER_ADMIN_PASSWORD"
   region: "us-west-2"
 
+machine:
+  machine_type: "g4dn.xlarge"
+  image: "ghcr.io/talmolab/lablink-client-base-image:latest"
+  ami_id: ""                      # resolves a Deep Learning Base AMI for app.region
+  repository: "https://github.com/talmolab/sleap-tutorial-data.git"
+  software: "sleap"
+
+allocator:
+  image_tag: "linux-amd64-latest"
+
+bucket_name: "tf-state-lablink-YOURORG"
+
+startup_script:
+  enabled: false
+  path: ""
+  on_error: "continue"
+```
+
+### IP Only
+
+Reach the allocator at `http://<ALLOCATOR_IP>` over plain HTTP. No domain, no
+certificate, no issuance limits — the simplest setup, and the right one for
+repeated test deploys.
+
+```yaml
 dns:
   enabled: false
   terraform_managed: false
@@ -850,238 +667,74 @@ ssl:
   provider: "none"
   email: ""
   certificate_arn: ""
-
-startup_script:
-  enabled: false
-  path: "config/custom-startup.sh"
-  on_error: "continue"
-
-bucket_name: "tf-state-lablink-YOURORG"
 ```
 
-### Caddy SSL
+### Let's Encrypt
 
-Use Caddy as a reverse proxy with automatic SSL. Three options depending on your DNS provider and management preference.
+Caddy obtains and renews a certificate automatically. Access at
+`https://test.lablink.example.com`.
 
-=== "Let's Encrypt (OpenTofu DNS)"
+**Prerequisites:** a Route53 hosted zone for the domain, with the registrar's
+nameservers pointed at it.
 
-    Route53 DNS records managed automatically by OpenTofu. Caddy obtains Let's Encrypt certificates.
-
-    !!! warning "Rate limits"
-        Let's Encrypt allows **5 certificates per exact domain every 7 days**. Each `tofu apply` triggers a new certificate. For frequent testing, use [CloudFlare](#caddy-ssl) or [IP Only](#ip-only) instead.
-
-    **Prerequisites:**
-
-    - Route53 hosted zone created (e.g., `lablink.example.com`)
-    - Domain nameservers pointed to Route53
-
-    **Access URL:** `https://test.lablink.example.com`
-
-    ```yaml
-    # LabLink Configuration: Route53 + Let's Encrypt (OpenTofu-managed DNS)
-
-    deployment_name: "lablink"  # required; prefixes every AWS resource name
-    environment: "prod"
-
-    db:
-      password: "PLACEHOLDER_DB_PASSWORD"
-
-    machine:
-      machine_type: "g4dn.xlarge"
-      image: "ghcr.io/talmolab/lablink-client-base-image:linux-amd64-latest-test"
-      ami_id: "ami-0601752c11b394251"  # us-west-2
-      repository: "https://github.com/talmolab/sleap-tutorial-data.git"
-      software: "sleap"
-
-    allocator:
-      image_tag: "linux-amd64-latest-test"
-
-    app:
-      admin_user: "admin"
-      admin_password: "PLACEHOLDER_ADMIN_PASSWORD"
-      region: "us-west-2"
-
-    dns:
-      enabled: true
-      terraform_managed: true
-      domain: "test.lablink.example.com"
-      zone_id: ""
-
-    eip:
-      strategy: "persistent"
-
-    ssl:
-      provider: "letsencrypt"
-      email: "admin@example.com"
-      certificate_arn: ""
-
-    startup_script:
-      enabled: false
-      path: "config/custom-startup.sh"
-      on_error: "continue"
-
-    bucket_name: "tf-state-lablink-YOURORG"
-    ```
-
-=== "Let's Encrypt (Manual DNS)"
-
-    Route53 DNS with manually created A records. Useful when you don't want OpenTofu managing DNS records.
-
-    !!! warning "Rate limits"
-        Same Let's Encrypt rate limits apply. See the OpenTofu DNS tab for details.
-
-    **Prerequisites:**
-
-    - Route53 hosted zone created
-    - Manually create A record: `test.lablink.example.com` pointing to the allocator EIP
-
-    **Access URL:** `https://test.lablink.example.com`
-
-    ```yaml
-    # LabLink Configuration: Route53 + Let's Encrypt (Manual DNS)
-
-    deployment_name: "lablink"  # required; prefixes every AWS resource name
-    environment: "prod"
-
-    db:
-      password: "PLACEHOLDER_DB_PASSWORD"
-
-    machine:
-      machine_type: "g4dn.xlarge"
-      image: "ghcr.io/talmolab/lablink-client-base-image:linux-amd64-latest-test"
-      ami_id: "ami-0601752c11b394251"  # us-west-2
-      repository: "https://github.com/talmolab/sleap-tutorial-data.git"
-      software: "sleap"
-
-    allocator:
-      image_tag: "linux-amd64-latest-test"
-
-    app:
-      admin_user: "admin"
-      admin_password: "PLACEHOLDER_ADMIN_PASSWORD"
-      region: "us-west-2"
-
-    dns:
-      enabled: true
-      terraform_managed: false
-      domain: "test.lablink.example.com"
-      zone_id: ""
-
-    eip:
-      strategy: "persistent"
-
-    ssl:
-      provider: "letsencrypt"
-      email: "admin@example.com"
-      certificate_arn: ""
-
-    startup_script:
-      enabled: false
-      path: "config/custom-startup.sh"
-      on_error: "continue"
-
-    bucket_name: "tf-state-lablink-YOURORG"
-    ```
-
-=== "CloudFlare"
-
-    Use CloudFlare for DNS management and SSL termination. No rate limits on certificate issuance.
-
-    !!! tip "No rate limits"
-        CloudFlare SSL has no certificate issuance limits. Ideal for frequent testing and redeployments.
-
-    **Prerequisites:**
-
-    - Domain registered and managed in CloudFlare
-    - CloudFlare proxy enabled (orange cloud icon)
-
-    **Access URL:** `https://lablink.example.com`
-
-    ```yaml
-    # LabLink Configuration: CloudFlare DNS + SSL
-
-    deployment_name: "lablink"  # required; prefixes every AWS resource name
-    environment: "prod"
-
-    db:
-      password: "PLACEHOLDER_DB_PASSWORD"
-
-    machine:
-      machine_type: "g4dn.xlarge"
-      image: "ghcr.io/talmolab/lablink-client-base-image:linux-amd64-latest-test"
-      ami_id: "ami-0601752c11b394251"  # us-west-2
-      repository: "https://github.com/talmolab/sleap-tutorial-data.git"
-      software: "sleap"
-
-    allocator:
-      image_tag: "linux-amd64-latest-test"
-
-    app:
-      admin_user: "admin"
-      admin_password: "PLACEHOLDER_ADMIN_PASSWORD"
-      region: "us-west-2"
-
-    dns:
-      enabled: true
-      terraform_managed: false
-      domain: "lablink.example.com"
-      zone_id: ""
-
-    eip:
-      strategy: "persistent"
-
-    ssl:
-      provider: "cloudflare"
-      email: ""
-      certificate_arn: ""
-
-    startup_script:
-      enabled: false
-      path: "config/custom-startup.sh"
-      on_error: "continue"
-
-    bucket_name: "tf-state-lablink-YOURORG"
-    ```
-
-### ALB with ACM
-
-Use AWS Application Load Balancer with ACM-managed SSL certificates. Enterprise-grade setup with no rate limits.
-
-!!! note "Additional cost"
-    ALB adds approximately **~$20/month** but provides enterprise-grade SSL termination and scalability.
-
-**Prerequisites:**
-
-1. Route53 hosted zone created
-2. ACM certificate requested and validated for your domain
-3. Certificate ARN obtained from ACM console
-
-**Access URL:** `https://lablink.example.com`
+Set `terraform_managed: true` to let OpenTofu create and destroy the A record,
+or `false` if you maintain it yourself.
 
 ```yaml
-# LabLink Configuration: Route53 + ACM (AWS Certificate Manager)
+dns:
+  enabled: true
+  terraform_managed: true         # false = you manage the A record
+  domain: "test.lablink.example.com"
+  zone_id: ""
 
-deployment_name: "lablink"  # required; prefixes every AWS resource name
-environment: "prod"
+eip:
+  strategy: "persistent"
 
-db:
-  password: "PLACEHOLDER_DB_PASSWORD"
+ssl:
+  provider: "letsencrypt"
+  email: "admin@example.com"
+  certificate_arn: ""
+```
 
-machine:
-  machine_type: "g4dn.xlarge"
-  image: "ghcr.io/talmolab/lablink-client-base-image:linux-amd64-latest-test"
-  ami_id: "ami-0601752c11b394251"  # us-west-2
-  repository: "https://github.com/talmolab/sleap-tutorial-data.git"
-  software: "sleap"
+!!! warning "5 certificates per domain per 7 days"
+    Every deploy requests a fresh certificate, and the failure surfaces only as
+    `ERR_SSL_PROTOCOL_ERROR` in the browser. Use a fresh subdomain per test
+    cycle, or [IP Only](#ip-only).
 
-allocator:
-  image_tag: "linux-amd64-latest-test"
+### CloudFlare
 
-app:
-  admin_user: "admin"
-  admin_password: "PLACEHOLDER_ADMIN_PASSWORD"
-  region: "us-west-2"
+CloudFlare's proxy terminates TLS, so there are no issuance limits. Access at
+`https://lablink.example.com`.
 
+**Prerequisites:** the domain is managed in CloudFlare with the proxy enabled
+(orange cloud). `terraform_managed` must be `false` — CloudFlare owns the record.
+
+```yaml
+dns:
+  enabled: true
+  terraform_managed: false
+  domain: "lablink.example.com"
+  zone_id: ""
+
+eip:
+  strategy: "persistent"
+
+ssl:
+  provider: "cloudflare"
+  email: ""
+  certificate_arn: ""
+```
+
+### ACM + ALB
+
+AWS-managed certificates behind an Application Load Balancer. No issuance
+limits, but the ALB adds roughly **$20/month**. Access at
+`https://lablink.example.com`.
+
+**Prerequisites:** a Route53 hosted zone, plus an ACM certificate already
+requested and validated for the domain — you need its ARN.
+
+```yaml
 dns:
   enabled: true
   terraform_managed: true
@@ -1094,26 +747,9 @@ eip:
 ssl:
   provider: "acm"
   email: ""
-  certificate_arn: "arn:aws:acm:us-west-2:123456789012:certificate/abcd1234-5678-90ab-cdef-EXAMPLE11111"
-
-startup_script:
-  enabled: false
-  path: "config/custom-startup.sh"
-  on_error: "continue"
-
-bucket_name: "tf-state-lablink-YOURORG"
+  certificate_arn: "arn:aws:acm:us-west-2:123456789012:certificate/abcd1234-EXAMPLE"
 ```
 
-### Key Differences Between Examples
-
-| Field | IP Only | Let's Encrypt | CloudFlare | ACM |
-|-------|---------|--------------|------------|-----|
-| `dns.enabled` | `false` | `true` | `true` | `true` |
-| `dns.terraform_managed` | `false` | `true` / `false` | `false` | `true` |
-| `eip.strategy` | `dynamic` | `persistent` | `persistent` | `persistent` |
-| `ssl.provider` | `none` | `letsencrypt` | `cloudflare` | `acm` |
-| `ssl.email` | -- | required | -- | -- |
-| `ssl.certificate_arn` | -- | -- | -- | required |
 
 ## Next Steps
 
