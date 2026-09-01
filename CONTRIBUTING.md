@@ -16,7 +16,6 @@ This guide includes:
 - Testing Guidelines
 - Documentation Guidelines
 - Pull Request Process
-- **Release Process** (for maintainers)
 - Getting Help
 
 ---
