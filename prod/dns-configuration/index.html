@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#dns-configuration-guide" class="md-skip">
+        <a href="#dns-configuration" class="md-skip">
           Skip to content
         </a>
       
@@ -1179,10 +1179,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#overview" class="md-nav__link">
+  <a href="#the-fast-path-lablink-setup" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Overview
+        The fast path: lablink setup
       
     </span>
   </a>
@@ -1190,299 +1190,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#dns-architecture" class="md-nav__link">
+  <a href="#delegated-subdomain-parent-domain-managed-elsewhere" class="md-nav__link">
     <span class="md-ellipsis">
       
-        DNS Architecture
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="DNS Architecture">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#domain-structure" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Domain Structure
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#why-delegated-subdomain" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Why Delegated Subdomain?
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#route53-setup" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Route53 Setup
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Route53 Setup">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#hosted-zone-configuration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Hosted Zone Configuration
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#cloudflare-ns-delegation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Cloudflare NS Delegation
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#verification" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Verification
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#lablink-dns-configuration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        LabLink DNS Configuration
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="LabLink DNS Configuration">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#configuration-file" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Configuration File
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#configuration-options" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Configuration Options
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#domain-naming" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Domain Naming
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#zone-id-configuration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Zone ID Configuration
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#opentofu-dns-management" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        OpenTofu DNS Management
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="OpenTofu DNS Management">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#main-configuration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Main Configuration
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#dns-record-creation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        DNS Record Creation
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#ssltls-configuration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        SSL/TLS Configuration
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="SSL/TLS Configuration">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#lets-encrypt-integration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Let's Encrypt Integration
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#ssl-troubleshooting" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        SSL Troubleshooting
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#dns-troubleshooting" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        DNS Troubleshooting
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="DNS Troubleshooting">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#issue-record-created-in-wrong-zone" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Issue: Record Created in Wrong Zone
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#issue-dns-not-resolving" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Issue: DNS Not Resolving
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#issue-ns-delegation-not-working" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Issue: NS Delegation Not Working
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#issue-multiple-hosted-zones-conflict" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Issue: Multiple Hosted Zones Conflict
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#dns-verification-script" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        DNS Verification Script
+        Delegated subdomain (parent domain managed elsewhere)
       
     </span>
   </a>
@@ -1490,82 +1201,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#configuration-templates" class="md-nav__link">
+  <a href="#always-set-zone_id" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Configuration Templates
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Configuration Templates">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#development-environment" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Development Environment
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#test-environment" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Test Environment
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#production-environment" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Production Environment
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#external-dns-cloudflare" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        External DNS (CloudFlare)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#ip-only-deployment-no-dns" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        IP-Only Deployment (No DNS)
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#best-practices" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Best Practices
+        Always set zone_id
       
     </span>
   </a>
@@ -1573,80 +1212,35 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#security-considerations" class="md-nav__link">
+  <a href="#what-opentofu-creates" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Security Considerations
+        What OpenTofu creates
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="Security Considerations">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#dns-security" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        DNS Security
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#ssltls-security" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        SSL/TLS Security
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#monitoring-and-maintenance" class="md-nav__link">
+  <a href="#ssl" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Monitoring and Maintenance
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Monitoring and Maintenance">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#regular-checks" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Regular Checks
+        SSL
       
     </span>
   </a>
   
 </li>
-        
-          <li class="md-nav__item">
-  <a href="#backup-information" class="md-nav__link">
+      
+        <li class="md-nav__item">
+  <a href="#verifying-a-deployment" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Backup Information
+        Verifying a deployment
       
     </span>
   </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -4913,10 +4507,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#overview" class="md-nav__link">
+  <a href="#the-fast-path-lablink-setup" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Overview
+        The fast path: lablink setup
       
     </span>
   </a>
@@ -4924,299 +4518,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#dns-architecture" class="md-nav__link">
+  <a href="#delegated-subdomain-parent-domain-managed-elsewhere" class="md-nav__link">
     <span class="md-ellipsis">
       
-        DNS Architecture
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="DNS Architecture">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#domain-structure" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Domain Structure
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#why-delegated-subdomain" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Why Delegated Subdomain?
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#route53-setup" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Route53 Setup
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Route53 Setup">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#hosted-zone-configuration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Hosted Zone Configuration
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#cloudflare-ns-delegation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Cloudflare NS Delegation
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#verification" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Verification
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#lablink-dns-configuration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        LabLink DNS Configuration
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="LabLink DNS Configuration">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#configuration-file" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Configuration File
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#configuration-options" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Configuration Options
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#domain-naming" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Domain Naming
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#zone-id-configuration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Zone ID Configuration
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#opentofu-dns-management" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        OpenTofu DNS Management
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="OpenTofu DNS Management">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#main-configuration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Main Configuration
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#dns-record-creation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        DNS Record Creation
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#ssltls-configuration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        SSL/TLS Configuration
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="SSL/TLS Configuration">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#lets-encrypt-integration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Let's Encrypt Integration
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#ssl-troubleshooting" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        SSL Troubleshooting
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#dns-troubleshooting" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        DNS Troubleshooting
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="DNS Troubleshooting">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#issue-record-created-in-wrong-zone" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Issue: Record Created in Wrong Zone
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#issue-dns-not-resolving" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Issue: DNS Not Resolving
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#issue-ns-delegation-not-working" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Issue: NS Delegation Not Working
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#issue-multiple-hosted-zones-conflict" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Issue: Multiple Hosted Zones Conflict
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#dns-verification-script" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        DNS Verification Script
+        Delegated subdomain (parent domain managed elsewhere)
       
     </span>
   </a>
@@ -5224,82 +4529,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#configuration-templates" class="md-nav__link">
+  <a href="#always-set-zone_id" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Configuration Templates
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Configuration Templates">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#development-environment" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Development Environment
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#test-environment" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Test Environment
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#production-environment" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Production Environment
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#external-dns-cloudflare" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        External DNS (CloudFlare)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#ip-only-deployment-no-dns" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        IP-Only Deployment (No DNS)
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#best-practices" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Best Practices
+        Always set zone_id
       
     </span>
   </a>
@@ -5307,80 +4540,35 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#security-considerations" class="md-nav__link">
+  <a href="#what-opentofu-creates" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Security Considerations
+        What OpenTofu creates
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="Security Considerations">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#dns-security" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        DNS Security
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#ssltls-security" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        SSL/TLS Security
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#monitoring-and-maintenance" class="md-nav__link">
+  <a href="#ssl" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Monitoring and Maintenance
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Monitoring and Maintenance">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#regular-checks" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Regular Checks
+        SSL
       
     </span>
   </a>
   
 </li>
-        
-          <li class="md-nav__item">
-  <a href="#backup-information" class="md-nav__link">
+      
+        <li class="md-nav__item">
+  <a href="#verifying-a-deployment" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Backup Information
+        Verifying a deployment
       
     </span>
   </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -5415,330 +4603,154 @@
   
 
 
-<h1 id="dns-configuration-guide">DNS Configuration Guide<a class="headerlink" href="#dns-configuration-guide" title="Permanent link">&para;</a></h1>
-<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
-<p>LabLink uses AWS Route53 for DNS management with a delegated subdomain structure. This document describes the DNS architecture and configuration for internal reference.</p>
-<h2 id="dns-architecture">DNS Architecture<a class="headerlink" href="#dns-architecture" title="Permanent link">&para;</a></h2>
-<h3 id="domain-structure">Domain Structure<a class="headerlink" href="#domain-structure" title="Permanent link">&para;</a></h3>
-<ul>
-<li><strong>Parent Domain</strong>: <code>sleap.ai</code> (managed in Cloudflare)</li>
-<li><strong>Delegated Subdomain</strong>: <code>lablink.sleap.ai</code> (managed in AWS Route53)</li>
-<li><strong>Example Deployment</strong>: <code>test.lablink.sleap.ai</code> → allocator instance</li>
-</ul>
-<h3 id="why-delegated-subdomain">Why Delegated Subdomain?<a class="headerlink" href="#why-delegated-subdomain" title="Permanent link">&para;</a></h3>
-<p>The main <code>sleap.ai</code> domain is managed in Cloudflare for the primary website. To avoid conflicts and allow AWS-based automation, we use NS delegation to hand off the <code>lablink.sleap.ai</code> subdomain to AWS Route53.</p>
-<p><strong>Benefits</strong>:
-- OpenTofu can manage DNS records automatically
-- No Cloudflare API credentials needed
-- Separation of concerns (website vs LabLink infrastructure)
-- Let's Encrypt can validate domain ownership via DNS</p>
-<h2 id="route53-setup">Route53 Setup<a class="headerlink" href="#route53-setup" title="Permanent link">&para;</a></h2>
-<h3 id="hosted-zone-configuration">Hosted Zone Configuration<a class="headerlink" href="#hosted-zone-configuration" title="Permanent link">&para;</a></h3>
-<p><strong>Zone Name</strong>: <code>lablink.sleap.ai</code>
-<strong>Zone ID</strong>: <code>Z010760118DSWF5IYKMOM</code>
-<strong>Type</strong>: Public hosted zone</p>
-<p><strong>Nameservers</strong> (AWS-assigned):
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>ns-158.awsdns-19.com
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>ns-697.awsdns-23.net
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>ns-1839.awsdns-37.co.uk
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>ns-1029.awsdns-00.org
-</code></pre></div></p>
-<h3 id="cloudflare-ns-delegation">Cloudflare NS Delegation<a class="headerlink" href="#cloudflare-ns-delegation" title="Permanent link">&para;</a></h3>
-<p>In Cloudflare DNS for <code>sleap.ai</code>, the following NS records delegate the subdomain to AWS:</p>
-<p><strong>Record Type</strong>: NS
-<strong>Name</strong>: <code>lablink</code>
-<strong>Content</strong> (4 records):
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>ns-158.awsdns-19.com
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>ns-697.awsdns-23.net
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>ns-1839.awsdns-37.co.uk
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>ns-1029.awsdns-00.org
-</code></pre></div></p>
-<p><strong>TTL</strong>: Auto (or 300 seconds)</p>
-<h3 id="verification">Verification<a class="headerlink" href="#verification" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Query AWS nameservers directly</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>dig<span class="w"> </span>@ns-158.awsdns-19.com<span class="w"> </span>lablink.sleap.ai
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># Check NS delegation</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>dig<span class="w"> </span>NS<span class="w"> </span>lablink.sleap.ai
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="c1"># Should show AWS nameservers, not Cloudflare</span>
+<h1 id="dns-configuration">DNS Configuration<a class="headerlink" href="#dns-configuration" title="Permanent link">&para;</a></h1>
+<p>Giving the allocator a hostname instead of a bare IP, using AWS Route53.</p>
+<p>This page covers the <strong>DNS setup around</strong> LabLink — hosted zones, NS delegation,
+and which record OpenTofu creates. For the <code>dns:</code> and <code>ssl:</code> config keys
+themselves, their validation rules, and copy-paste config examples, see
+<a href="../configuration/#dns-options-dns">Configuration</a>. For diagnosing a deployment
+that is already broken, see <a href="../troubleshooting/">Troubleshooting</a>.</p>
+<p>DNS is optional. With <code>dns.enabled: false</code> the allocator is reachable at its
+Elastic IP over HTTP, and none of this page applies.</p>
+<h2 id="the-fast-path-lablink-setup">The fast path: <code>lablink setup</code><a class="headerlink" href="#the-fast-path-lablink-setup" title="Permanent link">&para;</a></h2>
+<p>If <code>dns.enabled: true</code> and <code>dns.terraform_managed: true</code> are already in your
+config, <code>lablink setup</code> does the Route53 work for you:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>lablink<span class="w"> </span>setup
 </code></pre></div>
-<h2 id="lablink-dns-configuration">LabLink DNS Configuration<a class="headerlink" href="#lablink-dns-configuration" title="Permanent link">&para;</a></h2>
-<h3 id="configuration-file">Configuration File<a class="headerlink" href="#configuration-file" title="Permanent link">&para;</a></h3>
-<p><strong>Location</strong>: <code>lablink-infrastructure/config/config.yaml</code></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">dns</span><span class="p">:</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="nt">terraform_managed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">            </span><span class="c1"># true = OpenTofu manages Route53 records</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="nt">domain</span><span class="p">:</span><span class="w"> </span><span class="s">"test.lablink.sleap.ai"</span><span class="w">    </span><span class="c1"># Full domain name for the allocator</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span><span class="nt">zone_id</span><span class="p">:</span><span class="w"> </span><span class="s">"Z010760118DSWF5IYKMOM"</span><span class="w">   </span><span class="c1"># Optional: Route53 zone ID (skips lookup)</span>
+<p>It finds or creates a hosted zone for the registrable part of <code>dns.domain</code>
+(<code>example.com</code> for <code>test.example.com</code>), writes the resulting <code>dns.zone_id</code> back
+into your config file, and — if it created the zone — prints the four AWS
+nameservers to hand to your registrar.</p>
+<p>Your config file is <code>~/.lablink/config.yaml</code> for CLI deployments, or
+<code>lablink-infrastructure/config/config.yaml</code> in a
+<a href="https://github.com/talmolab/lablink-template">lablink-template</a> checkout.</p>
+<div class="admonition warning">
+<p class="admonition-title">Not for delegated subdomains</p>
+<p><code>lablink setup</code> always targets the registrable domain, so for
+<code>test.lablink.example.com</code> it creates a zone for <code>example.com</code> — not
+<code>lablink.example.com</code>. If the parent domain is managed somewhere else and
+you only control a subdomain, use the delegated setup below and set
+<code>zone_id</code> yourself.</p>
+</div>
+<h2 id="delegated-subdomain-parent-domain-managed-elsewhere">Delegated subdomain (parent domain managed elsewhere)<a class="headerlink" href="#delegated-subdomain-parent-domain-managed-elsewhere" title="Permanent link">&para;</a></h2>
+<p>The usual situation for a lab: <code>example.com</code> lives in Cloudflare or with
+university IT, and you want <code>lablink.example.com</code> under your own control. Hand
+that one subdomain to Route53 with an NS delegation.</p>
+<p><strong>Why bother</strong> — OpenTofu can then create and destroy the allocator's A record
+on its own, with no third-party DNS credentials in your deployment, and Let's
+Encrypt can validate the domain without anyone touching the parent zone.</p>
+<p><strong>1. Create the subdomain zone in Route53:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>aws<span class="w"> </span>route53<span class="w"> </span>create-hosted-zone<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span>--name<span class="w"> </span>lablink.example.com<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span>--caller-reference<span class="w"> </span><span class="s2">"lablink-</span><span class="k">$(</span>date<span class="w"> </span>+%s<span class="k">)</span><span class="s2">"</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="c1"># Note the zone ID and the four nameservers from the response</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>aws<span class="w"> </span>route53<span class="w"> </span>get-hosted-zone<span class="w"> </span>--id<span class="w"> </span>&lt;zone-id&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">  </span>--query<span class="w"> </span><span class="s1">'DelegationSet.NameServers'</span>
 </code></pre></div>
-<h3 id="configuration-options">Configuration Options<a class="headerlink" href="#configuration-options" title="Permanent link">&para;</a></h3>
+<p><strong>2. Delegate from the parent zone.</strong> At whoever hosts <code>example.com</code>, add four
+NS records:</p>
 <table>
 <thead>
 <tr>
-<th>Option</th>
-<th>Type</th>
-<th>Default</th>
-<th>Description</th>
+<th>Field</th>
+<th>Value</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>enabled</code></td>
-<td>boolean</td>
-<td><code>false</code></td>
-<td>Enable DNS-based URLs</td>
+<td>Type</td>
+<td><code>NS</code></td>
 </tr>
 <tr>
-<td><code>terraform_managed</code></td>
-<td>boolean</td>
-<td><code>true</code></td>
-<td>Let OpenTofu manage Route53 records. Set to <code>false</code> for external DNS (CloudFlare, etc.)</td>
+<td>Name</td>
+<td><code>lablink</code></td>
 </tr>
 <tr>
-<td><code>domain</code></td>
-<td>string</td>
-<td><code>""</code></td>
-<td>Full domain name (e.g., <code>lablink.sleap.ai</code> or <code>test.lablink.sleap.ai</code>)</td>
+<td>Content</td>
+<td>the four <code>awsdns</code> nameservers from step 1 (one record each)</td>
 </tr>
 <tr>
-<td><code>zone_id</code></td>
-<td>string</td>
-<td><code>""</code></td>
-<td>Route53 zone ID (optional, skips lookup if provided)</td>
+<td>TTL</td>
+<td>300</td>
 </tr>
 </tbody>
 </table>
-<h3 id="domain-naming">Domain Naming<a class="headerlink" href="#domain-naming" title="Permanent link">&para;</a></h3>
-<p>Specify the full domain name directly in the <code>domain</code> field. This supports:</p>
-<ul>
-<li><strong>Root domain</strong>: <code>domain: "lablink.sleap.ai"</code></li>
-<li><strong>Environment subdomains</strong>: <code>domain: "test.lablink.sleap.ai"</code></li>
-<li><strong>Custom subdomains</strong>: <code>domain: "myapp.lablink.sleap.ai"</code></li>
-</ul>
-<h3 id="zone-id-configuration">Zone ID Configuration<a class="headerlink" href="#zone-id-configuration" title="Permanent link">&para;</a></h3>
-<p><strong>Why hardcode zone_id?</strong></p>
-<p>The OpenTofu data source <code>aws_route53_zone</code> can incorrectly match parent zones when searching by domain name. To ensure the correct zone is always used, we hardcode the zone ID in the config:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">dns</span><span class="p">:</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">zone_id</span><span class="p">:</span><span class="w"> </span><span class="s">"Z010760118DSWF5IYKMOM"</span><span class="w">  </span><span class="c1"># Forces use of lablink.sleap.ai zone</span>
+<p><strong>3. Verify, after 5–15 minutes:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>dig<span class="w"> </span>NS<span class="w"> </span>lablink.example.com<span class="w">     </span><span class="c1"># must return the four awsdns nameservers</span>
 </code></pre></div>
-<p><strong>How to find your zone ID</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>aws<span class="w"> </span>route53<span class="w"> </span>list-hosted-zones<span class="w"> </span>--query<span class="w"> </span><span class="s2">"HostedZones[?Name=='lablink.sleap.ai.'].Id"</span><span class="w"> </span>--output<span class="w"> </span>text
-</code></pre></div></p>
-<h2 id="opentofu-dns-management">OpenTofu DNS Management<a class="headerlink" href="#opentofu-dns-management" title="Permanent link">&para;</a></h2>
-<h3 id="main-configuration">Main Configuration<a class="headerlink" href="#main-configuration" title="Permanent link">&para;</a></h3>
-<p><strong>Location</strong>: <code>lablink-infrastructure/main.tf</code></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># DNS configuration from config.yaml</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="nb">locals</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span><span class="na">dns_enabled</span><span class="w">          </span><span class="o">=</span><span class="w"> </span><span class="nf">try</span><span class="p">(</span><span class="nv">local.config_file.dns.enabled</span><span class="p">,</span><span class="w"> </span><span class="no">false</span><span class="p">)</span>
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">  </span><span class="na">dns_terraform_managed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">try</span><span class="p">(</span><span class="nv">local.config_file.dns.terraform_managed</span><span class="p">,</span><span class="w"> </span><span class="no">true</span><span class="p">)</span>
-<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">  </span><span class="na">dns_domain</span><span class="w">           </span><span class="o">=</span><span class="w"> </span><span class="nf">try</span><span class="p">(</span><span class="nv">local.config_file.dns.domain</span><span class="p">,</span><span class="w"> </span><span class="s2">""</span><span class="p">)</span>
-<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">  </span><span class="na">dns_zone_id</span><span class="w">          </span><span class="o">=</span><span class="w"> </span><span class="nf">try</span><span class="p">(</span><span class="nv">local.config_file.dns.zone_id</span><span class="p">,</span><span class="w"> </span><span class="s2">""</span><span class="p">)</span>
-<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="p">}</span>
-<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>
-<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="c1"># Zone selection: use provided zone_id or lookup by domain</span>
-<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="nb">locals</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="w">  </span><span class="na">zone_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">local.dns_enabled</span><span class="w"> </span><span class="err">&amp;&amp;</span><span class="w"> </span><span class="nv">local.dns_terraform_managed</span><span class="w"> </span><span class="p">?</span><span class="w"> </span><span class="p">(</span>
-<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="w">    </span><span class="nv">local.dns_zone_id</span><span class="w"> </span><span class="p">!=</span><span class="w"> </span><span class="s2">""</span><span class="w"> </span><span class="p">?</span><span class="w"> </span><span class="nv">local.dns_zone_id</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="nv">data.aws_route53_zone.existing[0].zone_id</span>
-<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="w">  </span><span class="p">)</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">""</span>
-<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="p">}</span>
+<p>If it still returns the parent's nameservers, the delegation has not taken
+effect — see <a href="../troubleshooting/">Troubleshooting</a> for the NS delegation checks.</p>
+<p><strong>4. Point your config at that zone explicitly:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">dns</span><span class="p">:</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="nt">terraform_managed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="nt">domain</span><span class="p">:</span><span class="w"> </span><span class="s">"test.lablink.example.com"</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span><span class="nt">zone_id</span><span class="p">:</span><span class="w"> </span><span class="s">"Z0123456789ABCDEFGHIJ"</span><span class="w">    </span><span class="c1"># the subdomain zone from step 1</span>
 </code></pre></div>
-<h3 id="dns-record-creation">DNS Record Creation<a class="headerlink" href="#dns-record-creation" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kr">resource</span><span class="w"> </span><span class="nc">"aws_route53_record"</span><span class="w"> </span><span class="nv">"allocator"</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span><span class="na">count</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="nv">local.dns_enabled</span><span class="w"> </span><span class="p">?</span><span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="m">0</span>
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span><span class="na">zone_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">local.zone_id</span>
-<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">  </span><span class="na">name</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="nv">local.fqdn</span>
-<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">  </span><span class="na">type</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="s2">"A"</span>
-<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">  </span><span class="na">ttl</span><span class="w">     </span><span class="o">=</span><span class="w"> </span><span class="m">300</span>
-<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">  </span><span class="na">records</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="nv">local.allocator_public_ip</span><span class="p">]</span>
-<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="p">}</span>
+<h2 id="always-set-zone_id">Always set <code>zone_id</code><a class="headerlink" href="#always-set-zone_id" title="Permanent link">&para;</a></h2>
+<p>When <code>zone_id</code> is empty, OpenTofu looks the zone up by name — and it strips
+exactly <strong>one</strong> label off <code>dns.domain</code> to guess the zone. So
+<code>test.lablink.example.com</code> is looked up as <code>lablink.example.com</code>, and the deploy
+fails outright if that intermediate zone does not exist. Setting <code>zone_id</code>
+skips the lookup and removes the guess.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Find it for an existing zone</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>aws<span class="w"> </span>route53<span class="w"> </span>list-hosted-zones<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span>--query<span class="w"> </span><span class="s2">"HostedZones[?Name=='lablink.example.com.'].Id"</span><span class="w"> </span>--output<span class="w"> </span>text
 </code></pre></div>
-<h2 id="ssltls-configuration">SSL/TLS Configuration<a class="headerlink" href="#ssltls-configuration" title="Permanent link">&para;</a></h2>
-<h3 id="lets-encrypt-integration">Let's Encrypt Integration<a class="headerlink" href="#lets-encrypt-integration" title="Permanent link">&para;</a></h3>
-<p>LabLink uses Caddy for automatic SSL certificate acquisition from Let's Encrypt.</p>
-<p><strong>Prerequisites</strong>:
-- Valid DNS record pointing to allocator IP
-- DNS propagated to public resolvers (Google DNS 8.8.8.8, Cloudflare DNS 1.1.1.1)
-- Port 80 and 443 accessible</p>
-<p><strong>Configuration</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nt">ssl</span><span class="p">:</span>
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span><span class="nt">provider</span><span class="p">:</span><span class="w"> </span><span class="s">"letsencrypt"</span>
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">  </span><span class="nt">email</span><span class="p">:</span><span class="w"> </span><span class="s">"admin@example.com"</span>
-</code></pre></div></p>
-<p><strong>Caddy Configuration</strong> (<code>lablink-infrastructure/user_data.sh</code>):
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>cat<span class="w"> </span>&gt;<span class="w"> </span>/etc/caddy/Caddyfile<span class="w"> </span><span class="s">&lt;&lt;EOF</span>
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="s">${fqdn} {</span>
-<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="s">    reverse_proxy localhost:5000</span>
-<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="s">}</span>
-<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="s">EOF</span>
-</code></pre></div></p>
-<p>Caddy automatically:
-1. Requests certificate from Let's Encrypt
-2. Validates domain ownership via HTTP-01 challenge
-3. Renews certificates before expiration
-4. Redirects HTTP to HTTPS</p>
-<h3 id="ssl-troubleshooting">SSL Troubleshooting<a class="headerlink" href="#ssl-troubleshooting" title="Permanent link">&para;</a></h3>
-<p>Check Caddy logs:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;allocator-ip&gt;
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>sudo<span class="w"> </span>journalctl<span class="w"> </span>-u<span class="w"> </span>caddy<span class="w"> </span>-f
-</code></pre></div></p>
-<p>Common issues:
-- DNS not propagated → Wait 5-10 minutes
-- Port 80/443 blocked → Check security group rules
-- Invalid domain → Verify DNS record exists</p>
-<h2 id="dns-troubleshooting">DNS Troubleshooting<a class="headerlink" href="#dns-troubleshooting" title="Permanent link">&para;</a></h2>
-<h3 id="issue-record-created-in-wrong-zone">Issue: Record Created in Wrong Zone<a class="headerlink" href="#issue-record-created-in-wrong-zone" title="Permanent link">&para;</a></h3>
-<p><strong>Symptom</strong>: DNS record appears in <code>sleap.ai</code> zone instead of <code>lablink.sleap.ai</code> zone</p>
-<p><strong>Cause</strong>: OpenTofu data source matched parent zone</p>
-<p><strong>Solution</strong>: Add <code>zone_id</code> to config.yaml:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nt">dns</span><span class="p">:</span>
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span><span class="nt">zone_id</span><span class="p">:</span><span class="w"> </span><span class="s">"Z010760118DSWF5IYKMOM"</span>
-</code></pre></div></p>
-<h3 id="issue-dns-not-resolving">Issue: DNS Not Resolving<a class="headerlink" href="#issue-dns-not-resolving" title="Permanent link">&para;</a></h3>
-<p><strong>Check DNS propagation</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c1"># Check Google DNS</span>
-<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>nslookup<span class="w"> </span>test.lablink.sleap.ai<span class="w"> </span><span class="m">8</span>.8.8.8
-<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>
-<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="c1"># Check Cloudflare DNS</span>
-<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>nslookup<span class="w"> </span>test.lablink.sleap.ai<span class="w"> </span><span class="m">1</span>.1.1.1
-<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>
-<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="c1"># Check authoritative nameservers</span>
-<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a>nslookup<span class="w"> </span>test.lablink.sleap.ai<span class="w"> </span>ns-158.awsdns-19.com
-</code></pre></div></p>
-<p><strong>Verify Route53 record</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>aws<span class="w"> </span>route53<span class="w"> </span>list-resource-record-sets<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="w">  </span>--hosted-zone-id<span class="w"> </span>Z010760118DSWF5IYKMOM<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">  </span>--query<span class="w"> </span><span class="s2">"ResourceRecordSets[?Name=='test.lablink.sleap.ai.']"</span>
-</code></pre></div></p>
-<p><strong>Check NS delegation</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>dig<span class="w"> </span>NS<span class="w"> </span>lablink.sleap.ai
-<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="c1"># Should return AWS nameservers, not Cloudflare</span>
-</code></pre></div></p>
-<h3 id="issue-ns-delegation-not-working">Issue: NS Delegation Not Working<a class="headerlink" href="#issue-ns-delegation-not-working" title="Permanent link">&para;</a></h3>
-<p><strong>Symptom</strong>: DNS queries return NXDOMAIN even though record exists in Route53</p>
-<p><strong>Cause</strong>: NS records not properly configured in Cloudflare</p>
-<p><strong>Solution</strong>:
-1. Log into Cloudflare
-2. Go to DNS settings for <code>sleap.ai</code>
-3. Add/verify NS records for <code>lablink</code> pointing to all 4 AWS nameservers
-4. Wait 5-15 minutes for propagation</p>
-<h3 id="issue-multiple-hosted-zones-conflict">Issue: Multiple Hosted Zones Conflict<a class="headerlink" href="#issue-multiple-hosted-zones-conflict" title="Permanent link">&para;</a></h3>
-<p><strong>Symptom</strong>: Both <code>sleap.ai</code> and <code>lablink.sleap.ai</code> zones exist in Route53</p>
-<p><strong>Solution</strong>: Delete the parent zone from Route53 if it's managed elsewhere (Cloudflare)
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="c1"># List zones</span>
-<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>aws<span class="w"> </span>route53<span class="w"> </span>list-hosted-zones
-<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>
-<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="c1"># Delete parent zone (if managed in Cloudflare)</span>
-<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>aws<span class="w"> </span>route53<span class="w"> </span>delete-hosted-zone<span class="w"> </span>--id<span class="w"> </span>&lt;zone-id&gt;
-</code></pre></div></p>
-<h2 id="dns-verification-script">DNS Verification Script<a class="headerlink" href="#dns-verification-script" title="Permanent link">&para;</a></h2>
-<p>Use the deployment verification script to check DNS:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="nb">cd</span><span class="w"> </span>lablink-infrastructure
-<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>./verify-deployment.sh<span class="w"> </span>test.lablink.sleap.ai<span class="w"> </span><span class="m">52</span>.40.142.146
-</code></pre></div>
-<p>This checks:
-1. DNS resolution via Google/Cloudflare DNS
-2. HTTP connectivity
-3. HTTPS/SSL certificate (if enabled)</p>
-<h2 id="configuration-templates">Configuration Templates<a class="headerlink" href="#configuration-templates" title="Permanent link">&para;</a></h2>
-<div class="admonition tip">
-<p class="admonition-title">Full configuration examples</p>
-<p>The templates below show only DNS and SSL sections. For complete, copy-paste-ready config files, see <a href="../configuration/#full-configuration-examples">Configuration Examples</a>.</p>
+<h2 id="what-opentofu-creates">What OpenTofu creates<a class="headerlink" href="#what-opentofu-creates" title="Permanent link">&para;</a></h2>
+<p>With <code>dns.enabled: true</code> and <code>dns.terraform_managed: true</code>, the template creates
+one record in <code>zone_id</code>, named <code>dns.domain</code>:</p>
+<table>
+<thead>
+<tr>
+<th><code>ssl.provider</code></th>
+<th>Record</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>none</code>, <code>letsencrypt</code>, <code>cloudflare</code></td>
+<td><code>A</code> record, TTL 300, pointing at the allocator's Elastic IP</td>
+</tr>
+<tr>
+<td><code>acm</code></td>
+<td><code>A</code> alias record pointing at the ALB (no EIP record is created)</td>
+</tr>
+</tbody>
+</table>
+<p>With <code>terraform_managed: false</code> no record is created at all — you are expected
+to point the hostname at the allocator yourself, in whatever DNS you use. This
+is required for <code>ssl.provider: "cloudflare"</code>.</p>
+<h2 id="ssl">SSL<a class="headerlink" href="#ssl" title="Permanent link">&para;</a></h2>
+<p><code>ssl.provider: "letsencrypt"</code> installs Caddy on the allocator, which requests a
+certificate on first boot and renews it automatically. It needs the DNS record
+already resolving publicly, and ports 80 and 443 open.</p>
+<div class="admonition warning">
+<p class="admonition-title">Redeploying the same domain hits the Let's Encrypt rate limit</p>
+<p>Every deploy requests a fresh certificate, and Let's Encrypt allows only
+<strong>5 duplicate certificates per week</strong> per hostname. Past that, the site
+fails in the browser with <code>ERR_SSL_PROTOCOL_ERROR</code> and nothing else says
+why. For repeated test deploys use a fresh subdomain each cycle, or
+<code>ssl.provider: "none"</code>.</p>
 </div>
-<h3 id="development-environment">Development Environment<a class="headerlink" href="#development-environment" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="nt">dns</span><span class="p">:</span>
-<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="w">  </span><span class="nt">terraform_managed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="w">  </span><span class="nt">domain</span><span class="p">:</span><span class="w"> </span><span class="s">"dev.lablink.sleap.ai"</span>
-<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="w">  </span><span class="nt">zone_id</span><span class="p">:</span><span class="w"> </span><span class="s">"Z010760118DSWF5IYKMOM"</span>
-<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>
-<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="nt">ssl</span><span class="p">:</span>
-<a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a><span class="w">  </span><span class="nt">provider</span><span class="p">:</span><span class="w"> </span><span class="s">"letsencrypt"</span>
-<a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a><span class="w">  </span><span class="nt">email</span><span class="p">:</span><span class="w"> </span><span class="s">"dev@example.com"</span>
+<p>Certificate problems show up in Caddy's log on the allocator:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;allocator-ip&gt;
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>sudo<span class="w"> </span>journalctl<span class="w"> </span>-u<span class="w"> </span>caddy<span class="w"> </span>-f
 </code></pre></div>
-<h3 id="test-environment">Test Environment<a class="headerlink" href="#test-environment" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="nt">dns</span><span class="p">:</span>
-<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="w">  </span><span class="nt">terraform_managed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="w">  </span><span class="nt">domain</span><span class="p">:</span><span class="w"> </span><span class="s">"test.lablink.sleap.ai"</span>
-<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="w">  </span><span class="nt">zone_id</span><span class="p">:</span><span class="w"> </span><span class="s">"Z010760118DSWF5IYKMOM"</span>
-<a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a>
-<a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a><span class="nt">ssl</span><span class="p">:</span>
-<a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a><span class="w">  </span><span class="nt">provider</span><span class="p">:</span><span class="w"> </span><span class="s">"letsencrypt"</span>
-<a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a><span class="w">  </span><span class="nt">email</span><span class="p">:</span><span class="w"> </span><span class="s">"test@example.com"</span>
+<p>The full provider comparison — <code>none</code>, <code>letsencrypt</code>, <code>cloudflare</code>, <code>acm</code> —
+is in <a href="../configuration/#ssl-providers">Configuration</a>.</p>
+<h2 id="verifying-a-deployment">Verifying a deployment<a class="headerlink" href="#verifying-a-deployment" title="Permanent link">&para;</a></h2>
+<p>The template repo ships a script that checks DNS, HTTP, and SSL together:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>./scripts/verify-deployment.sh<span class="w"> </span>prod<span class="w">            </span><span class="c1"># reads config.yaml + tofu outputs</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>./scripts/verify-deployment.sh<span class="w"> </span>&lt;domain&gt;<span class="w"> </span>&lt;ip&gt;<span class="w">   </span><span class="c1"># or pass them explicitly</span>
 </code></pre></div>
-<h3 id="production-environment">Production Environment<a class="headerlink" href="#production-environment" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="nt">dns</span><span class="p">:</span>
-<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">  </span><span class="nt">terraform_managed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="w">  </span><span class="nt">domain</span><span class="p">:</span><span class="w"> </span><span class="s">"lablink.sleap.ai"</span><span class="w">  </span><span class="c1"># Root domain for production</span>
-<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="w">  </span><span class="nt">zone_id</span><span class="p">:</span><span class="w"> </span><span class="s">"Z010760118DSWF5IYKMOM"</span>
-<a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a>
-<a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a><span class="nt">ssl</span><span class="p">:</span>
-<a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a><span class="w">  </span><span class="nt">provider</span><span class="p">:</span><span class="w"> </span><span class="s">"letsencrypt"</span>
-<a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a><span class="w">  </span><span class="nt">email</span><span class="p">:</span><span class="w"> </span><span class="s">"admin@example.com"</span>
-</code></pre></div>
-<h3 id="external-dns-cloudflare">External DNS (CloudFlare)<a class="headerlink" href="#external-dns-cloudflare" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="nt">dns</span><span class="p">:</span>
-<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="w">  </span><span class="nt">terraform_managed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span><span class="w">  </span><span class="c1"># DNS managed externally</span>
-<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="w">  </span><span class="nt">domain</span><span class="p">:</span><span class="w"> </span><span class="s">"lablink.example.com"</span>
-<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a>
-<a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a><span class="nt">ssl</span><span class="p">:</span>
-<a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a><span class="w">  </span><span class="nt">provider</span><span class="p">:</span><span class="w"> </span><span class="s">"cloudflare"</span><span class="w">  </span><span class="c1"># CloudFlare handles SSL</span>
-</code></pre></div>
-<h3 id="ip-only-deployment-no-dns">IP-Only Deployment (No DNS)<a class="headerlink" href="#ip-only-deployment-no-dns" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="nt">dns</span><span class="p">:</span>
-<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
-<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>
-<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="nt">ssl</span><span class="p">:</span>
-<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a><span class="w">  </span><span class="nt">provider</span><span class="p">:</span><span class="w"> </span><span class="s">"none"</span>
-</code></pre></div>
-<h2 id="best-practices">Best Practices<a class="headerlink" href="#best-practices" title="Permanent link">&para;</a></h2>
-<ol>
-<li><strong>Always hardcode zone_id</strong> - Prevents zone lookup issues</li>
-<li><strong>Use custom pattern</strong> - Explicit control over subdomain names</li>
-<li><strong>Verify NS delegation</strong> - Check before first deployment</li>
-<li><strong>Wait for DNS propagation</strong> - Allow 5-15 minutes after changes</li>
-<li><strong>Test with verification script</strong> - Automate DNS/SSL checks</li>
-<li><strong>Document all changes</strong> - Record zone IDs and nameservers</li>
-</ol>
-<h2 id="security-considerations">Security Considerations<a class="headerlink" href="#security-considerations" title="Permanent link">&para;</a></h2>
-<h3 id="dns-security">DNS Security<a class="headerlink" href="#dns-security" title="Permanent link">&para;</a></h3>
-<ul>
-<li>Route53 hosted zones are public by default</li>
-<li>Use IAM policies to restrict who can modify DNS records</li>
-<li>Consider DNSSEC for additional security (advanced)</li>
-</ul>
-<h3 id="ssltls-security">SSL/TLS Security<a class="headerlink" href="#ssltls-security" title="Permanent link">&para;</a></h3>
-<ul>
-<li>Let's Encrypt certificates are valid for 90 days</li>
-<li>Caddy handles automatic renewal</li>
-<li>Monitor certificate expiration in Caddy logs</li>
-<li>Use strong cipher suites (Caddy defaults are secure)</li>
-</ul>
-<h2 id="monitoring-and-maintenance">Monitoring and Maintenance<a class="headerlink" href="#monitoring-and-maintenance" title="Permanent link">&para;</a></h2>
-<h3 id="regular-checks">Regular Checks<a class="headerlink" href="#regular-checks" title="Permanent link">&para;</a></h3>
-<ul>
-<li>Verify DNS records exist in correct zone</li>
-<li>Check SSL certificate expiration</li>
-<li>Monitor Caddy logs for renewal issues</li>
-<li>Review Route53 query metrics</li>
-</ul>
-<h3 id="backup-information">Backup Information<a class="headerlink" href="#backup-information" title="Permanent link">&para;</a></h3>
-<p>Keep this information documented:
-- Zone ID: <code>Z010760118DSWF5IYKMOM</code>
-- Nameservers: (listed above)
-- Parent domain registrar: Cloudflare
-- SSL provider: Let's Encrypt via Caddy</p>
 <h2 id="references">References<a class="headerlink" href="#references" title="Permanent link">&para;</a></h2>
 <ul>
-<li><a href="https://docs.aws.amazon.com/route53/">AWS Route53 Documentation</a></li>
-<li><a href="https://developers.cloudflare.com/dns/">Cloudflare DNS Documentation</a></li>
-<li><a href="https://letsencrypt.org/docs/">Let's Encrypt Documentation</a></li>
-<li><a href="https://caddyserver.com/docs/">Caddy Documentation</a></li>
-<li><a href="../configuration/">LabLink Configuration Guide</a></li>
-<li><a href="../deployment/">LabLink Deployment Guide</a></li>
+<li><a href="../configuration/">Configuration</a> — every <code>dns:</code> and <code>ssl:</code> key, with examples</li>
+<li><a href="../troubleshooting/">Troubleshooting</a> — records in the wrong zone, NS delegation, SSL not ready</li>
+<li><a href="https://docs.aws.amazon.com/route53/">AWS Route53 documentation</a></li>
+<li><a href="https://caddyserver.com/docs/automatic-https">Caddy automatic HTTPS</a></li>
 </ul>
 
 
