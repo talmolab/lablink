@@ -5,8 +5,11 @@ from __future__ import annotations
 import json
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 
 from lablink_cli.commands.doctor import (
+    _check_viewer_streaming,
     _check_ami,
     _check_opentofu,
 )
@@ -438,3 +441,42 @@ class TestRunClientDoctor:
         assert "Registered" in out
         assert "Log shipper" in out
         assert "All checks passed" in out
+
+
+# ------------------------------------------------------------------
+# _check_viewer_streaming
+# ------------------------------------------------------------------
+def _ssl_cfg(provider):
+    cfg = MagicMock()
+    cfg.ssl.provider = provider
+    return cfg
+
+
+class TestCheckViewerStreaming:
+    def test_no_config(self):
+        result = _check_viewer_streaming(None)
+        assert result["status"] == "warn"
+
+    def test_http_deployment_warns_with_a_way_to_test(self):
+        """The whole point: an HTTP deployment silently loses H.264, and the
+        operator sees 'laggy desktop', not 'ssl.provider is none'."""
+        result = _check_viewer_streaming(_ssl_cfg("none"))
+        assert result["status"] == "warn"
+        assert "JPEG/WebP" in result["detail"]
+        assert "localhost" in result["detail"], "must name the port-forward workaround"
+
+    def test_warns_rather_than_fails(self):
+        """HTTP is a supported deployment, just a slower one — failing preflight
+        over a performance cliff would block a legitimate config."""
+        assert _check_viewer_streaming(_ssl_cfg("none"))["status"] != "fail"
+
+    @pytest.mark.parametrize("provider", ["letsencrypt", "cloudflare", "acm"])
+    def test_https_providers_pass(self, provider):
+        result = _check_viewer_streaming(_ssl_cfg(provider))
+        assert result["status"] == "pass"
+        assert provider in result["detail"]
+
+    def test_missing_ssl_section_is_treated_as_http(self):
+        cfg = MagicMock()
+        cfg.ssl.provider = None
+        assert _check_viewer_streaming(cfg)["status"] == "warn"

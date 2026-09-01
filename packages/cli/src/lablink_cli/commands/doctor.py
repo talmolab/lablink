@@ -289,6 +289,44 @@ def _check_default_client_ami(region: str, published: str | None) -> dict:
     return result
 
 
+def _check_viewer_streaming(cfg) -> dict:
+    """Warn when the viewer will be served over plain HTTP.
+
+    KasmVNC's H.264 path needs the browser's WebCodecs VideoDecoder, which Chrome
+    exposes only on secure origins. With ssl.provider "none" the viewer is served
+    over http://, the codec probe reports "WebCodecs API not available", and every
+    session falls back to JPEG/WebP stills — re-encoding damaged regions from
+    scratch every frame instead of encoding inter-frame change.
+
+    Nothing else surfaces this. The deploy is green, sessions work, and the
+    server-side encoder is fine; it simply never gets asked for video mode. The
+    symptom reaches an operator as "the desktop feels laggy", which is a long way
+    from "ssl.provider is none".
+    """
+    result = {"check": "Viewer streaming", "status": "pass"}
+
+    if cfg is None:
+        result["status"] = "warn"
+        result["detail"] = "Skipped (no valid config)"
+        return result
+
+    provider = (getattr(getattr(cfg, "ssl", None), "provider", "") or "none").lower()
+
+    if provider == "none":
+        result["status"] = "warn"
+        result["detail"] = (
+            "ssl.provider is 'none', so the viewer is served over HTTP and H.264 "
+            "streaming cannot engage — sessions fall back to JPEG/WebP. Configure an "
+            "SSL provider, or to test as-is port-forward the allocator "
+            "(ssh -L 8443:localhost:5000 ...) and open http://localhost:8443, since "
+            "localhost counts as a secure origin"
+        )
+        return result
+
+    result["detail"] = f"H.264 available — viewer served over HTTPS ({provider})"
+    return result
+
+
 def _check_ami(cfg) -> dict:
     """Check that the configured client AMI exists in the configured region.
 
@@ -377,6 +415,9 @@ def _check_aws_prereqs() -> None:
 
     # 6. Client AMI
     checks.append(_check_ami(cfg))
+
+    # 7. Viewer streaming
+    checks.append(_check_viewer_streaming(cfg))
 
     _render_checks(
         checks,
