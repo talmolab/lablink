@@ -5,6 +5,21 @@ All notable changes to **lablink-cli** will be documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and
 this project uses [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+
+- Pinned `lablink-template` bumped to
+  [v0.3.1](https://github.com/talmolab/lablink-template/releases/tag/v0.3.1).
+  `app.region` now actually drives the deployment (every `.tf` file previously
+  ignored it, so infrastructure landed in `us-west-2` regardless), and the
+  allocator boots stock Ubuntu 24.04 resolved per region from an SSM parameter
+  instead of a hardcoded AMI. Deploy credentials therefore need
+  `ssm:GetParameter` on `/aws/service/canonical/*` — see `docs/aws-setup.md`.
+  If your config names a region other than `us-west-2`, destroy the old
+  deployment first: existing `us-west-2` resources are not moved and keep
+  billing.
+
 ## [0.1.0] - 2026-08-17
 
 First stable release (supersedes the `0.1.0a1` prerelease).

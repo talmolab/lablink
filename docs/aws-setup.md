@@ -694,6 +694,12 @@ Create `lablink-terraform-policy.json`:
         "acm:GetCertificate"
       ],
       "Resource": "*"
+    },
+    {
+      "Sid": "AllocatorAmiLookup",
+      "Effect": "Allow",
+      "Action": ["ssm:GetParameter"],
+      "Resource": "arn:aws:ssm:*::parameter/aws/service/canonical/*"
     }
   ]
 }
@@ -710,6 +716,7 @@ Create `lablink-terraform-policy.json`:
 | **Route53**  | DNS records for allocator endpoints                                 |
 | **ELB**      | Application Load Balancer for HTTPS termination                     |
 | **ACM**      | SSL/TLS certificates                                                |
+| **SSM**      | Resolves the allocator's stock Ubuntu AMI for the deployment region |
 
 Attach the custom policy:
 
