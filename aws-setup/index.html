@@ -7458,9 +7458,15 @@ This manual guide is provided as a reference for advanced users who prefer to cr
 <a id="__codelineno-26-116" name="__codelineno-26-116" href="#__codelineno-26-116"></a><span class="w">        </span><span class="s2">"acm:GetCertificate"</span>
 <a id="__codelineno-26-117" name="__codelineno-26-117" href="#__codelineno-26-117"></a><span class="w">      </span><span class="p">],</span>
 <a id="__codelineno-26-118" name="__codelineno-26-118" href="#__codelineno-26-118"></a><span class="w">      </span><span class="nt">"Resource"</span><span class="p">:</span><span class="w"> </span><span class="s2">"*"</span>
-<a id="__codelineno-26-119" name="__codelineno-26-119" href="#__codelineno-26-119"></a><span class="w">    </span><span class="p">}</span>
-<a id="__codelineno-26-120" name="__codelineno-26-120" href="#__codelineno-26-120"></a><span class="w">  </span><span class="p">]</span>
-<a id="__codelineno-26-121" name="__codelineno-26-121" href="#__codelineno-26-121"></a><span class="p">}</span>
+<a id="__codelineno-26-119" name="__codelineno-26-119" href="#__codelineno-26-119"></a><span class="w">    </span><span class="p">},</span>
+<a id="__codelineno-26-120" name="__codelineno-26-120" href="#__codelineno-26-120"></a><span class="w">    </span><span class="p">{</span>
+<a id="__codelineno-26-121" name="__codelineno-26-121" href="#__codelineno-26-121"></a><span class="w">      </span><span class="nt">"Sid"</span><span class="p">:</span><span class="w"> </span><span class="s2">"AllocatorAmiLookup"</span><span class="p">,</span>
+<a id="__codelineno-26-122" name="__codelineno-26-122" href="#__codelineno-26-122"></a><span class="w">      </span><span class="nt">"Effect"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Allow"</span><span class="p">,</span>
+<a id="__codelineno-26-123" name="__codelineno-26-123" href="#__codelineno-26-123"></a><span class="w">      </span><span class="nt">"Action"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"ssm:GetParameter"</span><span class="p">],</span>
+<a id="__codelineno-26-124" name="__codelineno-26-124" href="#__codelineno-26-124"></a><span class="w">      </span><span class="nt">"Resource"</span><span class="p">:</span><span class="w"> </span><span class="s2">"arn:aws:ssm:*::parameter/aws/service/canonical/*"</span>
+<a id="__codelineno-26-125" name="__codelineno-26-125" href="#__codelineno-26-125"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-26-126" name="__codelineno-26-126" href="#__codelineno-26-126"></a><span class="w">  </span><span class="p">]</span>
+<a id="__codelineno-26-127" name="__codelineno-26-127" href="#__codelineno-26-127"></a><span class="p">}</span>
 </code></pre></div>
 <p><strong>Note:</strong> This policy covers all AWS services used by the LabLink OpenTofu configuration:</p>
 <table>
@@ -7498,6 +7504,10 @@ This manual guide is provided as a reference for advanced users who prefer to cr
 <tr>
 <td><strong>ACM</strong></td>
 <td>SSL/TLS certificates</td>
+</tr>
+<tr>
+<td><strong>SSM</strong></td>
+<td>Resolves the allocator's stock Ubuntu AMI for the deployment region</td>
 </tr>
 </tbody>
 </table>
