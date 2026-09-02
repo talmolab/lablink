@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import json
 import logging
+import time
 from typing import List, Optional
 from urllib.parse import urlsplit
 
@@ -638,6 +639,11 @@ class VmDatabase:
         hands back the hostname that was actually claimed, so the caller
         never has to re-look it up by email (which is itself racy).
 
+        A client heartbeat or another short update can temporarily lock the
+        final free row. If the atomic claim finds nothing but a plain
+        eligibility check still sees a free row, retry briefly rather than
+        reporting a false empty pool.
+
         Skips rows marked Unhealthy so a VM whose agent went dark (rotation
         failed, etc.) isn't handed to the next student to wedge in turn —
         the reboot service picks it back up.
@@ -651,37 +657,59 @@ class VmDatabase:
         Raises:
             ValueError: If no VM is available to assign.
         """
-        query = f"""
+        eligibility = """
+            useremail IS NULL
+            AND status = 'running'
+            AND (healthy IS NULL OR healthy <> 'Unhealthy')
+            AND adminreservedat IS NULL
+        """
+        claim_query = f"""
         UPDATE {self.table_name}
         SET useremail = %s,
             inuse = FALSE
         WHERE hostname = (
             SELECT hostname FROM {self.table_name}
-            WHERE useremail IS NULL
-            AND status = 'running'
-            AND (healthy IS NULL OR healthy <> 'Unhealthy')
-            AND adminreservedat IS NULL
+            WHERE {eligibility}
             ORDER BY hostname
             FOR UPDATE SKIP LOCKED
             LIMIT 1
         )
         RETURNING hostname;
         """
-        with self._cursor as cursor:
-            try:
-                cursor.execute(query, (email,))
-                row = cursor.fetchone()
-            except Exception as e:
-                logger.error(f"Failed to assign VM to '{email}': {e}")
-                raise
+        eligible_query = f"""
+            SELECT EXISTS (
+                SELECT 1 FROM {self.table_name}
+                WHERE {eligibility}
+            );
+        """
 
-        if row is None:
-            logger.warning("No available VMs to assign")
-            raise ValueError("No available VMs to assign.")
+        max_lock_attempts = 10
+        for attempt in range(max_lock_attempts):
+            with self._cursor as cursor:
+                try:
+                    cursor.execute(claim_query, (email,))
+                    row = cursor.fetchone()
+                except Exception as e:
+                    logger.error(f"Failed to assign VM to '{email}': {e}")
+                    raise
 
-        hostname = row[0]
-        logger.info(f"Assigned VM '{hostname}' to user '{email}'")
-        return hostname
+            if row is not None:
+                hostname = row[0]
+                logger.info(f"Assigned VM '{hostname}' to user '{email}'")
+                return hostname
+
+            with self._cursor as cursor:
+                cursor.execute(eligible_query)
+                eligible_row = cursor.fetchone()
+
+            if not eligible_row or not eligible_row[0]:
+                logger.warning("No available VMs to assign")
+                raise ValueError("No available VMs to assign.")
+
+            if attempt + 1 < max_lock_attempts:
+                time.sleep(min(0.01 * (2**attempt), 0.1))
+
+        raise RuntimeError("Eligible VMs remained locked during assignment")
 
     def release_seat(self, *, hostname: str) -> None:
         """Clear useremail and every per-session column on a VM row,

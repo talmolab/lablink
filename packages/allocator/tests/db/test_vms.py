@@ -997,6 +997,63 @@ def test_assign_vm_concurrent_no_double_assignment(real_db):
             cur.execute("DELETE FROM vms WHERE hostname LIKE 'race-vm-%'")
 
 
+def test_assign_vm_retries_temporarily_locked_eligible_vm(real_db, monkeypatch):
+    """A transient row lock must not be reported as an empty pool."""
+    import threading
+    import time
+
+    from lablink_allocator_service.db import vms as vms_module
+
+    hostname = "race-vm-locked"
+    _seed_race_table(real_db, [hostname])
+    locker = real_db._pool.getconn()
+    result: dict[str, object] = {}
+    retry_started = threading.Event()
+    real_sleep = time.sleep
+    thread = None
+
+    class RetryClock:
+        @staticmethod
+        def sleep(seconds):
+            retry_started.set()
+            real_sleep(seconds)
+
+    monkeypatch.setattr(vms_module, "time", RetryClock)
+
+    try:
+        locker.autocommit = False
+        with locker.cursor() as cursor:
+            cursor.execute(
+                "SELECT hostname FROM vms WHERE hostname = %s FOR UPDATE",
+                (hostname,),
+            )
+
+        def claim():
+            try:
+                result["hostname"] = real_db.assign_vm(
+                    email="student@example.com"
+                )
+            except BaseException as exc:  # noqa: BLE001
+                result["error"] = exc
+
+        thread = threading.Thread(target=claim)
+        thread.start()
+        assert retry_started.wait(timeout=2), "assignment never entered retry path"
+        locker.commit()
+        thread.join(timeout=5)
+
+        assert not thread.is_alive(), "assignment did not finish after lock release"
+        assert "error" not in result, result.get("error")
+        assert result["hostname"] == hostname
+    finally:
+        locker.rollback()
+        if thread is not None:
+            thread.join(timeout=5)
+        real_db._pool.putconn(locker)
+        with real_db._cursor as cursor:
+            cursor.execute("DELETE FROM vms WHERE hostname = %s", (hostname,))
+
+
 def test_assign_vm_concurrent_oversubscribed(real_db):
     """When more participants request than there are seats, each free VM is
     claimed exactly once and the surplus requests raise ValueError — never a
