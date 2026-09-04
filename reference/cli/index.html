@@ -738,6 +738,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../cli/tunnels/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tailscale & Cloudflare Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../cli/external-runtime/" class="md-nav__link">
         
   
@@ -5311,11 +5339,11 @@ the container only.</p>
 </tr>
 <tr>
 <td><code>--tailscale-authkey KEY</code></td>
-<td>Auth key for the allocator's own tailnet sidecar. Needed on the <strong>first</strong> deploy when <code>manual.connectivity</code> is <code>mesh_overlay</code> and/or <code>manual.participant_exposure</code> is <code>tailscale_funnel</code> — <strong>prompted for (hidden) if omitted</strong>, so the key never lands in your shell history. Optional on redeploys (the previous value is carried forward from the deployment's <code>.env</code>). <strong>Manual provider only.</strong></td>
+<td>Auth key for the allocator's own tailnet sidecar. Needed on the <strong>first</strong> deploy when <code>manual.connectivity</code> is <code>mesh_overlay</code> and/or <code>manual.participant_exposure</code> is <code>tailscale_funnel</code> — <strong>prompted for (hidden) if omitted</strong>, so the key never lands in your shell history. Optional on redeploys (the previous value is carried forward from the deployment's <code>.env</code>). Generating one: <a href="../../cli/tunnels/#tailscale">Tailscale &amp; Cloudflare Setup</a>. <strong>Manual provider only.</strong></td>
 </tr>
 <tr>
 <td><code>--cloudflare-tunnel-token TOKEN</code></td>
-<td>Token for publishing the allocator at <code>manual.public_hostname</code>. Needed on the first deploy when <code>manual.participant_exposure</code> is <code>cloudflare_tunnel</code> — <strong>prompted for (hidden) if omitted</strong>. Optional on redeploys. Supply it again to rotate. <strong>Manual provider only.</strong></td>
+<td>Token for publishing the allocator at <code>manual.public_hostname</code>. Needed on the first deploy when <code>manual.participant_exposure</code> is <code>cloudflare_tunnel</code> — <strong>prompted for (hidden) if omitted</strong>. Optional on redeploys. Supply it again to rotate. Creating the tunnel and getting the token: <a href="../../cli/tunnels/#cloudflare-tunnel">Tailscale &amp; Cloudflare Setup</a>. <strong>Manual provider only.</strong></td>
 </tr>
 <tr>
 <td><code>--render-only</code></td>
@@ -5498,7 +5526,7 @@ connectivity mode.</p>
 </tr>
 <tr>
 <td><code>--tailscale-authkey KEY</code></td>
-<td>Auth key the client will use to join the tailnet. Required with <code>--overlay-hostname</code>.</td>
+<td>Auth key the client will use to join the tailnet — the same <strong>reusable</strong> key the allocator deployed with (see <a href="../../cli/tunnels/#tailscale">Tailscale &amp; Cloudflare Setup</a>). Required with <code>--overlay-hostname</code>.</td>
 </tr>
 <tr>
 <td><code>--run-locally</code> / <code>--no-run-locally</code></td>

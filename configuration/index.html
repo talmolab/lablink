@@ -738,6 +738,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../cli/tunnels/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tailscale & Cloudflare Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../cli/external-runtime/" class="md-nav__link">
         
   
@@ -6181,7 +6209,10 @@ unreachable off-LAN and blocked as mixed content from an HTTPS page. Both
 <code>reverse_tunnel</code> both work with any exposure mode.</p>
 <p>Note that <code>overlay_tailnet</code> is required whenever a tailnet is involved on <em>either</em>
 axis, so a <code>reverse_tunnel</code> deployment that publishes itself via
-<code>tailscale_funnel</code> still needs one; <code>reverse_tunnel</code> on its own does not.</p>
+<code>tailscale_funnel</code> still needs one; <code>reverse_tunnel</code> on its own does not.
+Creating the tailnet, finding this value, and generating the auth key the deploy
+will ask for are covered in
+<a href="../cli/tunnels/#tailscale">Tailscale &amp; Cloudflare Setup</a>.</p>
 <h4 id="manual-validation-rules">Manual validation rules<a class="headerlink" href="#manual-validation-rules" title="Permanent link">&para;</a></h4>
 <p>Enforced by both <code>lablink-validate-config</code> and the <code>lablink</code> CLI:</p>
 <ul>
@@ -6202,6 +6233,8 @@ axis, so a <code>reverse_tunnel</code> deployment that publishes itself via
 <p>Publishes the allocator at <code>&lt;machine&gt;.&lt;tailnet&gt;.ts.net</code> using the same Tailscale
 sidecar <code>mesh_overlay</code> already provisions. No domain required, but the hostname
 is not yours to choose — Tailscale Funnel supports no custom domains.</p>
+<p>Tailnet, auth-key, and one-time Funnel-grant setup is walked through in
+<a href="../cli/tunnels/#tailscale">Tailscale &amp; Cloudflare Setup</a>.</p>
 <h4 id="exposure-mode-cloudflare_tunnel">Exposure mode: <code>cloudflare_tunnel</code><a class="headerlink" href="#exposure-mode-cloudflare_tunnel" title="Permanent link">&para;</a></h4>
 <p>Publishes the allocator at a hostname you choose, through a Cloudflare Tunnel in
 your own Cloudflare account. <code>cloudflared</code> ships inside the allocator image and
@@ -6215,22 +6248,11 @@ institutional domain such as <code>salk.edu</code> <strong>cannot</strong> be us
 Register a domain you control instead (typically ~$10/yr), or use
 <code>tailscale_funnel</code>, which needs no domain at all.</p>
 </div>
-<p><strong>One-time setup</strong> (done once per deployment host; the tunnel and its DNS record
-live in your Cloudflare account, so the URL is stable across every
-<code>lablink deploy</code> and <code>lablink destroy</code>):</p>
-<ol>
-<li>Sign up at <a href="https://cloudflare.com">cloudflare.com</a> (free).</li>
-<li><strong>Add a site</strong> → enter your domain → choose the Free plan.</li>
-<li>At your domain's registrar, replace the nameservers with the two Cloudflare shows.</li>
-<li>Wait for activation (usually minutes).</li>
-<li>Open the <strong>Zero Trust</strong> dashboard; pick a team name and the Free plan.</li>
-<li><strong>Networks → Tunnels → Create a tunnel</strong> → connector <code>cloudflared</code> → name it.</li>
-<li>Copy the <strong>token</strong> from the Docker install command it shows (<code>eyJhIjoiN…</code>).</li>
-<li>On the <strong>Public hostname</strong> tab: subdomain <code>lab</code>, your domain, type <code>HTTP</code>, URL
-   <code>http://localhost:5000</code>. Cloudflare creates the DNS record for you.</li>
-</ol>
-<p>Cloudflare's Zero Trust onboarding sometimes asks for a payment method even
-though the plan is free.</p>
+<p><strong>One-time setup</strong> — creating the tunnel, delegating the domain, and copying
+the token — is walked through step by step in
+<a href="../cli/tunnels/#cloudflare-tunnel">Tailscale &amp; Cloudflare Setup</a>. The tunnel
+and its DNS record live in your Cloudflare account, so the URL is stable across
+every <code>lablink deploy</code> and <code>lablink destroy</code>.</p>
 <p><strong>Configuration:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nt">provider</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">manual</span>
 <a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="nt">deployment_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">smith-lab</span>

@@ -16,7 +16,7 @@
         <link rel="prev" href="../first-deployment/">
       
       
-        <link rel="next" href="../external-runtime/">
+        <link rel="next" href="../tunnels/">
       
       
         
@@ -886,6 +886,34 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tunnels/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tailscale & Cloudflare Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -4756,6 +4784,10 @@ all.</p>
 </div>
 <p>Reaching the <strong>allocator</strong> from off-LAN is a separate axis —
 <code>manual.participant_exposure</code>, covered on that same page.</p>
+<p><code>mesh_overlay</code> and <code>participant_exposure: tailscale_funnel</code> need a Tailscale
+tailnet and auth key; <code>participant_exposure: cloudflare_tunnel</code> needs a
+Cloudflare account, a domain, and a tunnel token. Set those up <strong>before</strong>
+deploying — <a href="../tunnels/">Tailscale &amp; Cloudflare Setup</a> walks through each.</p>
 <h2 id="step-1-configure">Step 1: Configure<a class="headerlink" href="#step-1-configure" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>lablink<span class="w"> </span>configure
 </code></pre></div>
@@ -4850,7 +4882,9 @@ an auth key on the <strong>first</strong> deploy:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>lablink<span class="w"> </span>deploy<span class="w"> </span>--tailscale-authkey<span class="w"> </span>tskey-auth-...
 </code></pre></div>
 <p>Redeploys carry the previous key forward from the deployment's <code>.env</code>, so you only
-pass it again to rotate it.</p>
+pass it again to rotate it. How to generate the key (and the Cloudflare tunnel
+token, for that exposure mode) is covered in
+<a href="../tunnels/">Tailscale &amp; Cloudflare Setup</a>.</p>
 <h2 id="step-4-register-each-box">Step 4: Register each box<a class="headerlink" href="#step-4-register-each-box" title="Permanent link">&para;</a></h2>
 <p>Run this <strong>on the machine you're adding</strong>, not on the allocator host:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>lablink<span class="w"> </span>client<span class="w"> </span>register<span class="w"> </span>--allocator-url<span class="w"> </span>http://192.168.1.42:5000<span class="w"> </span>--register-token<span class="w"> </span>Xf3k9…

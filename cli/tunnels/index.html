@@ -13,10 +13,10 @@
       
       
       
-        <link rel="prev" href="../">
+        <link rel="prev" href="../byo-clients/">
       
       
-        <link rel="next" href="../first-deployment/">
+        <link rel="next" href="../external-runtime/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>Installation - LabLink</title>
+        <title>Tailscale & Cloudflare Setup - LabLink</title>
       
     
     
@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#installing-the-cli" class="md-skip">
+        <a href="#tailscale-cloudflare-setup" class="md-skip">
           Skip to content
         </a>
       
@@ -116,7 +116,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Installation
+              Tailscale & Cloudflare Setup
             
           </span>
         </div>
@@ -654,37 +654,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Installation
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
         
   
   
@@ -700,164 +673,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#prerequisites" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Prerequisites
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#install-from-pypi" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Install from PyPI
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#install-from-source" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Install from source
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#verify-the-installation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Verify the installation
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#check-your-environment" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Check your environment
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#where-things-live" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Where things live
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#upgrading" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Upgrading
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#uninstall" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Uninstall
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Uninstall">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#1-clear-out-aws" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1. Clear out AWS
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#2-remove-the-cli" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2. Remove the CLI
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#3-remove-local-state" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3. Remove local state
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#next-steps" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Next steps
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -923,10 +738,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../tunnels/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tailscale & Cloudflare Setup
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -942,6 +784,148 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#tailscale" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tailscale
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Tailscale">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-create-a-tailnet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Create a tailnet
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-generate-an-auth-key" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Generate an auth key
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-hand-the-key-to-the-cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Hand the key to the CLI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-funnel-only-grant-it-once" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Funnel only: grant it once
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-expiry-rotation-housekeeping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key expiry, rotation, housekeeping
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cloudflare-tunnel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cloudflare Tunnel
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cloudflare Tunnel">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-one-time-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. One-time setup
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-configure-and-deploy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Configure and deploy
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next steps
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -4592,99 +4576,22 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#prerequisites" class="md-nav__link">
+  <a href="#tailscale" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Prerequisites
+        Tailscale
       
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#install-from-pypi" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Install from PyPI
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#install-from-source" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Install from source
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#verify-the-installation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Verify the installation
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#check-your-environment" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Check your environment
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#where-things-live" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Where things live
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#upgrading" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Upgrading
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#uninstall" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Uninstall
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Uninstall">
+    <nav class="md-nav" aria-label="Tailscale">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#1-clear-out-aws" class="md-nav__link">
+  <a href="#1-create-a-tailnet" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. Clear out AWS
+        1. Create a tailnet
       
     </span>
   </a>
@@ -4692,10 +4599,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#2-remove-the-cli" class="md-nav__link">
+  <a href="#2-generate-an-auth-key" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. Remove the CLI
+        2. Generate an auth key
       
     </span>
   </a>
@@ -4703,10 +4610,71 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#3-remove-local-state" class="md-nav__link">
+  <a href="#3-hand-the-key-to-the-cli" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. Remove local state
+        3. Hand the key to the CLI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-funnel-only-grant-it-once" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Funnel only: grant it once
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-expiry-rotation-housekeeping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key expiry, rotation, housekeeping
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cloudflare-tunnel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cloudflare Tunnel
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cloudflare Tunnel">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-one-time-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. One-time setup
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-configure-and-deploy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Configure and deploy
       
     </span>
   </a>
@@ -4749,230 +4717,218 @@
   
 
 
-<h1 id="installing-the-cli">Installing the CLI<a class="headerlink" href="#installing-the-cli" title="Permanent link">&para;</a></h1>
-<p>The <code>lablink</code> command is published to PyPI as <a href="https://pypi.org/project/lablink-cli/"><code>lablink-cli</code></a>. Install it as a standalone tool to deploy and manage LabLink, or <a href="#install-from-source">from source</a> if you intend to work on the CLI itself — it is also one of three packages in this repo's <code>uv</code> workspace (<code>packages/allocator</code>, <code>packages/client</code>, <code>packages/cli</code>).</p>
-<div class="admonition note">
-<p class="admonition-title">The package and the command have different names</p>
-<p>The PyPI package is <strong><code>lablink-cli</code></strong>; the command it installs is <strong><code>lablink</code></strong>. There is no <code>lablink</code> package on PyPI, so <code>pip install lablink</code> will fail.</p>
-</div>
+<h1 id="tailscale-cloudflare-setup">Tailscale &amp; Cloudflare Setup<a class="headerlink" href="#tailscale-cloudflare-setup" title="Permanent link">&para;</a></h1>
+<p>Some of the manual provider's <a href="../byo-clients/#pick-a-connectivity-mode">connectivity and exposure modes</a>
+ride on a third-party service: Tailscale (mesh overlay, Funnel) or Cloudflare
+(Tunnel). LabLink never touches either account for you — you set it up once,
+hand the CLI a credential at deploy time, and the CLI does the rest. This page
+is that one-time, account-side setup.</p>
+<p>What you need depends on your config:</p>
+<table>
+<thead>
+<tr>
+<th>Config</th>
+<th>Set up here</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>manual.connectivity: mesh_overlay</code></td>
+<td>A <a href="#tailscale">Tailscale tailnet and auth key</a></td>
+</tr>
+<tr>
+<td><code>manual.participant_exposure: tailscale_funnel</code></td>
+<td>The same tailnet and auth key, plus a <a href="#4-funnel-only-grant-it-once">one-time Funnel grant</a></td>
+</tr>
+<tr>
+<td><code>manual.participant_exposure: cloudflare_tunnel</code></td>
+<td>A <a href="#cloudflare-tunnel">Cloudflare account, domain, and tunnel token</a></td>
+</tr>
+<tr>
+<td><code>lan_direct</code>, <code>reverse_tunnel</code>, exposure <code>none</code></td>
+<td>Nothing — no third-party account involved</td>
+</tr>
+</tbody>
+</table>
+<p>The two axes combine: a <code>reverse_tunnel</code> deployment needs no Tailscale on its
+own, but pairing it with <code>participant_exposure: tailscale_funnel</code> brings in the
+whole Tailscale section anyway.</p>
+<h2 id="tailscale">Tailscale<a class="headerlink" href="#tailscale" title="Permanent link">&para;</a></h2>
+<p>One tailnet and <strong>one reusable auth key</strong> cover the whole deployment. The
+allocator joins the tailnet through a sidecar container during <code>lablink deploy</code>
+(as machine <code>lablink-allocator-&lt;deployment_name&gt;</code>), and every mesh-overlay
+client box joins with the same key during <code>lablink client register</code>.</p>
+<h3 id="1-create-a-tailnet">1. Create a tailnet<a class="headerlink" href="#1-create-a-tailnet" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Sign up at <a href="https://tailscale.com">tailscale.com</a> — the free personal plan
+   is enough.</li>
+<li>In the <a href="https://login.tailscale.com/admin">admin console</a>, open the <strong>DNS</strong>
+   tab and note your <strong>tailnet name</strong> (e.g. <code>tail1234.ts.net</code>). That string is
+   your config's <code>manual.overlay_tailnet</code>.</li>
+<li>Leave <strong>MagicDNS</strong> enabled (it is by default). The allocator reaches
+   mesh-overlay clients by their MagicDNS names, so turning it off breaks
+   <code>mesh_overlay</code> entirely.</li>
+</ol>
+<p>You do <strong>not</strong> need to install Tailscale on the allocator host or the client
+boxes — it runs inside the containers LabLink starts.</p>
+<h3 id="2-generate-an-auth-key">2. Generate an auth key<a class="headerlink" href="#2-generate-an-auth-key" title="Permanent link">&para;</a></h3>
+<p>In the admin console: <strong>Settings → Keys → Generate auth key</strong>.</p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Pick</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Reusable</strong></td>
+<td><strong>On</strong></td>
+<td>The allocator and every client box all join with this one key. A single-use key works for the first join and fails on the second.</td>
+</tr>
+<tr>
+<td><strong>Expiration</strong></td>
+<td>Default (90 days) is fine</td>
+<td>Expiry only blocks <em>new</em> joins — machines already on the tailnet stay on it. Generate a fresh key when you next add a box after expiry.</td>
+</tr>
+<tr>
+<td><strong>Ephemeral</strong></td>
+<td><strong>Off</strong> (the default)</td>
+<td>LabLink deliberately persists each node's identity in a docker volume so a re-registered box returns as the <em>same</em> tailnet machine. Ephemeral nodes get deleted while offline, defeating that.</td>
+</tr>
+<tr>
+<td><strong>Pre-approved</strong></td>
+<td>On, if shown</td>
+<td>The checkbox only appears when your tailnet has device approval enabled; without it you'd have to manually approve every box in the <strong>Machines</strong> tab before it works.</td>
+</tr>
+</tbody>
+</table>
+<p>Copy the <code>tskey-auth-…</code> value — Tailscale shows it only once.</p>
+<h3 id="3-hand-the-key-to-the-cli">3. Hand the key to the CLI<a class="headerlink" href="#3-hand-the-key-to-the-cli" title="Permanent link">&para;</a></h3>
+<p>On the allocator host, the first deploy:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>lablink<span class="w"> </span>deploy<span class="w"> </span>--tailscale-authkey<span class="w"> </span>tskey-auth-...
+</code></pre></div>
+<p>Omit the flag and <code>deploy</code> prompts for it (hidden, so it stays out of your
+shell history). It's stored only in the deployment's <code>.env</code> (mode <code>0600</code>) and
+carried forward on redeploys — pass the flag again only to rotate the key.</p>
+<p>On each mesh-overlay box:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>lablink<span class="w"> </span>client<span class="w"> </span>register<span class="w"> </span>--allocator-url<span class="w"> </span>&lt;url&gt;<span class="w"> </span>--register-token<span class="w"> </span>&lt;token&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span>--overlay-hostname<span class="w"> </span>&lt;name-of-your-choice&gt;<span class="w"> </span>--tailscale-authkey<span class="w"> </span>tskey-auth-...
+</code></pre></div>
+<p>The register command that <code>deploy</code> and the admin UI's <code>/admin/byo-onboarding</code>
+page print leaves <code>--tailscale-authkey &lt;key&gt;</code> as a placeholder — the key is a
+secret, so it travels only through you. Send it to whoever registers boxes over
+a channel you'd trust with a password.</p>
+<h3 id="4-funnel-only-grant-it-once">4. Funnel only: grant it once<a class="headerlink" href="#4-funnel-only-grant-it-once" title="Permanent link">&para;</a></h3>
+<p><code>participant_exposure: tailscale_funnel</code> publishes the allocator at
+<code>https://lablink-allocator-&lt;deployment_name&gt;.&lt;tailnet&gt;.ts.net</code>. Tailnets don't
+allow Funnel until you approve it once:</p>
+<ul>
+<li>Just run <code>lablink deploy</code>. If the tailnet hasn't granted Funnel yet, the
+  deploy finishes the stack but exits with Tailscale's own message naming the
+  exact <strong>grant URL</strong> — open it, approve, and run <code>lablink deploy</code> again.</li>
+<li>A tailnet that has already granted Funnel needs nothing; the CLI enables and
+  verifies Funnel on every deploy.</li>
+</ul>
+<p>Funnel also requires <code>app.admin_password</code> to be at least 12 characters — a
+<code>.ts.net</code> hostname appears in Certificate Transparency logs and gets scanned by
+bots within minutes of publishing.</p>
+<h3 id="key-expiry-rotation-housekeeping">Key expiry, rotation, housekeeping<a class="headerlink" href="#key-expiry-rotation-housekeeping" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Node keys expire after 180 days</strong> by default, at which point a machine
+  silently drops off the tailnet. For a deployment meant to outlive that,
+  select each LabLink machine in the <strong>Machines</strong> tab and <strong>Disable key
+  expiry</strong>.</li>
+<li><strong>Rotating the auth key</strong>: generate a new key, use it for future <code>client
+register</code> runs, and pass <code>--tailscale-authkey</code> once to <code>lablink deploy</code> to
+  update the allocator's stored copy. Machines already joined are unaffected.</li>
+<li><strong>Stale machines</strong>: an unregistered or reset box leaves its old (offline)
+  machine holding its name in the tailnet, and the next join gets a <code>-1</code>
+  suffix. Delete stale machines in the <strong>Machines</strong> tab — see
+  <a href="../../troubleshooting/">Troubleshooting</a> and the <code>reset-overlay</code> notes in
+  <a href="../byo-clients/#removing-a-box">Bring-Your-Own Clients</a>.</li>
+</ul>
+<h2 id="cloudflare-tunnel">Cloudflare Tunnel<a class="headerlink" href="#cloudflare-tunnel" title="Permanent link">&para;</a></h2>
+<p><code>participant_exposure: cloudflare_tunnel</code> publishes the allocator at a hostname
+you choose, through a tunnel in your own Cloudflare account. <code>cloudflared</code>
+ships inside the allocator image; all you supply is the <strong>tunnel token</strong>.</p>
 <div class="admonition warning">
-<p class="admonition-title">Pre-release</p>
-<p>The published version is a pre-release (<code>0.1.0a1</code>). Expect rough edges, and pin an exact version (<code>lablink-cli==0.1.0a1</code>) if you need a reproducible install.</p>
+<p class="admonition-title">Requires a domain whose nameservers point at Cloudflare</p>
+<p>A custom hostname needs Cloudflare's free-plan <strong>full setup</strong> — the
+domain's nameservers must be delegated to Cloudflare. Partial (CNAME)
+setup is Business-tier and subdomain zones are Enterprise-tier, so an
+institutional domain such as <code>salk.edu</code> <strong>cannot</strong> be used on the free
+plan. Register a domain you control instead (typically ~$10/yr), or use
+<code>tailscale_funnel</code>, which needs no domain at all.</p>
 </div>
-<h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
-<p>Before installing, make sure you have:</p>
-<ul>
-<li><strong><a href="https://docs.astral.sh/uv/">uv</a></strong> — the Python project manager used by this repo. Install with <code>curl -LsSf https://astral.sh/uv/install.sh | sh</code> or see the <a href="https://docs.astral.sh/uv/getting-started/installation/">official install guide</a>.</li>
-<li><strong>Python 3.10+</strong> — uv can manage this for you (<code>uv python install 3.11</code>). Check with <code>python --version</code>.</li>
-</ul>
-<p>The rest depends on which provider you deploy with.</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1"><code>provider: aws</code></label><label for="__tabbed_1_2"><code>provider: manual</code></label></div>
-<div class="tabbed-content">
-<div class="tabbed-block">
-<ul>
-<li><strong>OpenTofu 1.10+</strong> — the CLI drives OpenTofu under the hood. Install from <a href="https://opentofu.org/docs/intro/install/">opentofu.org/docs/intro/install</a>. Older releases vendor an <code>aws-sdk-go-v2</code> that can corrupt S3 state on an upload retry, so <code>lablink doctor</code> rejects them.</li>
-<li><strong>AWS credentials</strong> configured locally (either <code>aws configure</code> or <code>AWS_ACCESS_KEY_ID</code> / <code>AWS_SECRET_ACCESS_KEY</code> environment variables). See <a href="../../prerequisites/#configure-aws-credentials">Prerequisites</a>.</li>
-<li><strong>An AWS account</strong> with permissions to create EC2, S3, DynamoDB, IAM, and (optionally) Route 53 resources. See <a href="../../aws-setup/">AWS Setup (Manual)</a> for the full permission list.</li>
-</ul>
-</div>
-<div class="tabbed-block">
-<ul>
-<li><strong>Docker</strong> and the <strong><code>docker compose</code> v2 plugin</strong>, on the allocator host and on every client box. The allocator runs as a compose stack and each client runs the client container.</li>
-<li>No AWS account, no AWS credentials, and no OpenTofu — see <a href="../byo-clients/">Bring-Your-Own Clients</a>.</li>
-</ul>
-</div>
-</div>
-</div>
-<h2 id="install-from-pypi">Install from PyPI<a class="headerlink" href="#install-from-pypi" title="Permanent link">&para;</a></h2>
-<p>This is the path for using the CLI. Install it as a standalone tool:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>uv<span class="w"> </span>tool<span class="w"> </span>install<span class="w"> </span>lablink-cli
-</code></pre></div>
-<p>That puts <code>lablink</code> on your <code>PATH</code> in its own isolated environment, which is what you want for a command-line tool — it cannot collide with another project's dependencies. Verify it:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>lablink<span class="w"> </span>--version
-</code></pre></div>
-<p><code>pip install lablink-cli</code> works too, into whichever environment is currently active. No <code>--pre</code> flag is needed despite the alpha version: it is the only release right now, so both installers select it. Once a stable release exists, plain installs will prefer that instead, and you would need <code>--pre</code> to keep getting alphas.</p>
-<h2 id="install-from-source">Install from source<a class="headerlink" href="#install-from-source" title="Permanent link">&para;</a></h2>
-<p>Use this if you intend to modify the CLI. Clone the repo and run <code>uv sync --all-packages</code> at the root. This installs all three workspace packages (allocator, client, CLI) as editable — the CLI depends on <code>lablink-allocator-service</code>, which uv resolves from the workspace automatically.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/talmolab/lablink.git
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nb">cd</span><span class="w"> </span>lablink
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>uv<span class="w"> </span>sync<span class="w"> </span>--all-packages
-</code></pre></div>
-<p>uv creates <code>.venv/</code> on first sync. Run the CLI either directly through uv:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>uv<span class="w"> </span>run<span class="w"> </span>lablink<span class="w"> </span>--help
-</code></pre></div>
-<p>…or by activating the venv:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nb">source</span><span class="w"> </span>.venv/bin/activate
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>lablink<span class="w"> </span>--help
-</code></pre></div>
-<p>You should see the grouped command list (Setup, Deployment, Operations, Maintenance) — the same panels Typer prints for <code>--help</code>.</p>
+<h3 id="1-one-time-setup">1. One-time setup<a class="headerlink" href="#1-one-time-setup" title="Permanent link">&para;</a></h3>
+<p>Done once; the tunnel and its DNS record live in your Cloudflare account, so
+the URL is stable across every <code>lablink deploy</code> and <code>lablink destroy</code>:</p>
+<ol>
+<li>Sign up at <a href="https://cloudflare.com">cloudflare.com</a> (free).</li>
+<li>In the <a href="https://dash.cloudflare.com">dashboard</a> — not the marketing homepage —
+   go to <strong>Domains → Overview</strong>, click <strong>Add domain</strong> (blue button, top right),
+   then pick <strong>Connect a domain</strong>. Enter the domain you own; the plan choice
+   comes after — pick <strong>Free</strong>. "Free" is Cloudflare's service tier, not the
+   domain: the domain itself always costs money (~$10/yr).</li>
+<li>At your domain's registrar, replace the nameservers with the two Cloudflare
+   shows.</li>
+<li>
+<p>Wait for activation (usually minutes).</p>
 <div class="admonition tip">
-<p class="admonition-title">Running from outside the repo</p>
-<p>If you want <code>lablink</code> available from any directory, activate <code>.venv</code> in your shell profile, or install via <code>uv tool install --from ./packages/cli lablink-cli</code> (note: this will fail today because the CLI's workspace dep on <code>lablink-allocator-service</code> isn't yet resolvable outside the workspace — revisit after PyPI publish).</p>
+<p class="admonition-title">No domain yet? Buy it from Cloudflare and skip steps 2–4</p>
+<p><strong>Buy a domain</strong> on that same Add-domain screen (also
+<strong>Domains → Registrations</strong>) registers one at cost. A
+Cloudflare-registered domain lands in your account already active on
+Cloudflare's nameservers — no connecting, no nameserver swap, no
+activation wait.</p>
 </div>
-<h2 id="verify-the-installation">Verify the installation<a class="headerlink" href="#verify-the-installation" title="Permanent link">&para;</a></h2>
-<p>Once installed, run <code>lablink</code> with no arguments to confirm everything is wired up:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>lablink
+</li>
+<li>
+<p>Open the <strong>Zero Trust</strong> dashboard; pick a team name and the Free plan.</p>
+</li>
+<li><strong>Networks → Tunnels &amp; Mesh → Create a tunnel</strong> → connector <code>cloudflared</code> → name
+   it.</li>
+<li>Copy the <strong>token</strong> from the Docker install command it shows (<code>eyJhIjoiN…</code>).</li>
+<li>On the <strong>Public hostname</strong> tab: subdomain (e.g. <code>lab</code>), your domain, type
+   <code>HTTP</code>, URL <code>http://localhost:5000</code>. Cloudflare creates the DNS record for
+   you.</li>
+</ol>
+<p>Cloudflare's Zero Trust onboarding sometimes asks for a payment method even
+though the plan is free.</p>
+<h3 id="2-configure-and-deploy">2. Configure and deploy<a class="headerlink" href="#2-configure-and-deploy" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">provider</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">manual</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nt">deployment_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">smith-lab</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="nt">ssl</span><span class="p">:</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="nt">provider</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">none</span><span class="w"> </span><span class="c1"># Cloudflare supplies the public certificate</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="nt">manual</span><span class="p">:</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">  </span><span class="nt">connectivity</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mesh_overlay</span><span class="w"> </span><span class="c1"># lan_direct is rejected with any exposure mode</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">  </span><span class="nt">overlay_tailnet</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">example.ts.net</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">  </span><span class="nt">participant_exposure</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cloudflare_tunnel</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">  </span><span class="nt">public_hostname</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lab.smithlab.org</span>
 </code></pre></div>
-<p>If you installed from source rather than PyPI, use <code>uv run lablink</code> instead, or activate the venv first.</p>
-<p>On a fresh install (no config yet), you'll see a <strong>Getting started</strong> panel pointing at the next three commands:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>╭─ Getting started ──────────────────────────────────────╮
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>│ Welcome to LabLink. First-time setup:                  │
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>│                                                        │
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>│   1. lablink configure   create config + AWS state…    │
-<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>│   2. lablink doctor      verify prerequisites          │
-<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>│   3. lablink deploy      deploy the allocator          │
-<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>│                                                        │
-<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>│ For the full command list, run 'lablink --help'.       │
-<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>╰────────────────────────────────────────────────────────╯
+<p><code>public_hostname</code> is the subdomain + domain from step 8, as a bare FQDN — no
+<code>https://</code>, port or path.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>lablink<span class="w"> </span>deploy<span class="w"> </span>--cloudflare-tunnel-token<span class="w"> </span>eyJhIjoiN...
 </code></pre></div>
-<p>If you instead see the full command list (Setup / Deployment / Operations / Maintenance panels), it means <code>~/.lablink/config.yaml</code> already exists from a previous run — that's fine, skip ahead to <a href="../first-deployment/#step-1-configure">Step 1: Configure</a>.</p>
-<h2 id="check-your-environment">Check your environment<a class="headerlink" href="#check-your-environment" title="Permanent link">&para;</a></h2>
-<p>Run <code>lablink doctor</code> to validate prerequisites end-to-end:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>uv<span class="w"> </span>run<span class="w"> </span>lablink<span class="w"> </span>doctor
-</code></pre></div>
-<p>It checks:</p>
-<table>
-<thead>
-<tr>
-<th>Check</th>
-<th>What it verifies</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>OpenTofu installed</td>
-<td><code>tofu</code> is on PATH and reports a version</td>
-</tr>
-<tr>
-<td>Config file</td>
-<td><code>~/.lablink/config.yaml</code> exists</td>
-</tr>
-<tr>
-<td>Config validates</td>
-<td>The config parses and passes schema validation</td>
-</tr>
-<tr>
-<td>AWS credentials</td>
-<td><code>sts:GetCallerIdentity</code> succeeds for the configured region</td>
-</tr>
-<tr>
-<td>S3 state bucket</td>
-<td>The <code>bucket_name</code> in your config actually exists</td>
-</tr>
-<tr>
-<td>AMI for region</td>
-<td>The CLI knows an AMI for <code>cfg.app.region</code></td>
-</tr>
-</tbody>
-</table>
-<p>A fresh install (before <code>lablink configure</code>) will fail on "Config file" and anything that depends on it. That's expected — move on to <a href="../first-deployment/">First Deployment</a>.</p>
-<h2 id="where-things-live">Where things live<a class="headerlink" href="#where-things-live" title="Permanent link">&para;</a></h2>
-<p>The CLI stores state under <code>~/.lablink/</code>:</p>
-<table>
-<thead>
-<tr>
-<th>Path</th>
-<th>Purpose</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>~/.lablink/config.yaml</code></td>
-<td>Default config file written by <code>lablink configure</code></td>
-</tr>
-<tr>
-<td><code>~/.lablink/cache/terraform/&lt;version&gt;/</code></td>
-<td>Cached OpenTofu templates downloaded from the <code>lablink-template</code> repo</td>
-</tr>
-<tr>
-<td><code>~/.lablink/deployments/</code></td>
-<td>Per-deploy metrics records (readable by <code>lablink export-metrics --allocator</code>)</td>
-</tr>
-<tr>
-<td><code>~/.lablink/deploy/&lt;name&gt;/&lt;environment&gt;/</code></td>
-<td>Working directory OpenTofu runs in for each deployment</td>
-</tr>
-</tbody>
-</table>
-<p>Pass <code>--config /path/to/config.yaml</code> to any command to use a different config file.</p>
-<h2 id="upgrading">Upgrading<a class="headerlink" href="#upgrading" title="Permanent link">&para;</a></h2>
-<p>If you installed from PyPI:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>uv<span class="w"> </span>tool<span class="w"> </span>upgrade<span class="w"> </span>lablink-cli<span class="w">   </span><span class="c1"># or: pip install --upgrade lablink-cli</span>
-</code></pre></div>
-<p>If you installed from source, pull and re-sync:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nb">cd</span><span class="w"> </span>lablink
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>git<span class="w"> </span>pull
-<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>uv<span class="w"> </span>sync<span class="w"> </span>--all-packages
-</code></pre></div>
+<p>Same secret handling as the Tailscale key: prompted (hidden) if the flag is
+omitted on the first deploy, stored only in the deployment's <code>.env</code>, carried
+forward on redeploys, passed again only to rotate.</p>
+<p>After the stack is up, <code>deploy</code> checks <code>https://&lt;public_hostname&gt;/api/health</code>
+once. A miss is a warning, not a failure — a freshly created DNS record may
+still be propagating; retry the URL in your browser in a few minutes.</p>
 <div class="admonition note">
-<p class="admonition-title">Template version</p>
-<p>The CLI pins a specific version of the <code>lablink-template</code> OpenTofu files. After upgrading the CLI, the first <code>lablink deploy</code> will download the new template version into <code>~/.lablink/cache/terraform/</code>.</p>
-</div>
-<h2 id="uninstall">Uninstall<a class="headerlink" href="#uninstall" title="Permanent link">&para;</a></h2>
-<div class="admonition warning">
-<p class="admonition-title">Destroy your deployments first</p>
-<p>Uninstalling the CLI does <strong>not</strong> stop AWS charges. Everything <code>lablink
-deploy</code> created keeps running and billing, and the CLI is the only thing
-that knows how to tear it down. Run this <em>before</em> removing anything:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>lablink<span class="w"> </span>destroy
-</code></pre></div>
-</div>
-<h3 id="1-clear-out-aws">1. Clear out AWS<a class="headerlink" href="#1-clear-out-aws" title="Permanent link">&para;</a></h3>
-<p><code>lablink destroy</code> removes what OpenTofu owns. Two things deliberately outlive it:</p>
-<ul>
-<li><strong>Orphaned resources</strong> left by an interrupted deploy. <code>lablink cleanup --dry-run</code> lists them; <code>lablink cleanup</code> deletes them.</li>
-<li><strong>The S3 state bucket and DynamoDB lock table</strong>, kept so the next deploy can reuse them (~$0.05/month). To remove those too, see <a href="../managing-deployments/#cleanup-orphaned-resources">Cleanup orphaned resources</a>.</li>
-</ul>
-<p>Confirm nothing is left before moving on:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>lablink<span class="w"> </span>status
-</code></pre></div>
-<h3 id="2-remove-the-cli">2. Remove the CLI<a class="headerlink" href="#2-remove-the-cli" title="Permanent link">&para;</a></h3>
-<p>If you installed from PyPI:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>uv<span class="w"> </span>tool<span class="w"> </span>uninstall<span class="w"> </span>lablink-cli<span class="w">   </span><span class="c1"># or: pip uninstall lablink-cli</span>
-</code></pre></div>
-<p>If you installed from source, delete the checkout (the venv lives inside it):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>rm<span class="w"> </span>-rf<span class="w"> </span>/path/to/lablink
-</code></pre></div>
-<h3 id="3-remove-local-state">3. Remove local state<a class="headerlink" href="#3-remove-local-state" title="Permanent link">&para;</a></h3>
-<p>The CLI never cleans up <code>~/.lablink/</code> on its own:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>rm<span class="w"> </span>-rf<span class="w"> </span>~/.lablink
-</code></pre></div>
-<p>This is local-only — it touches nothing in AWS. What you lose:</p>
-<table>
-<thead>
-<tr>
-<th>Path</th>
-<th>Consequence</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>config.yaml</code></td>
-<td>Re-run <code>lablink configure</code> to recreate it</td>
-</tr>
-<tr>
-<td><code>cache/terraform/</code></td>
-<td>Re-downloaded on the next deploy</td>
-</tr>
-<tr>
-<td><code>deployments/</code></td>
-<td>Per-deploy metrics history is gone; export it first with <code>lablink export-metrics</code> if you want to keep it</td>
-</tr>
-<tr>
-<td><code>deploy/</code></td>
-<td>OpenTofu working directories. <strong>Delete these only after <code>lablink destroy</code> succeeds</strong> — losing them while resources still exist orphans them from local state</td>
-</tr>
-</tbody>
-</table>
-<div class="admonition tip">
-<p class="admonition-title">Keeping the config</p>
-<p>To reinstall later against the same deployment, keep <code>~/.lablink/config.yaml</code> and delete the rest.</p>
+<p class="admonition-title">Cloudflare can read your traffic</p>
+<p>Cloudflare Tunnel terminates TLS at Cloudflare's edge — see the
+<a href="../../configuration/#cloudflare-can-read-your-traffic">security note</a> for
+what that means and when to prefer <code>tailscale_funnel</code>.</p>
 </div>
 <h2 id="next-steps">Next steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
 <ul>
-<li><a href="../first-deployment/">Run your first deployment</a></li>
-<li><a href="../managing-deployments/">Day-to-day operations</a></li>
-<li>Full command reference: <a href="../../reference/cli/">CLI Reference</a></li>
+<li><a href="../byo-clients/">Bring-Your-Own Clients</a> — the deploy and register flow these credentials plug into.</li>
+<li><a href="../../configuration/#manual-provider-options-manual">Configuration</a> — every <code>manual.*</code> option and its validation rules.</li>
+<li><a href="../../reference/cli/">CLI Reference</a> — full flag lists for <code>deploy</code> and <code>client register</code>.</li>
 </ul>
 
 
