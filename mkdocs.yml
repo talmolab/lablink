@@ -98,6 +98,7 @@ nav:
       - Installation: cli/installation.md
       - First Deployment: cli/first-deployment.md
       - Bring-Your-Own Clients: cli/byo-clients.md
+      - Tailscale & Cloudflare Setup: cli/tunnels.md
       - External runtime (Run:AI): cli/external-runtime.md
       - Managing Deployments: cli/managing-deployments.md
   - Template Repo:
