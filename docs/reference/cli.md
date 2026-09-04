@@ -171,8 +171,8 @@ the container only.
 | `--template-version V` | Override the pinned template version (e.g. `v0.2.0`). Skips checksum verification. **AWS provider only.** |
 | `--terraform-bundle PATH` | Path to a local template tarball for offline deploys. **AWS provider only.** |
 | `-y`, `--yes` | Skip confirmation prompts. Does not bypass credential prompts (the admin password is still required interactively). |
-| `--tailscale-authkey KEY` | Auth key for the allocator's own tailnet sidecar. Needed on the **first** deploy when `manual.connectivity` is `mesh_overlay` and/or `manual.participant_exposure` is `tailscale_funnel` — **prompted for (hidden) if omitted**, so the key never lands in your shell history. Optional on redeploys (the previous value is carried forward from the deployment's `.env`). **Manual provider only.** |
-| `--cloudflare-tunnel-token TOKEN` | Token for publishing the allocator at `manual.public_hostname`. Needed on the first deploy when `manual.participant_exposure` is `cloudflare_tunnel` — **prompted for (hidden) if omitted**. Optional on redeploys. Supply it again to rotate. **Manual provider only.** |
+| `--tailscale-authkey KEY` | Auth key for the allocator's own tailnet sidecar. Needed on the **first** deploy when `manual.connectivity` is `mesh_overlay` and/or `manual.participant_exposure` is `tailscale_funnel` — **prompted for (hidden) if omitted**, so the key never lands in your shell history. Optional on redeploys (the previous value is carried forward from the deployment's `.env`). Generating one: [Tailscale & Cloudflare Setup](../cli/tunnels.md#tailscale). **Manual provider only.** |
+| `--cloudflare-tunnel-token TOKEN` | Token for publishing the allocator at `manual.public_hostname`. Needed on the first deploy when `manual.participant_exposure` is `cloudflare_tunnel` — **prompted for (hidden) if omitted**. Optional on redeploys. Supply it again to rotate. Creating the tunnel and getting the token: [Tailscale & Cloudflare Setup](../cli/tunnels.md#cloudflare-tunnel). **Manual provider only.** |
 | `--render-only` | Render the compose bundle and print a launch sheet instead of starting containers — for running the allocator image as a workload on an external container platform (Run:AI, Kubernetes) with no local Docker daemon. See [External Runtime](../cli/external-runtime.md). **Manual provider only.** |
 
 Secrets passed via `--tailscale-authkey` / `--cloudflare-tunnel-token` — or typed
@@ -305,7 +305,7 @@ connectivity mode.
 | `--gpu-present` / `--no-gpu-present` | Override auto-detected GPU presence. |
 | `--gpu-model STR` | Override the auto-detected GPU model string. |
 | `--overlay-hostname NAME` | Register a **mesh-overlay** client under this Tailscale hostname (your choice). Requires `--tailscale-authkey`. |
-| `--tailscale-authkey KEY` | Auth key the client will use to join the tailnet. Required with `--overlay-hostname`. |
+| `--tailscale-authkey KEY` | Auth key the client will use to join the tailnet — the same **reusable** key the allocator deployed with (see [Tailscale & Cloudflare Setup](../cli/tunnels.md#tailscale)). Required with `--overlay-hostname`. |
 | `--run-locally` / `--no-run-locally` | With `--overlay-hostname`: whether to `docker run` the client here now (default: on). `--no-run-locally` instead prints the secrets for pasting into a separate workload submission, and then also requires `--hostname` and `--machine-identity`. |
 | `--tunnel` | Register a **reverse-tunnel** client: the box dials *out* to the allocator and holds one connection open, instead of the allocator dialling in. For networks that won't carry Tailscale and boxes that can't accept inbound connections. Takes no arguments — the allocator mints every value needed. |
 | `--force` | Overwrite an existing `~/.lablink/client.env`. Mints a new client secret, orphaning any running container. |

@@ -58,6 +58,11 @@ all.
 Reaching the **allocator** from off-LAN is a separate axis —
 `manual.participant_exposure`, covered on that same page.
 
+`mesh_overlay` and `participant_exposure: tailscale_funnel` need a Tailscale
+tailnet and auth key; `participant_exposure: cloudflare_tunnel` needs a
+Cloudflare account, a domain, and a tunnel token. Set those up **before**
+deploying — [Tailscale & Cloudflare Setup](tunnels.md) walks through each.
+
 ## Step 1: Configure
 
 ```bash
@@ -178,7 +183,9 @@ lablink deploy --tailscale-authkey tskey-auth-...
 ```
 
 Redeploys carry the previous key forward from the deployment's `.env`, so you only
-pass it again to rotate it.
+pass it again to rotate it. How to generate the key (and the Cloudflare tunnel
+token, for that exposure mode) is covered in
+[Tailscale & Cloudflare Setup](tunnels.md).
 
 ## Step 4: Register each box
 

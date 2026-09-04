@@ -453,6 +453,9 @@ unreachable off-LAN and blocked as mixed content from an HTTPS page. Both
 Note that `overlay_tailnet` is required whenever a tailnet is involved on *either*
 axis, so a `reverse_tunnel` deployment that publishes itself via
 `tailscale_funnel` still needs one; `reverse_tunnel` on its own does not.
+Creating the tailnet, finding this value, and generating the auth key the deploy
+will ask for are covered in
+[Tailscale & Cloudflare Setup](cli/tunnels.md#tailscale).
 
 #### Manual validation rules
 
@@ -477,6 +480,9 @@ Publishes the allocator at `<machine>.<tailnet>.ts.net` using the same Tailscale
 sidecar `mesh_overlay` already provisions. No domain required, but the hostname
 is not yours to choose — Tailscale Funnel supports no custom domains.
 
+Tailnet, auth-key, and one-time Funnel-grant setup is walked through in
+[Tailscale & Cloudflare Setup](cli/tunnels.md#tailscale).
+
 #### Exposure mode: `cloudflare_tunnel`
 
 Publishes the allocator at a hostname you choose, through a Cloudflare Tunnel in
@@ -491,22 +497,11 @@ is started only when this mode is set; LabLink makes no Cloudflare API calls.
     Register a domain you control instead (typically ~$10/yr), or use
     `tailscale_funnel`, which needs no domain at all.
 
-**One-time setup** (done once per deployment host; the tunnel and its DNS record
-live in your Cloudflare account, so the URL is stable across every
-`lablink deploy` and `lablink destroy`):
-
-1. Sign up at [cloudflare.com](https://cloudflare.com) (free).
-2. **Add a site** → enter your domain → choose the Free plan.
-3. At your domain's registrar, replace the nameservers with the two Cloudflare shows.
-4. Wait for activation (usually minutes).
-5. Open the **Zero Trust** dashboard; pick a team name and the Free plan.
-6. **Networks → Tunnels → Create a tunnel** → connector `cloudflared` → name it.
-7. Copy the **token** from the Docker install command it shows (`eyJhIjoiN…`).
-8. On the **Public hostname** tab: subdomain `lab`, your domain, type `HTTP`, URL
-   `http://localhost:5000`. Cloudflare creates the DNS record for you.
-
-Cloudflare's Zero Trust onboarding sometimes asks for a payment method even
-though the plan is free.
+**One-time setup** — creating the tunnel, delegating the domain, and copying
+the token — is walked through step by step in
+[Tailscale & Cloudflare Setup](cli/tunnels.md#cloudflare-tunnel). The tunnel
+and its DNS record live in your Cloudflare account, so the URL is stable across
+every `lablink deploy` and `lablink destroy`.
 
 **Configuration:**
 
