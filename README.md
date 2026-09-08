@@ -90,7 +90,7 @@ Production images are built from the PyPI packages:
 - `linux-amd64-latest` - Latest for specific platform
 - `<sha>` - Specific git commit
 - `linux-amd64-test` - Development/testing builds
-- `<version>` (e.g., `0.3.0`) - Only published when a build is triggered manually
+- `<version>` (e.g., `0.4.0`) - Only published when a build is triggered manually
 
 See [Docker Image Tags](https://talmolab.github.io/lablink/workflows/#image-tagging-strategy) for complete tagging strategy.
 

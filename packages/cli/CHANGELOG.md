@@ -5,12 +5,27 @@ All notable changes to **lablink-cli** will be documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and
 this project uses [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.3.0] - 2026-09-08
+
+### Added
+
+- `lablink deploy` prompts (hidden input) for a Tailscale authkey or
+  Cloudflare Tunnel token when the corresponding flag is omitted, instead of
+  refusing and forcing the credential onto the command line where it lands in
+  shell history (#485).
+- `lablink doctor` warns when an `ssl.provider: none` (HTTP) deployment
+  silently disables H.264 — browsers expose WebCodecs only on secure origins,
+  so every session falls back to JPEG/WebP stills and feels laggy (#491).
 
 ### Changed
 
 - Pinned `lablink-template` bumped to
-  [v0.3.1](https://github.com/talmolab/lablink-template/releases/tag/v0.3.1).
+  [v0.3.1](https://github.com/talmolab/lablink-template/releases/tag/v0.3.1)
+  (#498).
+- `lablink-allocator-service[config]` pin raised to `>=0.4.0`: the CLI
+  re-exports `MachineConfig`, whose `ami_id` default became empty (= resolve
+  the per-region Deep Learning Base AMI) in allocator 0.4.0. An older
+  allocator would reintroduce the stale hardcoded us-west-2 AMI default.
   `app.region` now actually drives the deployment (every `.tf` file previously
   ignored it, so infrastructure landed in `us-west-2` regardless), and the
   allocator boots stock Ubuntu 24.04 resolved per region from an SSM parameter
@@ -19,6 +34,33 @@ this project uses [Semantic Versioning](https://semver.org/).
   If your config names a region other than `us-west-2`, destroy the old
   deployment first: existing `us-west-2` resources are not moved and keep
   billing.
+
+### Fixed
+
+- `lablink doctor`'s AMI check verifies the image actually exists in the
+  target region instead of trusting `AMI_MAP`, which listed four regions all
+  mapped to one us-west-2-only image — a false green that ended in
+  `InvalidAMIID.NotFound` at deploy time (#484).
+- An empty `machine.ami_id` is treated as "resolve the per-region Deep
+  Learning Base AMI fallback" (matching what the deployment does since #489)
+  instead of failing `doctor` with `No machine.ami_id set` (#490).
+
+## [0.2.0] - 2026-08-31
+
+### Added
+
+- External-runtime deploy mode: `lablink deploy --render-only` writes the
+  compose bundle without running Docker, for platforms where the CLI host
+  can't run the allocator itself (#472).
+
+### Changed
+
+- BYO clients ship their own container logs from inside the client container;
+  the CLI's detached log-shipper process is dropped. Requires
+  `lablink-client-service` >= 0.3.0 images (#479).
+- Every manual-deployment fact is routed through one `manual.py` module (#467).
+- The wizard and `lablink deploy` warn about Let's Encrypt's 5-certs/7-days
+  rate limit before reusing a domain (#474).
 
 ## [0.1.0] - 2026-08-17
 
