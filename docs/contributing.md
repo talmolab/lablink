@@ -44,10 +44,15 @@ does not fix it.
 ```bash
 cd packages/allocator && PYTHONPATH=src uv run pytest --ignore=tests/terraform
 cd packages/client    && PYTHONPATH=src uv run pytest
-cd packages/cli       && PYTHONPATH=src uv run pytest   # integration: -m integration
+cd packages/cli       && PYTHONPATH=src uv run pytest
 
 ruff check packages/allocator packages/client packages/cli
 ```
+
+The CLI suite deselects its one `integration`-marked test by default (it
+performs a real download of the pinned Terraform template release from
+GitHub). Run it with `uv run pytest -m integration` — it needs network
+access but no cloud credentials.
 
 !!! warning "Two gotchas that silently mislead you"
 Use `PYTHONPATH=src`, never `PYTHONPATH=.` — inside a git worktree, `.` can
