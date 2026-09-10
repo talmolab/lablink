@@ -168,9 +168,20 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 # Install all three packages into one shared venv at the repo root.
 uv sync --all-packages --extra dev
 
-# Run a package's tests (terraform tests need AWS credentials, so skip them locally)
+# Run each package's test suite
 cd packages/allocator && PYTHONPATH=src uv run pytest --ignore=tests/terraform
+cd packages/client    && PYTHONPATH=src uv run pytest
+cd packages/cli       && PYTHONPATH=src uv run pytest
 ```
+
+Notes on the test suites:
+
+- The allocator's `tests/terraform` directory is skipped locally: those tests
+  shell out to the `terraform` binary and need AWS credentials. CI runs them.
+- The CLI suite deselects one `integration`-marked test by default; it
+  downloads the pinned Terraform template release from GitHub. Run it with
+  `uv run pytest -m integration` (network required, no cloud credentials).
+- CI enforces 90% coverage on the allocator and client packages.
 
 See the [Contributing Guide](https://talmolab.github.io/lablink/contributing/) for detailed development instructions.
 
