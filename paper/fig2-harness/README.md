@@ -46,9 +46,8 @@ dependency is matplotlib.
 The scripts that collected `data/` (arm orchestration, allocator poller,
 concurrent seat-claim burst, phase recorder) are not part of this directory.
 Each run's `meta.json` and `events.jsonl` record what they did and when.
-Where `data/n060-r1-f29a57c79e/POLLING-GAPS.md` and `data/quarantine/README.md`
-mention `plot_fig2.py`, they refer to the earlier plotter that `replot_fig2.py`
-replaced.
+Where `data/n060-r1-f29a57c79e/POLLING-GAPS.md` mentions `plot_fig2.py`, it
+refers to the earlier plotter that `replot_fig2.py` replaced.
 
 ## Runs used in the paper
 
@@ -86,11 +85,13 @@ data are sound, but the run failed the earlier plotter's blanket poll-gap
 eligibility guard, which is why it was originally filed under `ineligible/`.
 `replot_fig2.py` includes it. See `data/n060-r1-f29a57c79e/POLLING-GAPS.md`.
 
-**Excluded runs.** `data/quarantine/` keeps the metadata, events, and claims
-of the pre-fix N = 30 run that exposed the #499 bug (1 of 30 concurrent
-claimants received a spurious "no seats"); it is not a figure input. The
-pre-fix N = 5 and N = 10 runs, and the bulk logs of the quarantined run, are
-not included.
+**Excluded runs.** Earlier N = 5, 10, and 30 runs were collected against the
+allocator before the #499 fix; in the N = 30 run, 1 of 30 concurrent
+claimants received a spurious "no seats" while a healthy VM sat unassigned,
+which is the bug #499 fixed. Those runs are not figure inputs and are not
+included here. See PR #499 and its regression test
+`test_assign_vm_retries_temporarily_locked_eligible_vm` in the allocator
+test suite.
 
 ## Data layout
 
