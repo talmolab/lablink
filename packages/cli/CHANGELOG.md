@@ -5,6 +5,15 @@ All notable changes to **lablink-cli** will be documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and
 this project uses [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] - 2026-09-14
+
+### Changed
+
+- Version aligned with `lablink-allocator-service` and `lablink-client-service`
+  0.4.0. The three packages are released together and now share one version
+  number, so matching versions are the ones tested together. No functional
+  changes from 0.3.0.
+
 ## [0.3.0] - 2026-09-08
 
 ### Added
