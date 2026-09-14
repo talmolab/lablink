@@ -46,8 +46,8 @@ dependency is matplotlib.
 The scripts that collected `data/` (arm orchestration, allocator poller,
 concurrent seat-claim burst, phase recorder) are not part of this directory.
 Each run's `meta.json` and `events.jsonl` record what they did and when.
-Where `data/ineligible/README.md` and `data/quarantine/README.md` mention
-`plot_fig2.py`, they refer to the earlier plotter that `replot_fig2.py`
+Where `data/n060-r1-f29a57c79e/POLLING-GAPS.md` and `data/quarantine/README.md`
+mention `plot_fig2.py`, they refer to the earlier plotter that `replot_fig2.py`
 replaced.
 
 ## Runs used in the paper
@@ -59,7 +59,7 @@ One replicate per pool size.
 | N = 5  | `data/n005-r1-7a827c7b65` | 2026-09-02 22:50 | 5/5 claimed, median 0.22 s |
 | N = 10 | `data/n010-r1-3330bd815f` | 2026-09-02 23:11 | 10/10 claimed, median 0.60 s |
 | N = 30 | `data/n030-r1-e0596dd0ab` | 2026-09-02 23:34 | 30/30 claimed, median 1.11 s |
-| N = 60 | `data/ineligible/n060-r1-f29a57c79e` | 2026-09-03 01:38 | 60/60 claimed, median 2.40 s |
+| N = 60 | `data/n060-r1-f29a57c79e` | 2026-09-03 01:38 | 60/60 claimed, median 2.40 s |
 
 Provenance common to all four runs (recorded in each `meta.json`):
 
@@ -83,8 +83,8 @@ are in each run's `claims.csv`. The paper does not report them.
 `terraform apply` before any VM had registered, and 298 s during destroy.
 Both fall outside the readiness ramp and soak, so the readiness and outcome
 data are sound, but the run failed the earlier plotter's blanket poll-gap
-eligibility guard. `replot_fig2.py` includes it explicitly. See
-`data/ineligible/README.md`.
+eligibility guard, which is why it was originally filed under `ineligible/`.
+`replot_fig2.py` includes it. See `data/n060-r1-f29a57c79e/POLLING-GAPS.md`.
 
 **Excluded runs.** `data/quarantine/` keeps the metadata, events, and claims
 of the pre-fix N = 30 run that exposed the #499 bug (1 of 30 concurrent
