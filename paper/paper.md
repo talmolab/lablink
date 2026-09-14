@@ -84,12 +84,13 @@ themselves.
 
 General-purpose teaching infrastructure is notebook-centric. JupyterHub
 [@jupyterhub] can stream a Linux desktop through extensions such as
-jupyter-remote-desktop-proxy [@jupyterdesktopproxy]. A hub, however, is a
+jupyter-remote-desktop-proxy [@jupyterdesktopproxy], but this is a
 standing service that someone must keep running. A small class can run one
 on a single server with The Littlest JupyterHub [@tljh]. Larger classes, and
 BinderHub [@jupyter2018binder], need a Kubernetes cluster. Providers such as
-2i2c [@twoi2c] will host the hub instead. In every case the hub needs an
-administrator and outlives the event.
+2i2c [@twoi2c] will host the hub instead. None of them automates the event
+itself: adding GPU machines, admitting participants, and tearing everything
+down are left to the operator of a persistent hub.
 Browser development environments such as GitHub Codespaces, Gitpod, and
 Coder offer editors and terminals rather than GPU desktops for graphical
 applications. The Galaxy project's Training Infrastructure
