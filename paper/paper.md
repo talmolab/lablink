@@ -23,7 +23,7 @@ authors:
 affiliations:
   - index: 1
     name: "Salk Institute for Biological Studies, La Jolla, California, United States"
-date: 8 September 2026
+date: 14 September 2026
 bibliography: paper.bib
 ---
 
@@ -39,7 +39,7 @@ cloud or registered from the lab's own hardware, and monitors its health; each w
 email on a web page and lands in a full Linux desktop with the instructor's software preinstalled,
 running in a browser tab (\autoref{fig:overview}). LabLink removes per-participant installation entirely:
 in our benchmark, a 30-seat pool was ready about seven minutes after a cold start. The platform
-has supported approximately 600 users across 15 events, from K–12 students to faculty researchers. This paper describes LabLink 0.4.0.
+has supported approximately 600 users across 15 events, from K–12 students to faculty researchers.
 
 ![LabLink overview. (A) An operator deploys the allocator into their own
 cloud account or onto a lab-owned server with a single CLI command; the
@@ -87,7 +87,8 @@ General-purpose teaching infrastructure is notebook-centric. JupyterHub
 jupyter-remote-desktop-proxy [@jupyterdesktopproxy], but offering GPU
 desktops this way still means operating a hub: a single server with The
 Littlest JupyterHub [@tljh], a Kubernetes cluster as BinderHub
-[@jupyter2018binder] requires, or a hub run by a provider such as 2i2c.
+[@jupyter2018binder] requires, or a hub run by a provider such as 2i2c
+[@twoi2c].
 Browser development environments such as GitHub Codespaces, Gitpod, and
 Coder offer editors and terminals rather than GPU desktops for graphical
 applications. The Galaxy project's Training Infrastructure
