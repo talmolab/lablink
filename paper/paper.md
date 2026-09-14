@@ -226,7 +226,7 @@ bars are medians across the pool's VMs, whiskers the interquartile range
 one-time allocator deploy. (C) VM outcomes per pool: the number of VMs that
 reached ready directly, after one automatic reboot, or failed. All 105 VMs
 across the four pools reached ready; two (at N = 10) each required one
-automatic reboot, exercising the recovery path. The harness, run metadata,
+automatic reboot, exercising the recovery path. The figure script, run metadata,
 and raw data are in `paper/fig2-harness/` in the LabLink
 repository.\label{fig:benchmark}](fig2.png)
 
