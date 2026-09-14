@@ -1,0 +1,19 @@
+{"epoch": 1788384723.843337, "phase": "arm_started"}
+{"epoch": 1788384723.8438752, "phase": "preflight_started"}
+{"epoch": 1788384725.7218041, "phase": "preflight_finished"}
+{"epoch": 1788384726.269517, "offset_s": 0.248687744140625, "phase": "allocator_clock_probed_start", "round_trip_s": 0.5452127456665039}
+{"epoch": 1788384726.275777, "intended_n": 30, "phase": "launch_requested"}
+{"command": ["lablink", "client", "launch", "--num-vms", "30", "--config", "/Users/andrewpark/.lablink/config.yaml", "--verbose"], "epoch": 1788384726.27756, "phase": "launch_started"}
+{"epoch": 1788384809.671554, "exit_code": 0, "phase": "launch_finished"}
+{"epoch": 1788385057.938232, "phase": "first_vm_ready"}
+{"epoch": 1788385073.226913, "phase": "all_vms_ready"}
+{"epoch": 1788385074.292045, "phase": "availability_zones_recorded", "zones": ["us-west-2a", "us-west-2b"]}
+{"epoch": 1788385074.29257, "phase": "claim_burst_started"}
+{"claimed": 29, "epoch": 1788385075.755862, "intended": 30, "phase": "claim_burst_finished"}
+{"epoch": 1788385075.756669, "error": "RuntimeError: claim burst granted 29/30 seats", "phase": "arm_workload_error"}
+{"command": ["lablink", "client", "destroy", "--config", "/Users/andrewpark/.lablink/config.yaml", "--yes", "--verbose"], "epoch": 1788385075.75724, "phase": "client_destroy_started"}
+{"epoch": 1788385975.808104, "exit_code": 0, "phase": "client_destroy_finished"}
+{"epoch": 1788385975.8094049, "phase": "final_operation_snapshot_captured"}
+{"epoch": 1788385977.047528, "offset_s": 0.2828683853149414, "phase": "allocator_clock_probed_end", "round_trip_s": 0.5593407154083252}
+{"epoch": 1788385977.059131, "exit_code": -15, "phase": "collector_stopped"}
+{"epoch": 1788385977.062148, "error": "RuntimeError: claim burst granted 29/30 seats", "phase": "arm_failed"}
