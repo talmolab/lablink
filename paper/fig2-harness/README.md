@@ -68,12 +68,10 @@ Each run directory holds:
 | `trajectory.csv` | One row per VM per 5 s poll: `status`, `healthy`, `reboot_count`, and the per-phase epochs the allocator reports (OpenTofu, cloud-init, container). |
 | `claims.csv` | One row per concurrent seat claim: request/response epochs, latency, HTTP status, outcome. |
 | `polls.csv` | One row per poll: hosts observed and whether the allocator answered. |
-| `operations.csv` | Allocator apply/destroy operations as observed at each poll. |
 
 Top level: `allocator-deploy.json` is the CLI's deploy-metrics cache for the
-allocator deploys (source of Panel A's 126 s cold deploy);
-`exemplar-timeline.jsonl` is the command timeline of the exemplar session.
-Per-run `*.log` files are excluded by `.gitignore`.
+allocator deploys (source of Panel A's 126 s cold deploy). The collector's
+per-poll operation snapshots and per-run `*.log` files are not included.
 
 ## What each panel plots
 
