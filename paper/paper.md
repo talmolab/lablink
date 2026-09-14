@@ -84,10 +84,10 @@ themselves.
 
 General-purpose teaching infrastructure is notebook-centric. JupyterHub
 [@jupyterhub] can stream a Linux desktop through extensions such as
-jupyter-remote-desktop-proxy [@jupyterdesktopproxy], but offering GPU
-desktops this way still means operating a hub: a single server with The
-Littlest JupyterHub [@tljh], a Kubernetes cluster as BinderHub
-[@jupyter2018binder] requires, or a hub run by a provider such as 2i2c
+jupyter-remote-desktop-proxy [@jupyterdesktopproxy], but a hub is a standing
+service that someone must keep running, whether on a single server with The
+Littlest JupyterHub [@tljh], on a Kubernetes cluster as BinderHub
+[@jupyter2018binder] requires, or with a hosting provider such as 2i2c
 [@twoi2c].
 Browser development environments such as GitHub Codespaces, Gitpod, and
 Coder offer editors and terminals rather than GPU desktops for graphical
