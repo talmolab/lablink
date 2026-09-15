@@ -1,0 +1,37 @@
+{
+  "actual_azs": [
+    "us-west-2b"
+  ],
+  "allocator_clock_probe_end": {
+    "offset_s": 0.37946224212646484,
+    "round_trip_s": 0.6837260723114014
+  },
+  "allocator_clock_probe_start": {
+    "offset_s": 0.5133411884307861,
+    "round_trip_s": 0.766075849533081
+  },
+  "arm_n": 60,
+  "attempted": true,
+  "config_path": "/Users/andrewpark/.lablink/config.yaml",
+  "config_sha256": "6a8e3d347c6705668ec995892b5c1a90fd46772a1a8bd79959df4d04951bce89",
+  "error": "",
+  "expected_az": null,
+  "finished_epoch": 1788402235.366078,
+  "image_digest": "ghcr.io/talmolab/lablink-client-base-image:linux-amd64-test@sha256:1ec2fde6860186b3d45ac83890167258f83512955dbce65f072d4e8c310cb9de",
+  "instance_type": "g4dn.xlarge",
+  "lablink_sha": "a4d457ce06fd79a620b54a07fef63c822f88d9d1",
+  "last_event": {
+    "epoch": 1788402235.366078,
+    "phase": "arm_completed"
+  },
+  "poll_interval_s": 5.0,
+  "ready_timeout_s": 900,
+  "region": "us-west-2",
+  "replicate": 1,
+  "run_id": "f29a57c79e",
+  "schema_version": 1,
+  "soak_seconds": 600,
+  "started_epoch": 1788399515.1771038,
+  "status": "complete",
+  "template_sha": "97f2f96c7bbdcaeeec8bd681394883409357613bbe40f97115a7a974d61a7660"
+}

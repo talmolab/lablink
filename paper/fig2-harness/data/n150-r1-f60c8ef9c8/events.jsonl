@@ -1,0 +1,21 @@
+{"epoch": 1789422129.795006, "phase": "arm_started"}
+{"epoch": 1789422129.7955468, "phase": "preflight_started"}
+{"epoch": 1789422132.014397, "phase": "preflight_finished"}
+{"epoch": 1789422132.76638, "offset_s": 0.35209202766418457, "phase": "allocator_clock_probed_start", "round_trip_s": 0.7495760917663574}
+{"epoch": 1789422132.7720819, "intended_n": 150, "phase": "launch_requested"}
+{"command": ["lablink", "client", "launch", "--num-vms", "150", "--config", "/private/tmp/claude-501/-Users-andrewpark-talmolab-lablink/d127257f-e09c-4640-9b8a-1bbe895412bb/scratchpad/run-config.yaml", "--verbose"], "epoch": 1789422132.77336, "phase": "launch_started"}
+{"epoch": 1789422381.503956, "exit_code": 0, "phase": "launch_finished"}
+{"epoch": 1789422429.995411, "phase": "first_vm_ready"}
+{"epoch": 1789422786.630432, "phase": "all_vms_ready"}
+{"epoch": 1789422788.53267, "phase": "availability_zones_recorded", "zones": ["us-west-2c"]}
+{"epoch": 1789422788.533176, "phase": "claim_burst_started"}
+{"claimed": 150, "epoch": 1789422798.396242, "intended": 150, "phase": "claim_burst_finished"}
+{"epoch": 1789422798.3974028, "phase": "soak_started"}
+{"epoch": 1789423398.367648, "phase": "soak_finished"}
+{"command": ["lablink", "client", "destroy", "--config", "/private/tmp/claude-501/-Users-andrewpark-talmolab-lablink/d127257f-e09c-4640-9b8a-1bbe895412bb/scratchpad/run-config.yaml", "--yes", "--verbose"], "epoch": 1789423398.3710551, "phase": "client_destroy_started"}
+{"epoch": 1789425202.337478, "exit_code": 1, "phase": "client_destroy_finished"}
+{"epoch": 1789425202.339243, "error": "RuntimeError: client_destroy failed with exit code 1", "phase": "teardown_error"}
+{"epoch": 1789425202.339642, "phase": "final_operation_snapshot_captured"}
+{"epoch": 1789425204.0025651, "offset_s": 0.3921964168548584, "phase": "allocator_clock_probed_end", "round_trip_s": 0.8089900016784668}
+{"epoch": 1789425204.0093172, "exit_code": -15, "phase": "collector_stopped"}
+{"epoch": 1789425204.011101, "error": "RuntimeError: client_destroy failed with exit code 1", "phase": "arm_failed"}

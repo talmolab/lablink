@@ -1,0 +1,20 @@
+{"epoch": 1788389403.021881, "phase": "arm_started"}
+{"epoch": 1788389403.022412, "phase": "preflight_started"}
+{"epoch": 1788389405.283999, "phase": "preflight_finished"}
+{"epoch": 1788389405.898389, "offset_s": 0.2799713611602783, "phase": "allocator_clock_probed_start", "round_trip_s": 0.6125690937042236}
+{"epoch": 1788389405.904542, "intended_n": 5, "phase": "launch_requested"}
+{"command": ["lablink", "client", "launch", "--num-vms", "5", "--config", "/Users/andrewpark/.lablink/config.yaml", "--verbose"], "epoch": 1788389405.9063628, "phase": "launch_started"}
+{"epoch": 1788389456.580645, "exit_code": 0, "phase": "launch_finished"}
+{"epoch": 1788389727.600448, "phase": "first_vm_ready"}
+{"epoch": 1788389732.662996, "phase": "all_vms_ready"}
+{"epoch": 1788389734.141288, "phase": "availability_zones_recorded", "zones": ["us-west-2b"]}
+{"epoch": 1788389734.1418428, "phase": "claim_burst_started"}
+{"claimed": 5, "epoch": 1788389734.459556, "intended": 5, "phase": "claim_burst_finished"}
+{"epoch": 1788389734.4602711, "phase": "soak_started"}
+{"epoch": 1788390334.4174678, "phase": "soak_finished"}
+{"command": ["lablink", "client", "destroy", "--config", "/Users/andrewpark/.lablink/config.yaml", "--yes", "--verbose"], "epoch": 1788390334.4234061, "phase": "client_destroy_started"}
+{"epoch": 1788390655.304907, "exit_code": 0, "phase": "client_destroy_finished"}
+{"epoch": 1788390655.306201, "phase": "final_operation_snapshot_captured"}
+{"epoch": 1788390656.996841, "offset_s": 0.4184534549713135, "phase": "allocator_clock_probed_end", "round_trip_s": 0.7824850082397461}
+{"epoch": 1788390657.003198, "exit_code": -15, "phase": "collector_stopped"}
+{"epoch": 1788390657.00445, "phase": "arm_completed"}
