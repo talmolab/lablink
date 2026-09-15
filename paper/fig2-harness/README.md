@@ -59,8 +59,10 @@ One replicate per pool size.
 | N = 10 | `data/n010-r1-3330bd815f` | 2026-09-02 23:11 | 10/10 claimed, median 0.60 s |
 | N = 30 | `data/n030-r1-e0596dd0ab` | 2026-09-02 23:34 | 30/30 claimed, median 1.11 s |
 | N = 60 | `data/n060-r1-f29a57c79e` | 2026-09-03 01:38 | 60/60 claimed, median 2.40 s |
+| N = 150 | `data/n150-r1-f60c8ef9c8` | 2026-09-14 21:42 | 150/150 claimed, median 9.01 s |
 
-Provenance common to all four runs (recorded in each `meta.json`):
+Provenance common to the four September 2–3 runs (recorded in each
+`meta.json`):
 
 - LabLink commit `a4d457ce06fd79a620b54a07fef63c822f88d9d1`. Its allocator
   code is byte-identical to PR #499 as merged (`5ad7d2af`), so the
@@ -72,11 +74,43 @@ Provenance common to all four runs (recorded in each `meta.json`):
   `ghcr.io/talmolab/lablink-client-base-image:linux-amd64-test@sha256:1ec2fde6860186b3d45ac83890167258f83512955dbce65f072d4e8c310cb9de`.
 - `g4dn.xlarge`, `us-west-2`, 5 s poll interval, 900 s ready timeout,
   600 s soak after the last VM became ready.
-- **Not recorded:** the allocator container image digest and the client AMI
-  id. The allocator was deployed from the operator's config at run time.
+- **Not recorded for these four runs:** the allocator container image digest
+  and the client AMI id. Both were captured for the 150-seat run below.
+
+**The 150-seat run (2026-09-14) differs in image provenance.** It was run
+twelve days later against a freshly deployed allocator, so it is comparable
+in method but not in image:
+
+- Client image `ghcr.io/talmolab/lablink-client-base-image:latest@sha256:3f2f935a1b61b1c1f9469a69d1a7ad53bdb334d996976bcd3ba5802a4cc50567`
+  (the 0.4.0 release; amd64 manifest `sha256:7d14493d98e8e9cfab901ab56d5d865479ef3cf85ca8c1885fd2ea856bd8241b`),
+  not the pinned test build used above.
+- Allocator `ghcr.io/talmolab/lablink-allocator-image@sha256:d61916e86a3cab4e6a3dae49c5c9107539d6421a0eaaebfe9338e8f4ecafdcd7`,
+  `lablink-allocator-service` 0.4.0, deployed with DNS and Let's Encrypt TLS
+  enabled. `meta.json.lablink_sha` records the repository checkout the harness
+  ran from, not the deployed code; the deployed allocator and client are both
+  the 0.4.0 release.
+- Client AMI `ami-02385abc0e3aa56f3`; all 150 instances landed in `us-west-2c`
+  (the 30-seat run spread over two zones). No `InsufficientInstanceCapacity`.
+- Same template pin (v0.3.1), instance type, region, poll interval, timeouts,
+  and soak. Custom startup script `~/.lablink/custom-startup.sh` with SHA-256
+  prefix `b853b28c` (`uv tool install --python 3.13 "sleap[nn]" --torch-backend auto`);
+  the September runs' script was not recorded.
+- Timings: Terraform apply 249 s (83 s at N = 30); first VM ready 297 s and
+  all 150 ready 654 s after the launch command; per-VM seat-ready median
+  385 s, IQR 327–437 s; 8 VMs recovered by one automatic reboot, 0 failed.
+  Client destroy of 150 instances took 73 minutes on the
+  allocator (22:03–23:16 UTC) (Terraform terminates ten at a time and waits for each). The
+  CLI's `lablink client destroy` stopped polling after its fixed 1800 s limit
+  and exited 1, so the harness recorded the arm as `failed` with a
+  `teardown_error`; the allocator's destroy operation continued to completion
+  on its own, and every measurement in this run had finished before the
+  destroy began. Treat the `failed` status as a teardown-reporting artifact,
+  not a data problem.
 
 Seat claims were released together (all N requests within 20 ms); latencies
-are in each run's `claims.csv`. The paper does not report them.
+are in each run's `claims.csv`. The paper does not report them. Median claim
+latency grows with N (0.22, 0.60, 1.11, 2.40, 9.01 s at N = 5, 10, 30, 60,
+150), since each claim rotates the desktop password on its VM in turn.
 
 **N = 60 caveat.** The poller had two coverage gaps over 20 s: 173 s during
 `terraform apply` before any VM had registered, and 298 s during destroy.

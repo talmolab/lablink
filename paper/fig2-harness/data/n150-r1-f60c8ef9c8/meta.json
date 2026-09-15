@@ -1,0 +1,38 @@
+{
+  "actual_azs": [
+    "us-west-2c"
+  ],
+  "allocator_clock_probe_end": {
+    "offset_s": 0.3921964168548584,
+    "round_trip_s": 0.8089900016784668
+  },
+  "allocator_clock_probe_start": {
+    "offset_s": 0.35209202766418457,
+    "round_trip_s": 0.7495760917663574
+  },
+  "arm_n": 150,
+  "attempted": true,
+  "config_path": "/private/tmp/claude-501/-Users-andrewpark-talmolab-lablink/d127257f-e09c-4640-9b8a-1bbe895412bb/scratchpad/run-config.yaml",
+  "config_sha256": "bf04fdbcbd86d2b4840af6d665a3e0dcffd9503f85e2a77a2a7c00ab17a97e59",
+  "error": "RuntimeError: client_destroy failed with exit code 1",
+  "expected_az": null,
+  "finished_epoch": 1789425204.011101,
+  "image_digest": "ghcr.io/talmolab/lablink-client-base-image:latest@sha256:3f2f935a1b61b1c1f9469a69d1a7ad53bdb334d996976bcd3ba5802a4cc50567",
+  "instance_type": "g4dn.xlarge",
+  "lablink_sha": "86903689fbda1827d66335695d8d31b94e837129",
+  "last_event": {
+    "epoch": 1789425204.011101,
+    "error": "RuntimeError: client_destroy failed with exit code 1",
+    "phase": "arm_failed"
+  },
+  "poll_interval_s": 5.0,
+  "ready_timeout_s": 900,
+  "region": "us-west-2",
+  "replicate": 1,
+  "run_id": "f60c8ef9c8",
+  "schema_version": 1,
+  "soak_seconds": 600,
+  "started_epoch": 1789422129.795006,
+  "status": "failed",
+  "template_sha": "97f2f96c7bbdcaeeec8bd681394883409357613bbe40f97115a7a974d61a7660"
+}

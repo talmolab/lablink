@@ -214,12 +214,17 @@ configuration and startup script.
 Workshop-scale behavior is measured in \autoref{fig:benchmark}. From a cold
 start, a ready 30-seat pool takes about seven minutes. In single runs at pool
 sizes of 5, 10, 30, and 60 VMs, the per-VM median time from the pool-launch
-command to a VM ready to be assigned stayed around five minutes and did not
-increase with pool size.
+command to a VM ready to be assigned stayed around five minutes. A 150-seat
+run, the size of the largest event in \autoref{tbl:events}, had all 150 VMs
+ready 11 minutes after the launch command, with a per-VM median of about six
+and a half minutes; its infrastructure apply took 249 s against 83 s at 30
+seats, so the apply phase grows with pool size while per-VM boot time grows
+only modestly.
 
-![Workshop-scale benchmark: a LabLink deployment scaled from 5 to 60 seats
-on `g4dn.xlarge` instances (us-west-2), one run per pool size, all from a
-single pinned client-image digest. (A) Wall-clock to prepare one 30-seat
+![Workshop-scale benchmark: a LabLink deployment scaled from 5 to 150 seats
+on `g4dn.xlarge` instances (us-west-2), one run per pool size. The pools of 5
+to 60 seats share one pinned client-image digest; the 150-seat pool ran twelve
+days later on the 0.4.0 release image. (A) Wall-clock to prepare one 30-seat
 workshop: allocator deploy (126 s), client-VM apply (83 s), and boot until
 all 30 VMs were ready (229 s) — a ready pool in about 7 min from nothing.
 (B) Per-VM readiness time by pool size N, measured from the operator's single
@@ -227,9 +232,9 @@ pool-launch command until the allocator marks each VM ready to be assigned;
 bars are medians across the pool's VMs, whiskers the interquartile range
 (IQR) across those VMs within the run, not across runs. B excludes the
 one-time allocator deploy. (C) VM outcomes per pool: the number of VMs that
-reached ready directly, after one automatic reboot, or failed. All 105 VMs
-across the four pools reached ready; two (at N = 10) each required one
-automatic reboot, exercising the recovery path. The figure script, run metadata,
+reached ready directly, after one automatic reboot, or failed. All 255 VMs
+across the five pools reached ready; ten required one automatic reboot (two
+at N = 10, eight at N = 150), exercising the recovery path. The figure script, run metadata,
 and raw data are in `paper/fig2-harness/` in the LabLink
 repository.\label{fig:benchmark}](fig2.png)
 
