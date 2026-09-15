@@ -36,6 +36,7 @@ ARMS = {
     10: HERE / "data/n010-r1-3330bd815f",
     30: HERE / "data/n030-r1-e0596dd0ab",
     60: HERE / "data/n060-r1-f29a57c79e",  # polling gaps: see its POLLING-GAPS.md
+    150: HERE / "data/n150-r1-f60c8ef9c8",  # 2026-09-14, release client image: see README
 }
 EXEMPLAR_N = 30
 DEPLOY_S = 125.7  # this allocator's real cold deploy (deployments cache)
@@ -128,6 +129,7 @@ def _stack_outcomes(ax, ns, series_by_n):
     xs = list(range(len(ns)))
     segs = [("Succeeded", "ok", S_OK), ("Recovered (reboot)", "retry", S_RETRY),
             ("Failed", "fail", S_FAIL)]
+    ymax = max(ns) * 1.12
     for x, n in zip(xs, ns):
         bottom = 0.0
         for _, key, color in segs:
@@ -136,11 +138,16 @@ def _stack_outcomes(ax, ns, series_by_n):
                 continue
             ax.bar(x, v, width=0.62, bottom=bottom, color=color, edgecolor="white",
                    linewidth=1.4, zorder=2)
-            ax.text(x, bottom + v / 2, str(v), ha="center", va="center",
-                    fontsize=8.5, color="white", fontweight="bold", zorder=5)
+            if v >= 0.06 * ymax:  # label a segment only if it is tall enough to hold text
+                ax.text(x, bottom + v / 2, str(v), ha="center", va="center",
+                        fontsize=8.5, color="white", fontweight="bold", zorder=5)
             bottom += v
-        ax.text(x, bottom, f"{n}/{n}", ha="center", va="bottom", fontsize=8.5,
-                color=INK2, zorder=5)
+        ready = series_by_n[n]["ok"] + series_by_n[n]["retry"]
+        label = f"{ready}/{n}"
+        if series_by_n[n]["retry"]:
+            label += f"\n{series_by_n[n]['retry']} rebooted"
+        ax.text(x, bottom, label, ha="center", va="bottom", fontsize=8.5,
+                color=INK2, zorder=5, linespacing=1.1)
     ax.set_xticks(xs)
     ax.set_xticklabels([str(n) for n in ns])
     ax.set_xlabel("Pool size  N (VMs)", fontsize=9.5, color=INK2)
@@ -148,7 +155,7 @@ def _stack_outcomes(ax, ns, series_by_n):
     ax.set_title("C   VM outcomes by pool size",
                  loc="left", fontsize=11, fontweight="bold", color=INK)
     ax.yaxis.set_major_locator(MaxNLocator(integer=True))
-    ax.set_ylim(0, max(ns) * 1.12)
+    ax.set_ylim(0, ymax * 1.06)
     handles = [plt.Rectangle((0, 0), 1, 1, color=c) for _, _, c in segs]
     ax.legend(handles, [s for s, _, _ in segs], frameon=False, fontsize=8.5,
               loc="upper left", ncol=1, handlelength=1.1, labelcolor=INK2)
@@ -205,7 +212,7 @@ def main():
     fig = plt.figure(figsize=(11, 9.8))
     gs = fig.add_gridspec(3, 2, height_ratios=[0.92, 1.5, 1.4], hspace=0.6,
                           wspace=0.24, left=0.07, right=0.97, top=0.9, bottom=0.16)
-    fig.suptitle("Workshop-scale benchmark (5–60 seats)", x=0.07,
+    fig.suptitle(f"Workshop-scale benchmark ({min(ARMS)}–{max(ARMS)} seats)", x=0.07,
                  ha="left", fontsize=15, fontweight="bold", color=INK, y=0.965)
 
     _prep_timeline(fig.add_subplot(gs[0, :]), ARMS[EXEMPLAR_N])
