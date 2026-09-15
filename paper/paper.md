@@ -143,8 +143,8 @@ both the KasmVNC [@kasmvnc] desktop the participant sees and the client service
 reporting the machine's state. Giving each participant a whole machine
 rather than a slice of a shared server trades infrastructure cost for
 isolation (one participant's crashed session or saturated GPU affects only
-their own seat). At on-demand prices in us-west-2, a `g4dn.xlarge` seat costs
-about \$0.53 per hour, so the compute for a four-hour, 30-seat workshop comes
+their own seat). At AWS on-demand prices in us-west-2 [@awsec2pricing], a
+`g4dn.xlarge` seat costs about \$0.53 per hour, so the compute for a four-hour, 30-seat workshop comes
 to about \$63, roughly \$2 per participant. The two components communicate
 over a simple contract:
 the client service registers its machine with the allocator, then reports
@@ -188,9 +188,8 @@ registration and never hold database or admin credentials.
 The seat-claim page is deliberately unauthenticated: an email address labels
 a seat rather than authenticating a user, and no passcode or rate limit gates
 it. This is acceptable only because a deployment is short-lived with a fixed
-pool. A leaked link can exhaust seats but cannot provision machines, one
-address holds at most one seat, the operator can release any seat from the
-dashboard, and scheduled destruction bounds the deployment's lifetime.
+pool. A leaked link can exhaust seats but cannot provision machines, one email
+address holds at most one seat, and scheduled destruction bounds the deployment's lifetime.
 Claiming a seat rotates that desktop's password and binds the browser to a
 signed session cookie, so participants cannot open one another's seats.
 Participants have administrative rights inside their desktop container but
@@ -204,10 +203,7 @@ deployment (its database and service logs) and is destroyed with it.
 Adapting a deployment to new software means changing two files: a YAML
 configuration that names the Docker image, and a startup script that installs
 the instructor's software and stages tutorial data as the client container
-boots. We have validated this beyond SLEAP [@pereira2022sleap] with LabLink environments for Cellpose
-[@stringer2021cellpose], Kilosort4 [@pachitariu2024kilosort4], and
-idtracker.ai [@romeroferrero2019idtracker], in each case changing only the
-configuration and startup script.
+boots.
 
 ## Benchmark
 
@@ -243,8 +239,7 @@ repository.\label{fig:benchmark}](fig2.png)
 LabLink was built to run SLEAP [@pereira2022sleap] workshops and has since
 delivered on-demand GPU desktops at 15 events with approximately 600
 participants between 2024 and 2026 (\autoref{tbl:events}), spanning audiences from K–12
-students to graduate students and faculty. At these events, participants reached a working desktop in
-minutes by claiming a seat and opening it.
+students to graduate students and faculty.
 
 LabLink's contribution to research runs through dissemination. Installation
 is a documented barrier to adopting research software
@@ -255,11 +250,12 @@ workshop would otherwise spend on installation into supervised practice of
 the complete GPU workflow, on hardware every participant can run it on, with
 the instructor present when something goes wrong.
 
-The same property generalizes beyond our events: any group that maintains a
-GPU-dependent research tool can disseminate it the same way, packaging the
-software once and handing each workshop participant, student, or collaborator
-a working GPU desktop as a link, without building or maintaining teaching
-infrastructure of their own.
+This generalizes beyond SLEAP. LabLink environments for Cellpose
+[@stringer2021cellpose], Kilosort4 [@pachitariu2024kilosort4], idtracker.ai
+[@romeroferrero2019idtracker], and DeepLabCut [@mathis2018deeplabcut] each
+required changing only the configuration and startup script, and any group that maintains a
+GPU-dependent research tool can hand its users a working GPU desktop the same
+way.
 
 | Event                                                    | Date(s)         | Participants         | Location                                              |
 | -------------------------------------------------------- | --------------- | -------------------- | ----------------------------------------------------- |
@@ -277,7 +273,7 @@ infrastructure of their own.
 | Computer Vision for Biologists                           | Sep 1–12, 2025  | ~30                  | University of California Davis, CA, USA               |
 | Introduction to Multi-Animal Pose Tracking (US-RSE 2025) | Oct 6, 2025     | ~30                  | Philadelphia, PA, USA                                 |
 | Short course on machine learning applications            | Oct 13–17, 2025 | ~30                  | Jackson Laboratory, Bar Harbor, ME, USA               |
-| CAJAL Advanced Neuroscience Training Programme           | Jun 10, 2026    | 18                   | Lisbon, Portugal                                      |
+| CAJAL Advanced Neuroscience Training Programme           | Jun 10, 2026    | 18                   | Champalimaud Centre for the Unknown, Lisbon, Portugal |
 
 Table: Workshops and courses delivered on LabLink, 2024–2026. Participant counts marked ~ are organizer estimates.\label{tbl:events}
 
