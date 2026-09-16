@@ -5731,10 +5731,12 @@ allocator container with a fixed identity (database <code>lablink_db</code>, use
 <ol>
 <li><strong>Use default SLEAP image</strong> (for SLEAP workflows)</li>
 <li><strong>Build custom image</strong> (for your research software) - see <a href="../adapting/">Adapting LabLink</a></li>
-<li><strong>Use different tag</strong>:</li>
+<li><strong>Use different tag</strong>:<ul>
 <li><code>:latest</code> - latest stable release</li>
 <li><code>:linux-amd64-test</code> - development version</li>
 <li><code>:v1.0.0</code> - specific version</li>
+</ul>
+</li>
 </ol>
 <h4 id="ami-id">AMI ID<a class="headerlink" href="#ami-id" title="Permanent link">&para;</a></h4>
 <p><strong>Default</strong>: <code>""</code> — resolve an AWS Deep Learning Base AMI (Ubuntu 24.04) for whichever
@@ -6087,9 +6089,11 @@ use <code>provider: "none"</code>.</p>
 <a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">  </span><span class="nt">base_delay_seconds</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30</span>
 <a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">  </span><span class="nt">success_check</span><span class="p">:</span><span class="w"> </span><span class="s">"/home/client/.local/bin/sleap</span><span class="nv"> </span><span class="s">--version"</span>
 </code></pre></div>
-<p>When <code>enabled</code> is <code>true</code>, the content of the script specified by <code>path</code> will be executed on the client VM, retried up to <code>max_attempts</code> times with exponential backoff if it fails (or if <code>success_check</code> is set and fails after the script exits <code>0</code>).
-- If <code>on_error</code> is <code>continue</code>, an error on the final attempt is logged, but the VM will continue to run.
-- If <code>on_error</code> is <code>fail</code>, the VM setup will be aborted if the final attempt still returns a non-zero exit code (or fails <code>success_check</code>).</p>
+<p>When <code>enabled</code> is <code>true</code>, the content of the script specified by <code>path</code> will be executed on the client VM, retried up to <code>max_attempts</code> times with exponential backoff if it fails (or if <code>success_check</code> is set and fails after the script exits <code>0</code>).</p>
+<ul>
+<li>If <code>on_error</code> is <code>continue</code>, an error on the final attempt is logged, but the VM will continue to run.</li>
+<li>If <code>on_error</code> is <code>fail</code>, the VM setup will be aborted if the final attempt still returns a non-zero exit code (or fails <code>success_check</code>).</li>
+</ul>
 <p><strong>Retries re-run the entire script, not just the failing step</strong> — so the script must be safe to run more than once (e.g. <code>uv tool install</code> already is: re-running it when the tool is already installed is a no-op).</p>
 <p><strong><code>success_check</code> runs in a separate shell</strong>, after the script's own process has already exited — it will not see any <code>PATH</code>/environment changes the script made only for its own subshell. Reference tools by absolute path, or ensure the script places them somewhere already on the container's <code>PATH</code> (e.g. <code>/usr/local/bin</code>), not just its own local shell state.</p>
 <h3 id="monitoring-options-monitoring">Monitoring Options (<code>monitoring</code>)<a class="headerlink" href="#monitoring-options-monitoring" title="Permanent link">&para;</a></h3>

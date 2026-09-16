@@ -5254,10 +5254,12 @@ fine without a repository.</p>
 <h4 id="check-logs">Check Logs<a class="headerlink" href="#check-logs" title="Permanent link">&para;</a></h4>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>docker<span class="w"> </span>logs<span class="w"> </span>test-client
 </code></pre></div>
-<p>Verify:
-- Image starts without errors
-- Dependencies are available
-- Your code runs as expected</p>
+<p>Verify:</p>
+<ul>
+<li>Image starts without errors</li>
+<li>Dependencies are available</li>
+<li>Your code runs as expected</li>
+</ul>
 <h4 id="test-full-stack">Test Full Stack<a class="headerlink" href="#test-full-stack" title="Permanent link">&para;</a></h4>
 <p>Run both allocator and your client locally:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Terminal 1: Start allocator</span>
@@ -5312,10 +5314,12 @@ need to build your own infrastructure repository:</p>
 <a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a>machine:
 <a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a><span class="w">  </span>ami_id:<span class="w"> </span><span class="s2">"ami-your-custom-ami"</span>
 </code></pre></div>
-<p>Benefits:
-- Faster VM startup
-- Pre-installed dependencies
-- Consistent environment</p>
+<p>Benefits:</p>
+<ul>
+<li>Faster VM startup</li>
+<li>Pre-installed dependencies</li>
+<li>Consistent environment</li>
+</ul>
 <h3 id="environment-specific-configurations">Environment-Specific Configurations<a class="headerlink" href="#environment-specific-configurations" title="Permanent link">&para;</a></h3>
 <p>Create separate configs for different workloads:</p>
 <p><strong><code>conf/config-cpu.yaml</code></strong>:

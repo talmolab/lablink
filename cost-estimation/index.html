@@ -5742,13 +5742,17 @@
 </table>
 <p><strong>Most Common</strong>: <strong>g4dn.xlarge</strong> (good balance of performance and cost)</p>
 <h4 id="cost-optimization-strategies">Cost Optimization Strategies<a class="headerlink" href="#cost-optimization-strategies" title="Permanent link">&para;</a></h4>
-<p><strong>Option 1: Terminate After Use</strong>
-- Only run VMs when actively working
-- Cost: Per-hour usage only</p>
+<p><strong>Option 1: Terminate After Use</strong></p>
+<ul>
+<li>Only run VMs when actively working</li>
+<li>Cost: Per-hour usage only</li>
+</ul>
 <p><strong>Example</strong>: 10 VMs × 8 hours = 80 hours × $0.526 = <strong>$42.08</strong></p>
-<p><strong>Option 2: Right-Size Instance Types</strong>
-- Use smallest instance that meets requirements
-- Test on smaller instances first</p>
+<p><strong>Option 2: Right-Size Instance Types</strong></p>
+<ul>
+<li>Use smallest instance that meets requirements</li>
+<li>Test on smaller instances first</li>
+</ul>
 <div class="admonition note">
 <p class="admonition-title">What about Spot Instances?</p>
 <p>LabLink does not currently support Spot Instances for client VMs. The
@@ -5890,56 +5894,74 @@ the image.</p>
 <p><strong>Avoid</strong>: Keep all resources in same region</p>
 <h2 id="example-cost-scenarios">Example Cost Scenarios<a class="headerlink" href="#example-cost-scenarios" title="Permanent link">&para;</a></h2>
 <h3 id="scenario-1-developmenttesting">Scenario 1: Development/Testing<a class="headerlink" href="#scenario-1-developmenttesting" title="Permanent link">&para;</a></h3>
-<p><strong>Setup</strong>:
-- 1 allocator (t3.large)
-- 2 client VMs (g4dn.xlarge)
-- Running 40 hours/month</p>
-<p><strong>Costs</strong>:
-- Infrastructure: $0.05/month
-- Allocator: 40 hours × $0.0832 = $3.33
-- Client VMs: 2 × 40 hours × $0.526 = $42.08
-- Storage: $1.60 (allocator) + $12.80 (2 clients) = $14.40</p>
+<p><strong>Setup</strong>:</p>
+<ul>
+<li>1 allocator (t3.large)</li>
+<li>2 client VMs (g4dn.xlarge)</li>
+<li>Running 40 hours/month</li>
+</ul>
+<p><strong>Costs</strong>:</p>
+<ul>
+<li>Infrastructure: $0.05/month</li>
+<li>Allocator: 40 hours × $0.0832 = $3.33</li>
+<li>Client VMs: 2 × 40 hours × $0.526 = $42.08</li>
+<li>Storage: $1.60 (allocator) + $12.80 (2 clients) = $14.40</li>
+</ul>
 <p><strong>Total</strong>: <strong>~$60/month</strong></p>
 <h3 id="scenario-2-light-production-use">Scenario 2: Light Production Use<a class="headerlink" href="#scenario-2-light-production-use" title="Permanent link">&para;</a></h3>
-<p><strong>Setup</strong>:
-- 1 allocator (t3.large, 24/7)
-- 5 client VMs (g4dn.xlarge)
-- VMs running 160 hours/month each</p>
-<p><strong>Costs</strong>:
-- Infrastructure: $0.95/month (with Route 53)
-- Allocator: $60.74/month
-- Client VMs: 5 × 160 hours × $0.526 = $420.80
-- Storage: $1.60 + (5 × $6.40) = $33.60</p>
+<p><strong>Setup</strong>:</p>
+<ul>
+<li>1 allocator (t3.large, 24/7)</li>
+<li>5 client VMs (g4dn.xlarge)</li>
+<li>VMs running 160 hours/month each</li>
+</ul>
+<p><strong>Costs</strong>:</p>
+<ul>
+<li>Infrastructure: $0.95/month (with Route 53)</li>
+<li>Allocator: $60.74/month</li>
+<li>Client VMs: 5 × 160 hours × $0.526 = $420.80</li>
+<li>Storage: $1.60 + (5 × $6.40) = $33.60</li>
+</ul>
 <p><strong>Total</strong>: <strong>~$516/month</strong></p>
 <h3 id="scenario-3-heavy-production-use">Scenario 3: Heavy Production Use<a class="headerlink" href="#scenario-3-heavy-production-use" title="Permanent link">&para;</a></h3>
-<p><strong>Setup</strong>:
-- 1 allocator (t3.large, 24/7)
-- 20 client VMs (g4dn.xlarge)
-- VMs running 320 hours/month each</p>
-<p><strong>Costs</strong>:
-- Infrastructure: $0.95/month
-- Allocator: $60.74/month
-- Client VMs: 20 × 320 hours × $0.526 = $3,366.40
-- Storage: $1.60 + (20 × $6.40) = $129.60</p>
+<p><strong>Setup</strong>:</p>
+<ul>
+<li>1 allocator (t3.large, 24/7)</li>
+<li>20 client VMs (g4dn.xlarge)</li>
+<li>VMs running 320 hours/month each</li>
+</ul>
+<p><strong>Costs</strong>:</p>
+<ul>
+<li>Infrastructure: $0.95/month</li>
+<li>Allocator: $60.74/month</li>
+<li>Client VMs: 20 × 320 hours × $0.526 = $3,366.40</li>
+<li>Storage: $1.60 + (20 × $6.40) = $129.60</li>
+</ul>
 <p><strong>Total</strong>: <strong>~$3,558/month</strong></p>
 <p>At this scale, a Reserved Instance or Savings Plan on the always-on allocator trims the $60.74, but the client VMs dominate — terminating them promptly when idle matters far more.</p>
 <h3 id="scenario-4-minimal-cost-conscious">Scenario 4: Minimal (Cost-Conscious)<a class="headerlink" href="#scenario-4-minimal-cost-conscious" title="Permanent link">&para;</a></h3>
-<p><strong>Setup</strong>:
-- 1 allocator (t3.large)
-- 3 client VMs (g4dn.xlarge)
-- Only running when actively working (40 hours/month)</p>
-<p><strong>Costs</strong>:
-- Infrastructure: $0.05/month
-- Allocator: 40 hours × $0.0832 = $3.33
-- Client VMs: 3 × 40 hours × $0.526 = $63.12
-- Storage: Minimal (terminate when done) = $0.50</p>
+<p><strong>Setup</strong>:</p>
+<ul>
+<li>1 allocator (t3.large)</li>
+<li>3 client VMs (g4dn.xlarge)</li>
+<li>Only running when actively working (40 hours/month)</li>
+</ul>
+<p><strong>Costs</strong>:</p>
+<ul>
+<li>Infrastructure: $0.05/month</li>
+<li>Allocator: 40 hours × $0.0832 = $3.33</li>
+<li>Client VMs: 3 × 40 hours × $0.526 = $63.12</li>
+<li>Storage: Minimal (terminate when done) = $0.50</li>
+</ul>
 <p><strong>Total</strong>: <strong>~$67/month</strong></p>
 <h2 id="cost-monitoring">Cost Monitoring<a class="headerlink" href="#cost-monitoring" title="Permanent link">&para;</a></h2>
 <h3 id="view-current-costs">View Current Costs<a class="headerlink" href="#view-current-costs" title="Permanent link">&para;</a></h3>
-<p><strong>AWS Console</strong>:
-1. Navigate to <strong>Billing Dashboard</strong>
-2. View <strong>Cost Explorer</strong>
-3. Filter by tag <code>Project: LabLink</code></p>
+<p><strong>AWS Console</strong>:</p>
+<ol>
+<li>Navigate to <strong>Billing Dashboard</strong></li>
+<li>View <strong>Cost Explorer</strong></li>
+<li>Filter by tag <code>Project: LabLink</code></li>
+</ol>
 <p><strong>AWS CLI</strong>:
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>aws<span class="w"> </span>ce<span class="w"> </span>get-cost-and-usage<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span>--time-period<span class="w"> </span><span class="nv">Start</span><span class="o">=</span><span class="m">2025</span>-01-01,End<span class="o">=</span><span class="m">2025</span>-01-31<span class="w"> </span><span class="se">\</span>

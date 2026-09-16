@@ -6074,11 +6074,13 @@
 <a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">  </span>-p<span class="w"> </span><span class="m">5000</span>:5000<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">  </span>ghcr.io/talmolab/lablink-allocator-image:latest
 </code></pre></div>
-<p><strong>Password requirements</strong>:
-- Minimum 12 characters
-- Mix of uppercase, lowercase, numbers, symbols
-- Not a dictionary word
-- Use a password manager</p>
+<p><strong>Password requirements</strong>:</p>
+<ul>
+<li>Minimum 12 characters</li>
+<li>Mix of uppercase, lowercase, numbers, symbols</li>
+<li>Not a dictionary word</li>
+<li>Use a password manager</li>
+</ul>
 <h4 id="database-password">Database Password<a class="headerlink" href="#database-password" title="Permanent link">&para;</a></h4>
 <p><strong>Default</strong>: Configuration files use <code>PLACEHOLDER_DB_PASSWORD</code> which must be replaced with a secure password.</p>
 <p><strong>Method 1: GitHub Secrets (Recommended for CI/CD)</strong></p>
@@ -6307,11 +6309,13 @@
 </table>
 <p><strong>Recommendations</strong>:</p>
 <ol>
-<li><strong>Restrict outbound</strong>: If possible, limit to specific destinations:</li>
+<li>
+<p><strong>Restrict outbound</strong>: If possible, limit to specific destinations:</p>
+<ul>
 <li>Package repos (apt, pip)</li>
 <li>GitHub</li>
-<li>
-<p>Allocator IP</p>
+<li>Allocator IP</li>
+</ul>
 </li>
 <li>
 <p><strong>VPC Endpoints</strong>: Use VPC endpoints for AWS services (S3, EC2) to avoid internet routing</p>
@@ -6350,10 +6354,12 @@
 <a id="__codelineno-11-29" name="__codelineno-11-29" href="#__codelineno-11-29"></a><span class="w">  </span><span class="p">}</span>
 <a id="__codelineno-11-30" name="__codelineno-11-30" href="#__codelineno-11-30"></a><span class="p">}</span>
 </code></pre></div>
-<p><strong>Benefits</strong>:
-- Isolation from other workloads
-- Custom network ACLs
-- VPC Flow Logs for monitoring</p>
+<p><strong>Benefits</strong>:</p>
+<ul>
+<li>Isolation from other workloads</li>
+<li>Custom network ACLs</li>
+<li>VPC Flow Logs for monitoring</li>
+</ul>
 <h2 id="http-only-deployments-sslprovider-none">HTTP-Only Deployments (<code>ssl.provider: "none"</code>)<a class="headerlink" href="#http-only-deployments-sslprovider-none" title="Permanent link">&para;</a></h2>
 <p><strong>Warning</strong>: <code>ssl.provider: "none"</code> serves unencrypted HTTP traffic. All data transmitted between users and the allocator is sent in plaintext.</p>
 <h3 id="data-exposed-over-http">Data Exposed Over HTTP<a class="headerlink" href="#data-exposed-over-http" title="Permanent link">&para;</a></h3>
@@ -6448,13 +6454,17 @@
 <a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="nb">export</span><span class="w"> </span><span class="nv">AWS_ACCESS_KEY_ID</span><span class="o">=</span><span class="s2">"AKIA..."</span>
 <a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="nb">export</span><span class="w"> </span><span class="nv">AWS_SECRET_ACCESS_KEY</span><span class="o">=</span><span class="s2">"..."</span>
 </code></pre></div>
-<p><strong>Pros</strong>:
-- Simple
-- No external dependencies</p>
-<p><strong>Cons</strong>:
-- Visible in process list
-- Can leak in logs
-- Not encrypted at rest</p>
+<p><strong>Pros</strong>:</p>
+<ul>
+<li>Simple</li>
+<li>No external dependencies</li>
+</ul>
+<p><strong>Cons</strong>:</p>
+<ul>
+<li>Visible in process list</li>
+<li>Can leak in logs</li>
+<li>Not encrypted at rest</li>
+</ul>
 <h3 id="aws-secrets-manager">AWS Secrets Manager<a class="headerlink" href="#aws-secrets-manager" title="Permanent link">&para;</a></h3>
 <p>For production:</p>
 <p><strong>Store secrets</strong>:
@@ -6479,23 +6489,31 @@
 <a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a><span class="n">db_password</span> <span class="o">=</span> <span class="n">secrets</span><span class="p">[</span><span class="s1">'db_password'</span><span class="p">]</span>
 <a id="__codelineno-18-12" name="__codelineno-18-12" href="#__codelineno-18-12"></a><span class="n">admin_password</span> <span class="o">=</span> <span class="n">secrets</span><span class="p">[</span><span class="s1">'admin_password'</span><span class="p">]</span>
 </code></pre></div></p>
-<p><strong>Pros</strong>:
-- Encrypted at rest and in transit
-- Automatic rotation
-- Audit logging
-- Versioning</p>
-<p><strong>Cons</strong>:
-- Additional cost ($0.40/secret/month)
-- Requires IAM permissions</p>
+<p><strong>Pros</strong>:</p>
+<ul>
+<li>Encrypted at rest and in transit</li>
+<li>Automatic rotation</li>
+<li>Audit logging</li>
+<li>Versioning</li>
+</ul>
+<p><strong>Cons</strong>:</p>
+<ul>
+<li>Additional cost ($0.40/secret/month)</li>
+<li>Requires IAM permissions</li>
+</ul>
 <h3 id="github-secrets">GitHub Secrets<a class="headerlink" href="#github-secrets" title="Permanent link">&para;</a></h3>
 <p>For CI/CD workflows, GitHub Secrets provide secure password storage.</p>
-<p><strong>Add secrets</strong>:
-1. Go to repository <strong>Settings → Secrets and variables → Actions</strong>
-2. Click <strong>New repository secret</strong>
-3. Add both required secrets:
-   - Name: <code>ADMIN_PASSWORD</code>, Value: your secure admin password
-   - Name: <code>DB_PASSWORD</code>, Value: your secure database password
-4. Click <strong>Add secret</strong> for each</p>
+<p><strong>Add secrets</strong>:</p>
+<ol>
+<li>Go to repository <strong>Settings → Secrets and variables → Actions</strong></li>
+<li>Click <strong>New repository secret</strong></li>
+<li>Add both required secrets:<ul>
+<li>Name: <code>ADMIN_PASSWORD</code>, Value: your secure admin password</li>
+<li>Name: <code>DB_PASSWORD</code>, Value: your secure database password</li>
+</ul>
+</li>
+<li>Click <strong>Add secret</strong> for each</li>
+</ol>
 <p><strong>How it works</strong>:</p>
 <p>The deployment workflow automatically injects secrets into configuration files before OpenTofu runs:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Inject Password Secrets</span>
@@ -6507,14 +6525,18 @@
 <a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a><span class="w">    </span><span class="no">sed -i "s/PLACEHOLDER_DB_PASSWORD/${DB_PASSWORD}/g" "$CONFIG_FILE"</span>
 </code></pre></div>
 <p>This replaces <code>PLACEHOLDER_ADMIN_PASSWORD</code> and <code>PLACEHOLDER_DB_PASSWORD</code> in config files with actual values from secrets, preventing passwords from appearing in OpenTofu logs.</p>
-<p><strong>Pros</strong>:
-- Integrated with GitHub Actions
-- Encrypted at rest and in transit
-- Not visible in workflow logs
-- Prevents password exposure in OpenTofu apply output</p>
-<p><strong>Cons</strong>:
-- Only available in workflows
-- Can't be read after creation</p>
+<p><strong>Pros</strong>:</p>
+<ul>
+<li>Integrated with GitHub Actions</li>
+<li>Encrypted at rest and in transit</li>
+<li>Not visible in workflow logs</li>
+<li>Prevents password exposure in OpenTofu apply output</li>
+</ul>
+<p><strong>Cons</strong>:</p>
+<ul>
+<li>Only available in workflows</li>
+<li>Can't be read after creation</li>
+</ul>
 <h2 id="ssh-key-security">SSH Key Security<a class="headerlink" href="#ssh-key-security" title="Permanent link">&para;</a></h2>
 <h3 id="key-generation">Key Generation<a class="headerlink" href="#key-generation" title="Permanent link">&para;</a></h3>
 <p>OpenTofu generates SSH keys automatically:</p>
@@ -6528,12 +6550,16 @@
 <a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a><span class="w">  </span><span class="na">public_key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">tls_private_key.lablink_key.public_key_openssh</span>
 <a id="__codelineno-20-9" name="__codelineno-20-9" href="#__codelineno-20-9"></a><span class="p">}</span>
 </code></pre></div>
-<p><strong>Good</strong>:
-- Unique key per environment
-- 4096-bit RSA (strong)</p>
-<p><strong>Bad</strong>:
-- Stored in OpenTofu state (plaintext)
-- Artifacts expire (GitHub Actions)</p>
+<p><strong>Good</strong>:</p>
+<ul>
+<li>Unique key per environment</li>
+<li>4096-bit RSA (strong)</li>
+</ul>
+<p><strong>Bad</strong>:</p>
+<ul>
+<li>Stored in OpenTofu state (plaintext)</li>
+<li>Artifacts expire (GitHub Actions)</li>
+</ul>
 <h3 id="key-permissions">Key Permissions<a class="headerlink" href="#key-permissions" title="Permanent link">&para;</a></h3>
 <p><strong>Always set proper permissions</strong>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>~/lablink-key.pem
@@ -6552,13 +6578,17 @@
 </code></pre></div>
 <p><strong>Frequency</strong>: Every 90 days for production</p>
 <h3 id="key-storage">Key Storage<a class="headerlink" href="#key-storage" title="Permanent link">&para;</a></h3>
-<p><strong>Never</strong>:
-- Commit keys to version control
-- Share keys via email/Slack
-- Store keys in cloud storage without encryption</p>
-<p><strong>Instead</strong>:
-- Use SSH agent: <code>ssh-add ~/lablink-key.pem</code>
-- Store in password manager</p>
+<p><strong>Never</strong>:</p>
+<ul>
+<li>Commit keys to version control</li>
+<li>Share keys via email/Slack</li>
+<li>Store keys in cloud storage without encryption</li>
+</ul>
+<p><strong>Instead</strong>:</p>
+<ul>
+<li>Use SSH agent: <code>ssh-add ~/lablink-key.pem</code></li>
+<li>Store in password manager</li>
+</ul>
 <h2 id="data-encryption">Data Encryption<a class="headerlink" href="#data-encryption" title="Permanent link">&para;</a></h2>
 <h3 id="encryption-at-rest">Encryption at Rest<a class="headerlink" href="#encryption-at-rest" title="Permanent link">&para;</a></h3>
 <h4 id="opentofu-state">OpenTofu State<a class="headerlink" href="#opentofu-state" title="Permanent link">&para;</a></h4>

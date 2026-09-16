@@ -5016,73 +5016,12 @@ holds the allocator's Terraform configs, released as tagged bundles. The
 alternatively, admins can fork the template repo and deploy through its GitHub
 Actions workflows. See <a href="../cli/first-deployment/">CLI First Deployment</a> and
 <a href="../deployment/">Template Repo Deployment</a>.</p>
-<div class="mermaid">graph TB
-    subgraph GitHub["GitHub"]
-        Lablink[talmolab/lablink&lt;br/&gt;Packages + CI]
-        Template[talmolab/lablink-template&lt;br/&gt;Terraform configs&lt;br/&gt;tagged releases]
-    end
-
-    subgraph Artifacts["Build Artifacts"]
-        PyPI[Python Packages&lt;br/&gt;PyPI]
-        DockerImages[Docker Images&lt;br/&gt;ghcr.io]
-    end
-
-    Lablink --&gt; PyPI
-    Lablink --&gt; DockerImages
-
-    CLI[lablink CLI&lt;br/&gt;&lt;br/&gt;• deploy / destroy&lt;br/&gt;• status / logs&lt;br/&gt;• OpenTofu apply]
-    PyPI --&gt; CLI
-    Template --&gt;|terraform bundle| CLI
-
-    subgraph AWS["AWS Cloud"]
-        subgraph AllocatorInstance["Allocator EC2 Instance"]
-            Caddy[Caddy&lt;br/&gt;TLS termination&lt;br/&gt;ports 80/443]
-            subgraph AllocatorContainer["Docker Container: lablink-allocator"]
-                Nginx[nginx :5000&lt;br/&gt;only network-facing&lt;br/&gt;process]
-                Flask[Flask App&lt;br/&gt;127.0.0.1:8000&lt;br/&gt;&lt;br/&gt;• Web UI&lt;br/&gt;• API&lt;br/&gt;• OpenTofu]
-                PostgreSQL[(PostgreSQL 17&lt;br/&gt;&lt;br/&gt;• vms&lt;br/&gt;• operations&lt;br/&gt;• scheduled_destructions&lt;br/&gt;• settings)]
-                Nginx --&gt; Flask
-                Flask &lt;--&gt; PostgreSQL
-            end
-            Caddy --&gt; Nginx
-        end
-
-        subgraph ClientInstances["Client EC2 Instances (Dynamic)"]
-            subgraph ClientContainer["Docker Container: lablink-client"]
-                Desktop[KasmVNC Desktop&lt;br/&gt;:6080 WebSocket&lt;br/&gt;+ agent :7070]
-                Services[Client Services&lt;br/&gt;&lt;br/&gt;• Heartbeat&lt;br/&gt;• GPU Check&lt;br/&gt;• Status]
-                Research[Research Code&lt;br/&gt;User Repo&lt;br/&gt;&lt;br/&gt;• SLEAP/Custom&lt;br/&gt;• Your Software]
-                Services --&gt; Research
-            end
-            Note[Multiple instances,&lt;br/&gt;dynamically created]
-        end
-
-        subgraph AWSResources["AWS Resources"]
-            SecurityGroups[Security Groups]
-            ElasticIPs[Elastic IPs&lt;br/&gt;Static IPs]
-            S3[S3 Bucket: TF State&lt;br/&gt;DynamoDB: Lock Table]
-        end
-    end
-
-    CLI --&gt;|tofu apply| AllocatorInstance
-    DockerImages -.-&gt; AllocatorContainer
-    DockerImages -.-&gt; ClientContainer
-    Flask --&gt;|async operation:&lt;br/&gt;tofu apply| ClientInstances
-    Services -.-&gt;|heartbeat, GPU health,&lt;br/&gt;status via HTTP API| Flask
-    Nginx --&gt;|proxies noVNC&lt;br/&gt;WebSocket| Desktop
-
-    style GitHub fill:#f0f0f0
-    style Artifacts fill:#e1f5ff
-    style AWS fill:#fff4e1
-    style AllocatorInstance fill:#ffe6e6
-    style AllocatorContainer fill:#fff
-    style ClientInstances fill:#e6ffe6
-    style ClientContainer fill:#fff
-    style AWSResources fill:#f0f0f0
-    style Flask fill:#4a90e2,color:#fff
-    style PostgreSQL fill:#336791,color:#fff
-    style Services fill:#4a90e2,color:#fff
-    style Research fill:#8bc34a,color:#fff</div>
+<p>A deployed LabLink on AWS. Admins and students reach the allocator through
+Route 53; the allocator instance runs Flask, PostgreSQL, the provisioner and
+nginx in one container, provisions client instances, and relays each
+participant's remote-desktop connection to the KasmVNC server on their
+assigned client.</p>
+<p><img alt="LabLink AWS architecture diagram" src="../assets/images/aws_arch_diag.png" /></p>
 <p>Inside the allocator container, nginx on port 5000 is the only network-facing
 process: Flask binds loopback (127.0.0.1:8000) and PostgreSQL runs co-located
 in the same container. Participants' noVNC traffic is proxied by that nginx to
@@ -5178,54 +5117,50 @@ contract.</p>
 <ol>
 <li>
 <p><strong>Web Interface</strong>:</p>
-</li>
-<li>
-<p>Admin dashboard for VM management</p>
-</li>
+<ul>
+<li>Admin dashboard for VM management</li>
 <li>VM creation interface</li>
-<li>
-<p>Instance listing and monitoring</p>
+<li>Instance listing and monitoring</li>
+</ul>
 </li>
 <li>
 <p><strong>API Endpoints</strong>:</p>
-</li>
-<li>
-<p><code>/api/request_vm</code>: Claim a seat for a participant</p>
-</li>
+<ul>
+<li><code>/api/request_vm</code>: Claim a seat for a participant</li>
 <li><code>/desktop</code>: Cookie-gated noVNC viewer</li>
 <li><code>/api/launch</code>: Provision new VM instances (async operation)</li>
 <li><code>/admin/instances</code>: List all instances</li>
 <li><code>/admin/allocator-logs</code>: The allocator's own log viewer</li>
 <li><code>/api/v1/clients/register</code>: BYO client self-registration</li>
 <li><code>/api/heartbeat</code>: Client liveness reporting</li>
-</ol>
+</ul>
 <p>See <a href="../api-endpoints/">API Endpoints</a> for the full surface.</p>
-<ol>
+</li>
 <li>
 <p><strong>Database Management</strong>:</p>
-</li>
-<li>
-<p>Tracks VM states (<code>initializing</code>, <code>running</code>, <code>error</code>, <code>rebooting</code>)</p>
-</li>
-<li>
-<p>Claims seats atomically with <code>FOR UPDATE SKIP LOCKED</code></p>
+<ul>
+<li>Tracks VM states (<code>initializing</code>, <code>running</code>, <code>error</code>, <code>rebooting</code>)</li>
+<li>Claims seats atomically with <code>FOR UPDATE SKIP LOCKED</code></li>
+</ul>
 </li>
 <li>
 <p><strong>Infrastructure Orchestration</strong>:</p>
-</li>
+<ul>
 <li>Spawns and destroys client VMs via OpenTofu, as <strong>async operations</strong>: <code>/api/launch</code> and <code>/destroy</code> enqueue a job in the <code>operations</code> table, a background worker runs <code>tofu apply</code>/<code>destroy</code>, and the admin dashboard polls <code>/api/operations</code> for progress — only one operation runs at a time</li>
 <li>Manages AWS credentials</li>
-<li>
-<p>Handles security group configuration</p>
+<li>Handles security group configuration</li>
+</ul>
 </li>
 <li>
 <p><strong>Auto-Reboot Service</strong>:</p>
-</li>
+<ul>
 <li>Background daemon that monitors for failed VMs</li>
 <li>Automatically reboots VMs in error state, with unhealthy GPUs, or stuck initializing/rebooting</li>
 <li>Primary method: SSH hard reboot (<code>cloud-init clean &amp;&amp; reboot</code>)</li>
 <li>Fallback: EC2 stop/start cycle (for OOM or hung processes)</li>
 <li>Respects cooldown periods (default: 300s) and max attempt limits (default: 3)</li>
+</ul>
+</li>
 </ol>
 <p><strong>Configuration</strong>: See <code>packages/allocator/src/lablink_allocator_service/conf/structured_config.py</code></p>
 <h3 id="client-service">Client Service<a class="headerlink" href="#client-service" title="Permanent link">&para;</a></h3>
@@ -5240,31 +5175,29 @@ contract.</p>
 <ol>
 <li>
 <p><strong>Health Monitoring</strong>:</p>
-</li>
-<li>
-<p>GPU health checks (every 20 seconds)</p>
-</li>
+<ul>
+<li>GPU health checks (every 20 seconds)</li>
 <li>System resource monitoring</li>
-<li>
-<p>Reports status to allocator</p>
+<li>Reports status to allocator</li>
+</ul>
 </li>
 <li>
 <p><strong>Allocator Communication</strong>:</p>
-</li>
-<li>
-<p>Authenticated with its own per-client secret, issued at registration</p>
-</li>
+<ul>
+<li>Authenticated with its own per-client secret, issued at registration</li>
 <li>Heartbeat mechanism</li>
 <li>Status updates (in-use, health, startup timings)</li>
-<li>
-<p>Failure reporting</p>
+<li>Failure reporting</li>
+</ul>
 </li>
 <li>
 <p><strong>Desktop Session</strong>:</p>
-</li>
+<ul>
 <li>Runs a KasmVNC desktop the participant reaches in a browser</li>
 <li>Exposes a local agent the allocator calls to rotate the VNC password per session</li>
 <li>Clones the configured repository and runs the containerized research software</li>
+</ul>
+</li>
 </ol>
 <p><strong>Desktop performance</strong>: the client deliberately overrides seven upstream
 defaults, because stock KasmVNC and XFCE never reduce cost while the screen is
@@ -5490,20 +5423,20 @@ to the database.</p>
 <ul>
 <li>
 <p><strong>S3 Buckets</strong>: OpenTofu state storage</p>
-</li>
-<li>
-<p>Separate state per named deployment (CLI) or per environment (template repo)</p>
-</li>
+<ul>
+<li>Separate state per named deployment (CLI) or per environment (template repo)</li>
 <li>DynamoDB lock table prevents concurrent applies</li>
 <li>Versioning enabled</li>
-<li>
-<p>Encrypted at rest</p>
+<li>Encrypted at rest</li>
+</ul>
 </li>
 <li>
 <p><strong>EBS Volumes</strong>: Instance root volumes</p>
-</li>
+<ul>
 <li>Allocator: 30GB (configurable)</li>
 <li>Clients: Depends on AMI</li>
+</ul>
+</li>
 </ul>
 <h2 id="data-flow">Data Flow<a class="headerlink" href="#data-flow" title="Permanent link">&para;</a></h2>
 <h3 id="seat-assignment-flow">Seat Assignment Flow<a class="headerlink" href="#seat-assignment-flow" title="Permanent link">&para;</a></h3>
@@ -5639,13 +5572,11 @@ something else); the fourth uses the template repo directly:</p>
 </li>
 <li>
 <p><strong>Build Images</strong> (<code>lablink-images.yml</code>):</p>
-</li>
-<li>
-<p>Triggers on PRs, pushes to <code>main</code>/<code>test</code>, and manual dispatch</p>
-</li>
+<ul>
+<li>Triggers on PRs, pushes to <code>main</code>/<code>test</code>, and manual dispatch</li>
 <li>Builds allocator and client Docker images</li>
-<li>
-<p>Pushes to GitHub Container Registry</p>
+<li>Pushes to GitHub Container Registry</li>
+</ul>
 </li>
 <li>
 <p><strong>Publish Packages</strong> (<code>publish-pip.yml</code>): Publishes the allocator, client,

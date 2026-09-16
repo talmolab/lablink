@@ -6837,25 +6837,35 @@ This manual guide is provided as a reference for advanced users who prefer to cr
 <h2 id="choosing-an-aws-region">Choosing an AWS Region<a class="headerlink" href="#choosing-an-aws-region" title="Permanent link">&para;</a></h2>
 <p>Before starting, select the AWS region where you'll deploy LabLink. This is an important decision that affects performance, cost, and compliance.</p>
 <h3 id="region-selection-criteria">Region Selection Criteria<a class="headerlink" href="#region-selection-criteria" title="Permanent link">&para;</a></h3>
-<p><strong>1. Latency &amp; Geographic Proximity</strong>
-- Choose a region closest to your users for best performance
-- Lower latency = better user experience for VM access
-- Test latency: <code>ping ec2.{region}.amazonaws.com</code></p>
-<p><strong>2. Instance Availability</strong>
-- Not all instance types are available in all regions
-- GPU instances (g4dn, g5, p3) have limited regional availability
-- Check availability: <a href="https://aws.amazon.com/about-aws/global-infrastructure/regional-product-services/">AWS Regional Services</a></p>
-<p><strong>3. Pricing</strong>
-- EC2 pricing varies by region (5-30% difference)
-- US regions are typically cheaper than EU/Asia
-- Check pricing: <a href="https://calculator.aws/">EC2 Pricing Calculator</a></p>
-<p><strong>4. Compliance &amp; Data Residency</strong>
-- GDPR (Europe): Use <code>eu-west-1</code>, <code>eu-central-1</code>
-- HIPAA (US Healthcare): Any US region with BAA
-- Data sovereignty requirements may mandate specific regions</p>
-<p><strong>5. Service Availability</strong>
-- All LabLink features require: EC2, VPC, S3, Route 53
-- These are available in all commercial regions</p>
+<p><strong>1. Latency &amp; Geographic Proximity</strong></p>
+<ul>
+<li>Choose a region closest to your users for best performance</li>
+<li>Lower latency = better user experience for VM access</li>
+<li>Test latency: <code>ping ec2.{region}.amazonaws.com</code></li>
+</ul>
+<p><strong>2. Instance Availability</strong></p>
+<ul>
+<li>Not all instance types are available in all regions</li>
+<li>GPU instances (g4dn, g5, p3) have limited regional availability</li>
+<li>Check availability: <a href="https://aws.amazon.com/about-aws/global-infrastructure/regional-product-services/">AWS Regional Services</a></li>
+</ul>
+<p><strong>3. Pricing</strong></p>
+<ul>
+<li>EC2 pricing varies by region (5-30% difference)</li>
+<li>US regions are typically cheaper than EU/Asia</li>
+<li>Check pricing: <a href="https://calculator.aws/">EC2 Pricing Calculator</a></li>
+</ul>
+<p><strong>4. Compliance &amp; Data Residency</strong></p>
+<ul>
+<li>GDPR (Europe): Use <code>eu-west-1</code>, <code>eu-central-1</code></li>
+<li>HIPAA (US Healthcare): Any US region with BAA</li>
+<li>Data sovereignty requirements may mandate specific regions</li>
+</ul>
+<p><strong>5. Service Availability</strong></p>
+<ul>
+<li>All LabLink features require: EC2, VPC, S3, Route 53</li>
+<li>These are available in all commercial regions</li>
+</ul>
 <h3 id="recommended-regions">Recommended Regions<a class="headerlink" href="#recommended-regions" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
@@ -7269,9 +7279,11 @@ This manual guide is provided as a reference for advanced users who prefer to cr
 <li>Go to <strong>IAM → Roles</strong></li>
 <li>Click <strong>Create role</strong></li>
 <li>Select <strong>Web identity</strong> as trusted entity type</li>
-<li>Choose:</li>
+<li>Choose:<ul>
 <li>Identity provider: <code>token.actions.githubusercontent.com</code></li>
 <li>Audience: <code>sts.amazonaws.com</code></li>
+</ul>
+</li>
 <li>Click <strong>Next</strong></li>
 </ol>
 <p><strong>Step 2:</strong> Skip permissions for now (we'll add them in Step 4.4)</p>
@@ -7613,7 +7625,13 @@ This manual guide is provided as a reference for advanced users who prefer to cr
 <li>Click <strong>Add secret</strong></li>
 </ul>
 </li>
-<li><strong>Add DB_PASSWORD secret:</strong> - Click <strong>New repository secret</strong> - Name: <code>DB_PASSWORD</code> - Value: Your secure database password (use a password manager to generate) - Click <strong>Add secret</strong></li>
+<li><strong>Add DB_PASSWORD secret:</strong><ul>
+<li>Click <strong>New repository secret</strong></li>
+<li>Name: <code>DB_PASSWORD</code></li>
+<li>Value: Your secure database password (use a password manager to generate)</li>
+<li>Click <strong>Add secret</strong></li>
+</ul>
+</li>
 </ol>
 <p><strong>Note:</strong> The template repository can safely include these secrets because:</p>
 <ul>
@@ -7730,10 +7748,12 @@ This manual guide is provided as a reference for advanced users who prefer to cr
 <li>Go to <strong>EC2 → AMI Catalog</strong> in your chosen region</li>
 <li>Search for "ubuntu 24.04"</li>
 <li>Select "AWS Marketplace AMIs" or "Community AMIs"</li>
-<li>Filter by:</li>
+<li>Filter by:<ul>
 <li>Owner: Canonical (099720109477)</li>
 <li>Architecture: 64-bit (x86)</li>
 <li>Root device type: EBS</li>
+</ul>
+</li>
 <li>Choose the most recent "ubuntu-noble-24.04" AMI</li>
 <li>Copy the AMI ID (e.g., <code>ami-0bd08c9d4aa9f0bc6</code>)</li>
 </ol>

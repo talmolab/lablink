@@ -5577,23 +5577,25 @@
 <p>Automated deployment via CI/CD pipelines.</p>
 <h3 id="initial-setup">Initial Setup<a class="headerlink" href="#initial-setup" title="Permanent link">&para;</a></h3>
 <ol>
-<li><strong>Configure GitHub Secrets</strong></li>
-</ol>
+<li>
+<p><strong>Configure GitHub Secrets</strong></p>
 <p>Navigate to <strong>Settings → Secrets and variables → Actions</strong> in your GitHub repository.</p>
-<p>Required secrets:
-   - <code>AWS_ROLE_ARN</code>: IAM role ARN for GitHub Actions authentication
-     Example: <code>arn:aws:iam::711387140753:role/GitHubActionsLabLinkRole</code>
-   - <code>AWS_REGION</code>: AWS region for deployment
-     Example: <code>us-west-2</code>, <code>eu-west-1</code>, <code>ap-northeast-1</code>
-     <strong>Note:</strong> Must match region in <code>config/config.yaml</code>
-   - <code>ADMIN_PASSWORD</code>: Admin password for allocator web interface
-     Example: Generate a secure password using a password manager
-   - <code>DB_PASSWORD</code>: Database password for PostgreSQL
-     Example: Generate a secure password using a password manager</p>
+<p>Required secrets:</p>
+<ul>
+<li><code>AWS_ROLE_ARN</code>: IAM role ARN for GitHub Actions authentication
+ Example: <code>arn:aws:iam::711387140753:role/GitHubActionsLabLinkRole</code></li>
+<li><code>AWS_REGION</code>: AWS region for deployment
+ Example: <code>us-west-2</code>, <code>eu-west-1</code>, <code>ap-northeast-1</code>
+ <strong>Note:</strong> Must match region in <code>config/config.yaml</code></li>
+<li><code>ADMIN_PASSWORD</code>: Admin password for allocator web interface
+ Example: Generate a secure password using a password manager</li>
+<li><code>DB_PASSWORD</code>: Database password for PostgreSQL
+ Example: Generate a secure password using a password manager</li>
+</ul>
 <p><strong>Security Note</strong>: The workflow automatically replaces <code>PLACEHOLDER_ADMIN_PASSWORD</code> and <code>PLACEHOLDER_DB_PASSWORD</code> in config files with these secret values before OpenTofu runs, preventing passwords from appearing in logs. If these secrets are not set, the workflow uses temporary <code>CHANGEME_*</code> defaults and displays a warning.</p>
-<ol>
-<li><strong>Verify OIDC Configuration</strong></li>
-</ol>
+</li>
+<li>
+<p><strong>Verify OIDC Configuration</strong></p>
 <p>Ensure AWS IAM role exists and trusts your GitHub repository:</p>
 <ul>
 <li>OIDC provider exists: <code>token.actions.githubusercontent.com</code></li>
@@ -5601,23 +5603,31 @@
 <li>Role has PowerUserAccess or equivalent permissions</li>
 </ul>
 <p>See detailed setup instructions: <a href="../aws-setup/#step-4-github-actions-oidc-configuration">AWS Setup → OIDC Configuration</a></p>
+</li>
+</ol>
 <h3 id="deploy-to-test-environment">Deploy to Test Environment<a class="headerlink" href="#deploy-to-test-environment" title="Permanent link">&para;</a></h3>
 <p><strong>Trigger</strong>: Push to <code>test</code> branch</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>git<span class="w"> </span>checkout<span class="w"> </span>-b<span class="w"> </span><span class="nb">test</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span><span class="nb">test</span>
 </code></pre></div>
-<p>This automatically:
-1. Builds Docker images with <code>-test</code> tags
-2. Runs OpenTofu init with <code>backend-test.hcl</code>
-3. Deploys to test environment
-4. Outputs allocator URL and SSH key</p>
-<p><strong>Monitor Progress</strong>:
-- Go to <strong>Actions</strong> tab in GitHub
-- Watch <code>OpenTofu Deploy</code> workflow
-- Check logs for any errors</p>
-<p><strong>Access Deployment</strong>:
-- Allocator URL: Available in workflow output
-- SSH Key: Download from workflow artifacts</p>
+<p>This automatically:</p>
+<ol>
+<li>Builds Docker images with <code>-test</code> tags</li>
+<li>Runs OpenTofu init with <code>backend-test.hcl</code></li>
+<li>Deploys to test environment</li>
+<li>Outputs allocator URL and SSH key</li>
+</ol>
+<p><strong>Monitor Progress</strong>:</p>
+<ul>
+<li>Go to <strong>Actions</strong> tab in GitHub</li>
+<li>Watch <code>OpenTofu Deploy</code> workflow</li>
+<li>Check logs for any errors</li>
+</ul>
+<p><strong>Access Deployment</strong>:</p>
+<ul>
+<li>Allocator URL: Available in workflow output</li>
+<li>SSH Key: Download from workflow artifacts</li>
+</ul>
 <h3 id="deploy-to-production">Deploy to Production<a class="headerlink" href="#deploy-to-production" title="Permanent link">&para;</a></h3>
 <p><strong>Trigger</strong>: Manual workflow dispatch</p>
 <ol>
@@ -5632,10 +5642,10 @@
 </li>
 <li>
 <p><strong>Fill in parameters</strong>:</p>
-</li>
+<ul>
 <li><strong>Environment</strong>: <code>prod</code></li>
-<li>
-<p><strong>Image tag</strong>: Specific version (e.g., <code>v1.0.0</code> or commit SHA)</p>
+<li><strong>Image tag</strong>: Specific version (e.g., <code>v1.0.0</code> or commit SHA)</li>
+</ul>
 </li>
 <li>
 <p><strong>Click "Run workflow"</strong></p>
@@ -5710,10 +5720,12 @@ Production deployments use pinned image tags for reproducibility and require exp
 <a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">"resource_suffix=dev"</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">"allocator_image_tag=linux-amd64-latest-test"</span>
 </code></pre></div>
-<p>Review the plan output carefully. OpenTofu will show:
-- Resources to be created
-- Resources to be modified
-- Resources to be destroyed</p>
+<p>Review the plan output carefully. OpenTofu will show:</p>
+<ul>
+<li>Resources to be created</li>
+<li>Resources to be modified</li>
+<li>Resources to be destroyed</li>
+</ul>
 <h3 id="step-5-apply-deployment">Step 5: Apply Deployment<a class="headerlink" href="#step-5-apply-deployment" title="Permanent link">&para;</a></h3>
 <p>Deploy the infrastructure:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>tofu<span class="w"> </span>apply<span class="w"> </span><span class="se">\</span>
@@ -5793,11 +5805,13 @@ Production deployments use pinned image tags for reproducibility and require exp
 <h2 id="environment-specific-configurations">Environment-Specific Configurations<a class="headerlink" href="#environment-specific-configurations" title="Permanent link">&para;</a></h2>
 <h3 id="development">Development<a class="headerlink" href="#development" title="Permanent link">&para;</a></h3>
 <p><strong>Purpose</strong>: Local testing, rapid iteration</p>
-<p><strong>Configuration</strong>:
-- OpenTofu state: Local file
-- Image tag: <code>-test</code> versions
-- Instance type: <code>t2.micro</code> (cheapest)
-- No Elastic IP (dynamic)</p>
+<p><strong>Configuration</strong>:</p>
+<ul>
+<li>OpenTofu state: Local file</li>
+<li>Image tag: <code>-test</code> versions</li>
+<li>Instance type: <code>t2.micro</code> (cheapest)</li>
+<li>No Elastic IP (dynamic)</li>
+</ul>
 <p><strong>Deploy</strong>:
 <div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>tofu<span class="w"> </span>init
 <a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>tofu<span class="w"> </span>apply<span class="w"> </span><span class="se">\</span>
@@ -5806,11 +5820,13 @@ Production deployments use pinned image tags for reproducibility and require exp
 </code></pre></div></p>
 <h3 id="teststaging">Test/Staging<a class="headerlink" href="#teststaging" title="Permanent link">&para;</a></h3>
 <p><strong>Purpose</strong>: Pre-production validation, integration testing</p>
-<p><strong>Configuration</strong>:
-- OpenTofu state: S3 bucket (<code>backend-test.hcl</code>)
-- Image tag: <code>-test</code> versions
-- Instance type: Same as production
-- Elastic IP: Pre-allocated</p>
+<p><strong>Configuration</strong>:</p>
+<ul>
+<li>OpenTofu state: S3 bucket (<code>backend-test.hcl</code>)</li>
+<li>Image tag: <code>-test</code> versions</li>
+<li>Instance type: Same as production</li>
+<li>Elastic IP: Pre-allocated</li>
+</ul>
 <p><strong>Deploy</strong>:
 <div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>tofu<span class="w"> </span>init<span class="w"> </span>-backend-config<span class="o">=</span>backend-test.hcl
 <a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>tofu<span class="w"> </span>apply<span class="w"> </span><span class="se">\</span>
@@ -5820,12 +5836,14 @@ Production deployments use pinned image tags for reproducibility and require exp
 </code></pre></div></p>
 <h3 id="production">Production<a class="headerlink" href="#production" title="Permanent link">&para;</a></h3>
 <p><strong>Purpose</strong>: Live workloads, stable releases</p>
-<p><strong>Configuration</strong>:
-- OpenTofu state: S3 bucket (<code>backend-prod.hcl</code>)
-- Image tag: Pinned versions (<code>v1.0.0</code>)
-- Instance type: Appropriately sized
-- Elastic IP: Pre-allocated
-- Monitoring and backups enabled</p>
+<p><strong>Configuration</strong>:</p>
+<ul>
+<li>OpenTofu state: S3 bucket (<code>backend-prod.hcl</code>)</li>
+<li>Image tag: Pinned versions (<code>v1.0.0</code>)</li>
+<li>Instance type: Appropriately sized</li>
+<li>Elastic IP: Pre-allocated</li>
+<li>Monitoring and backups enabled</li>
+</ul>
 <p><strong>Deploy</strong>:
 <div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>tofu<span class="w"> </span>init<span class="w"> </span>-backend-config<span class="o">=</span>backend-prod.hcl
 <a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>tofu<span class="w"> </span>apply<span class="w"> </span><span class="se">\</span>
@@ -5889,15 +5907,19 @@ Production deployments use pinned image tags for reproducibility and require exp
 </tr>
 </tbody>
 </table>
-<p><strong>DNS Configuration</strong>:
-- <strong>Type</strong>: A Records
-- <strong>TTL</strong>: 300 seconds
-- <strong>Managed via</strong>: AWS Route 53
-- <strong>Name Servers</strong>:
-  - <code>ns-158.awsdns-19.com</code>
-  - <code>ns-697.awsdns-23.net</code>
-  - <code>ns-1839.awsdns-37.co.uk</code>
-  - <code>ns-1029.awsdns-00.org</code></p>
+<p><strong>DNS Configuration</strong>:</p>
+<ul>
+<li><strong>Type</strong>: A Records</li>
+<li><strong>TTL</strong>: 300 seconds</li>
+<li><strong>Managed via</strong>: AWS Route 53</li>
+<li><strong>Name Servers</strong>:<ul>
+<li><code>ns-158.awsdns-19.com</code></li>
+<li><code>ns-697.awsdns-23.net</code></li>
+<li><code>ns-1839.awsdns-37.co.uk</code></li>
+<li><code>ns-1029.awsdns-00.org</code></li>
+</ul>
+</li>
+</ul>
 <p><strong>To replicate this setup</strong>:</p>
 <ol>
 <li>
@@ -5989,12 +6011,14 @@ Production deployments use pinned image tags for reproducibility and require exp
 </code></pre></div></p>
 <p>See <a href="../security/#change-default-passwords">Security → Change Default Passwords</a>.</p>
 <h3 id="3-test-vm-creation">3. Test VM Creation<a class="headerlink" href="#3-test-vm-creation" title="Permanent link">&para;</a></h3>
-<p>Via web interface:
-1. Navigate to <code>http://&lt;allocator-ip&gt;:80</code>
-2. Login with admin credentials
-3. Go to <strong>Admin → Create Instances</strong>
-4. Enter number of VMs to create
-5. Submit and monitor creation</p>
+<p>Via web interface:</p>
+<ol>
+<li>Navigate to <code>http://&lt;allocator-ip&gt;:80</code></li>
+<li>Login with admin credentials</li>
+<li>Go to <strong>Admin → Create Instances</strong></li>
+<li>Enter number of VMs to create</li>
+<li>Submit and monitor creation</li>
+</ol>
 <p>Via API:
 <div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://&lt;allocator-ip&gt;:80/api/request_vm<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="w">  </span>-d<span class="w"> </span><span class="s2">"email=test@example.com"</span>
@@ -6051,15 +6075,19 @@ Production deployments use pinned image tags for reproducibility and require exp
 <a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a>
 <a id="__codelineno-23-7" name="__codelineno-23-7" href="#__codelineno-23-7"></a><span class="c1"># Type 'yes' to confirm</span>
 </code></pre></div>
-<p><strong>Warning</strong>: This destroys:
-- EC2 instance
-- Security group
-- SSH key pair
-- All associated resources</p>
-<p><strong>Not destroyed</strong>:
-- S3 bucket (OpenTofu state)
-- Elastic IPs (must be released manually)
-- Any client VMs created by the allocator</p>
+<p><strong>Warning</strong>: This destroys:</p>
+<ul>
+<li>EC2 instance</li>
+<li>Security group</li>
+<li>SSH key pair</li>
+<li>All associated resources</li>
+</ul>
+<p><strong>Not destroyed</strong>:</p>
+<ul>
+<li>S3 bucket (OpenTofu state)</li>
+<li>Elastic IPs (must be released manually)</li>
+<li>Any client VMs created by the allocator</li>
+</ul>
 <h2 id="troubleshooting-deployments">Troubleshooting Deployments<a class="headerlink" href="#troubleshooting-deployments" title="Permanent link">&para;</a></h2>
 <h3 id="opentofu-init-fails">OpenTofu Init Fails<a class="headerlink" href="#opentofu-init-fails" title="Permanent link">&para;</a></h3>
 <p><strong>Error</strong>: <code>Backend configuration changed</code></p>
@@ -6082,10 +6110,12 @@ Production deployments use pinned image tags for reproducibility and require exp
 <a id="__codelineno-26-6" name="__codelineno-26-6" href="#__codelineno-26-6"></a>chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>~/lablink-key.pem
 </code></pre></div></p>
 <h3 id="instance-not-accessible">Instance Not Accessible<a class="headerlink" href="#instance-not-accessible" title="Permanent link">&para;</a></h3>
-<p><strong>Check</strong>:
-1. Security group allows port 80 from your IP
-2. Instance has public IP
-3. Instance is running (<code>aws ec2 describe-instances</code>)</p>
+<p><strong>Check</strong>:</p>
+<ol>
+<li>Security group allows port 80 from your IP</li>
+<li>Instance has public IP</li>
+<li>Instance is running (<code>aws ec2 describe-instances</code>)</li>
+</ol>
 <h3 id="opentofu-state-locked">OpenTofu State Locked<a class="headerlink" href="#opentofu-state-locked" title="Permanent link">&para;</a></h3>
 <p><strong>Error</strong>: <code>Error acquiring the state lock</code></p>
 <p><strong>Solution</strong>:

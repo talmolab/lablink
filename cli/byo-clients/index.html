@@ -4776,6 +4776,25 @@ all.</p>
 </tr>
 </tbody>
 </table>
+<p><strong><code>lan_direct</code></strong> — every hop stays inside one LAN. The browser loads the viewer
+page from the allocator on port 80, then opens a WebSocket straight to the
+client's KasmVNC on port 6080. The client reports status to the allocator on
+port 80, and the allocator rotates the VNC password through the client agent on
+port 7070.</p>
+<p><img alt="lan_direct communication diagram" src="../../assets/images/lan_direct_architecture.png" /></p>
+<p><strong><code>mesh_overlay</code></strong> — the allocator container and the client both join a
+Tailscale tailnet; the participant's browser needs no Tailscale. The browser
+talks only to the allocator, whose nginx proxies the desktop WebSocket over the
+overlay to the client. Status reports and password rotation cross the same
+tailnet.</p>
+<p><img alt="mesh_overlay communication diagram" src="../../assets/images/tailscale_architecture.png" /></p>
+<p><strong><code>reverse_tunnel</code></strong> — the client dials out at container start and holds one
+WebSocket open to the allocator's nginx, which hands it to a <code>wstunnel</code> server
+inside the allocator container; a restrictions file pins each client to its
+own alias and ports. The participant's browser talks only to the allocator, and
+nginx sends the desktop bytes back down that held-open tunnel to the client's
+KasmVNC, which listens on loopback behind HTTP Basic auth.</p>
+<p><img alt="reverse_tunnel communication diagram" src="../../assets/images/reverse_tunnel_architecture.png" /></p>
 <div class="admonition warning">
 <p class="admonition-title"><code>lan_direct</code> cannot serve off-LAN participants</p>
 <p>If participants are remote, pick <code>mesh_overlay</code> or <code>reverse_tunnel</code> —
