@@ -33,26 +33,31 @@ Before starting, select the AWS region where you'll deploy LabLink. This is an i
 ### Region Selection Criteria
 
 **1. Latency & Geographic Proximity**
+
 - Choose a region closest to your users for best performance
 - Lower latency = better user experience for VM access
 - Test latency: `ping ec2.{region}.amazonaws.com`
 
 **2. Instance Availability**
+
 - Not all instance types are available in all regions
 - GPU instances (g4dn, g5, p3) have limited regional availability
 - Check availability: [AWS Regional Services](https://aws.amazon.com/about-aws/global-infrastructure/regional-product-services/)
 
 **3. Pricing**
+
 - EC2 pricing varies by region (5-30% difference)
 - US regions are typically cheaper than EU/Asia
 - Check pricing: [EC2 Pricing Calculator](https://calculator.aws/)
 
 **4. Compliance & Data Residency**
+
 - GDPR (Europe): Use `eu-west-1`, `eu-central-1`
 - HIPAA (US Healthcare): Any US region with BAA
 - Data sovereignty requirements may mandate specific regions
 
 **5. Service Availability**
+
 - All LabLink features require: EC2, VPC, S3, Route 53
 - These are available in all commercial regions
 
@@ -485,8 +490,8 @@ aws iam create-role \
 2. Click **Create role**
 3. Select **Web identity** as trusted entity type
 4. Choose:
-   - Identity provider: `token.actions.githubusercontent.com`
-   - Audience: `sts.amazonaws.com`
+    - Identity provider: `token.actions.githubusercontent.com`
+    - Audience: `sts.amazonaws.com`
 5. Click **Next**
 
 **Step 2:** Skip permissions for now (we'll add them in Step 4.4)
@@ -793,7 +798,11 @@ Four secrets are required for GitHub Actions workflows to deploy infrastructure 
       - Name: `ADMIN_PASSWORD`
       - Value: Your secure admin password (use a password manager to generate)
       - Click **Add secret**
-5. **Add DB_PASSWORD secret:** - Click **New repository secret** - Name: `DB_PASSWORD` - Value: Your secure database password (use a password manager to generate) - Click **Add secret**
+5. **Add DB_PASSWORD secret:**
+      - Click **New repository secret**
+      - Name: `DB_PASSWORD`
+      - Value: Your secure database password (use a password manager to generate)
+      - Click **Add secret**
 
 **Note:** The template repository can safely include these secrets because:
 
@@ -947,9 +956,9 @@ aws ec2 describe-images \
 2. Search for "ubuntu 24.04"
 3. Select "AWS Marketplace AMIs" or "Community AMIs"
 4. Filter by:
-   - Owner: Canonical (099720109477)
-   - Architecture: 64-bit (x86)
-   - Root device type: EBS
+    - Owner: Canonical (099720109477)
+    - Architecture: 64-bit (x86)
+    - Root device type: EBS
 5. Choose the most recent "ubuntu-noble-24.04" AMI
 6. Copy the AMI ID (e.g., `ami-0bd08c9d4aa9f0bc6`)
 

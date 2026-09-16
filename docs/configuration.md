@@ -161,9 +161,9 @@ The Docker image determines what software runs on your VMs. Options:
 1. **Use default SLEAP image** (for SLEAP workflows)
 2. **Build custom image** (for your research software) - see [Adapting LabLink](adapting.md)
 3. **Use different tag**:
-   - `:latest` - latest stable release
-   - `:linux-amd64-test` - development version
-   - `:v1.0.0` - specific version
+    - `:latest` - latest stable release
+    - `:linux-amd64-test` - development version
+    - `:v1.0.0` - specific version
 
 #### AMI ID
 
@@ -386,6 +386,7 @@ startup_script:
 ```
 
 When `enabled` is `true`, the content of the script specified by `path` will be executed on the client VM, retried up to `max_attempts` times with exponential backoff if it fails (or if `success_check` is set and fails after the script exits `0`).
+
 - If `on_error` is `continue`, an error on the final attempt is logged, but the VM will continue to run.
 - If `on_error` is `fail`, the VM setup will be aborted if the final attempt still returns a non-zero exit code (or fails `success_check`).
 
