@@ -107,6 +107,22 @@ in method but not in image:
   destroy began. Treat the `failed` status as a teardown-reporting artifact,
   not a data problem.
 
+**Automatic reboots (2 at N = 10, 8 at N = 150).** All ten share one
+signature in `trajectory.csv`: the VM registered, reported `initializing`,
+then reported `error` itself. (The allocator's only server-side `error` write
+is the give-up path in `release_assignment`, which requires three failed
+reboots; these VMs had `reboot_count == 0`.) Within each run every affected VM
+flipped to `error` in the same 5 s poll (23:14:00 UTC at N = 10, 21:46:59 UTC
+at N = 150) while at different points in its boot, 9–110 s after first
+contact. The only step in that window that both depends on an external
+service and aborts `user_data.sh` on failure is the `docker pull` of the
+client image; by the recorded phase epochs, about 99 of the 150-seat pool's
+pulls were in flight at that instant and 8 failed. The reboot service picked
+each VM up on its next 60 s sweep and cold-rebooted it (`cloud-init clean`
+plus reboot, so `user_data.sh` re-ran from scratch), and all ten reached ready
+on the second boot. Client-side logs were not retained, so the pull failure is
+inferred from timing, not observed directly.
+
 Seat claims were released together (all N requests within 20 ms); latencies
 are in each run's `claims.csv`. The paper does not report them. Median claim
 latency grows with N (0.22, 0.60, 1.11, 2.40, 9.01 s at N = 5, 10, 30, 60,
@@ -151,4 +167,4 @@ per-poll operation snapshots and per-run `*.log` files are not included.
 | A, client apply | `launch_started` → `launch_finished`. | N = 30 `events.jsonl` |
 | A, boot to ready | `launch_finished` → `all_vms_ready`. | N = 30 `events.jsonl` |
 | B | Per-VM seat-ready time: first poll at which the allocator reported the VM running (`trajectory.readiness_epoch`) minus `launch_requested`; bar = median, whiskers = IQR across the run's VMs. Uncertainty is at most one poll interval. | `trajectory.csv`, `events.jsonl` |
-| C | Per pool: VMs that reached ready with `reboot_count == 0` (succeeded), with `reboot_count > 0` (recovered), or never before the 900 s timeout (failed). | `trajectory.csv` |
+| C | Per pool: VMs that reached ready with `reboot_count == 0` (succeeded), with `reboot_count > 0` (recovered), or never before the 900 s timeout (failed). Plotted as a share of the pool so small pools' reboots stay visible; counts are annotated. | `trajectory.csv` |
