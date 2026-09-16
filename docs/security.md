@@ -98,6 +98,7 @@ docker run -d \
 ```
 
 **Password requirements**:
+
 - Minimum 12 characters
 - Mix of uppercase, lowercase, numbers, symbols
 - Not a dictionary word
@@ -319,9 +320,9 @@ LabLink creates security groups for allocator and client VMs.
 **Recommendations**:
 
 1. **Restrict outbound**: If possible, limit to specific destinations:
-   - Package repos (apt, pip)
-   - GitHub
-   - Allocator IP
+    - Package repos (apt, pip)
+    - GitHub
+    - Allocator IP
 
 2. **VPC Endpoints**: Use VPC endpoints for AWS services (S3, EC2) to avoid internet routing
 
@@ -363,6 +364,7 @@ resource "aws_subnet" "private" {
 ```
 
 **Benefits**:
+
 - Isolation from other workloads
 - Custom network ACLs
 - VPC Flow Logs for monitoring
@@ -466,10 +468,12 @@ export AWS_SECRET_ACCESS_KEY="..."
 ```
 
 **Pros**:
+
 - Simple
 - No external dependencies
 
 **Cons**:
+
 - Visible in process list
 - Can leak in logs
 - Not encrypted at rest
@@ -505,12 +509,14 @@ admin_password = secrets['admin_password']
 ```
 
 **Pros**:
+
 - Encrypted at rest and in transit
 - Automatic rotation
 - Audit logging
 - Versioning
 
 **Cons**:
+
 - Additional cost ($0.40/secret/month)
 - Requires IAM permissions
 
@@ -519,11 +525,12 @@ admin_password = secrets['admin_password']
 For CI/CD workflows, GitHub Secrets provide secure password storage.
 
 **Add secrets**:
+
 1. Go to repository **Settings → Secrets and variables → Actions**
 2. Click **New repository secret**
 3. Add both required secrets:
-   - Name: `ADMIN_PASSWORD`, Value: your secure admin password
-   - Name: `DB_PASSWORD`, Value: your secure database password
+    - Name: `ADMIN_PASSWORD`, Value: your secure admin password
+    - Name: `DB_PASSWORD`, Value: your secure database password
 4. Click **Add secret** for each
 
 **How it works**:
@@ -543,12 +550,14 @@ The deployment workflow automatically injects secrets into configuration files b
 This replaces `PLACEHOLDER_ADMIN_PASSWORD` and `PLACEHOLDER_DB_PASSWORD` in config files with actual values from secrets, preventing passwords from appearing in OpenTofu logs.
 
 **Pros**:
+
 - Integrated with GitHub Actions
 - Encrypted at rest and in transit
 - Not visible in workflow logs
 - Prevents password exposure in OpenTofu apply output
 
 **Cons**:
+
 - Only available in workflows
 - Can't be read after creation
 
@@ -571,10 +580,12 @@ resource "aws_key_pair" "lablink_key_pair" {
 ```
 
 **Good**:
+
 - Unique key per environment
 - 4096-bit RSA (strong)
 
 **Bad**:
+
 - Stored in OpenTofu state (plaintext)
 - Artifacts expire (GitHub Actions)
 
@@ -609,11 +620,13 @@ tofu apply -var="resource_suffix=dev"
 ### Key Storage
 
 **Never**:
+
 - Commit keys to version control
 - Share keys via email/Slack
 - Store keys in cloud storage without encryption
 
 **Instead**:
+
 - Use SSH agent: `ssh-add ~/lablink-key.pem`
 - Store in password manager
 

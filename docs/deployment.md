@@ -66,30 +66,31 @@ Automated deployment via CI/CD pipelines.
 
 1. **Configure GitHub Secrets**
 
-   Navigate to **Settings → Secrets and variables → Actions** in your GitHub repository.
+    Navigate to **Settings → Secrets and variables → Actions** in your GitHub repository.
 
-   Required secrets:
-   - `AWS_ROLE_ARN`: IAM role ARN for GitHub Actions authentication
+    Required secrets:
+
+    - `AWS_ROLE_ARN`: IAM role ARN for GitHub Actions authentication
      Example: `arn:aws:iam::711387140753:role/GitHubActionsLabLinkRole`
-   - `AWS_REGION`: AWS region for deployment
+    - `AWS_REGION`: AWS region for deployment
      Example: `us-west-2`, `eu-west-1`, `ap-northeast-1`
      **Note:** Must match region in `config/config.yaml`
-   - `ADMIN_PASSWORD`: Admin password for allocator web interface
+    - `ADMIN_PASSWORD`: Admin password for allocator web interface
      Example: Generate a secure password using a password manager
-   - `DB_PASSWORD`: Database password for PostgreSQL
+    - `DB_PASSWORD`: Database password for PostgreSQL
      Example: Generate a secure password using a password manager
 
-   **Security Note**: The workflow automatically replaces `PLACEHOLDER_ADMIN_PASSWORD` and `PLACEHOLDER_DB_PASSWORD` in config files with these secret values before OpenTofu runs, preventing passwords from appearing in logs. If these secrets are not set, the workflow uses temporary `CHANGEME_*` defaults and displays a warning.
+    **Security Note**: The workflow automatically replaces `PLACEHOLDER_ADMIN_PASSWORD` and `PLACEHOLDER_DB_PASSWORD` in config files with these secret values before OpenTofu runs, preventing passwords from appearing in logs. If these secrets are not set, the workflow uses temporary `CHANGEME_*` defaults and displays a warning.
 
 2. **Verify OIDC Configuration**
 
-   Ensure AWS IAM role exists and trusts your GitHub repository:
+    Ensure AWS IAM role exists and trusts your GitHub repository:
 
-   - OIDC provider exists: `token.actions.githubusercontent.com`
-   - IAM role trust policy includes your repository: `repo:YOUR_ORG/YOUR_REPO:*`
-   - Role has PowerUserAccess or equivalent permissions
+    - OIDC provider exists: `token.actions.githubusercontent.com`
+    - IAM role trust policy includes your repository: `repo:YOUR_ORG/YOUR_REPO:*`
+    - Role has PowerUserAccess or equivalent permissions
 
-   See detailed setup instructions: [AWS Setup → OIDC Configuration](aws-setup.md#step-4-github-actions-oidc-configuration)
+    See detailed setup instructions: [AWS Setup → OIDC Configuration](aws-setup.md#step-4-github-actions-oidc-configuration)
 
 ### Deploy to Test Environment
 
@@ -101,17 +102,20 @@ git push origin test
 ```
 
 This automatically:
+
 1. Builds Docker images with `-test` tags
 2. Runs OpenTofu init with `backend-test.hcl`
 3. Deploys to test environment
 4. Outputs allocator URL and SSH key
 
 **Monitor Progress**:
+
 - Go to **Actions** tab in GitHub
 - Watch `OpenTofu Deploy` workflow
 - Check logs for any errors
 
 **Access Deployment**:
+
 - Allocator URL: Available in workflow output
 - SSH Key: Download from workflow artifacts
 
@@ -126,8 +130,8 @@ This automatically:
 3. **Click "Run workflow"**
 
 4. **Fill in parameters**:
-   - **Environment**: `prod`
-   - **Image tag**: Specific version (e.g., `v1.0.0` or commit SHA)
+    - **Environment**: `prod`
+    - **Image tag**: Specific version (e.g., `v1.0.0` or commit SHA)
 
 5. **Click "Run workflow"**
 
@@ -226,6 +230,7 @@ tofu plan \
 ```
 
 Review the plan output carefully. OpenTofu will show:
+
 - Resources to be created
 - Resources to be modified
 - Resources to be destroyed
@@ -302,6 +307,7 @@ tofu apply \
 **Purpose**: Local testing, rapid iteration
 
 **Configuration**:
+
 - OpenTofu state: Local file
 - Image tag: `-test` versions
 - Instance type: `t2.micro` (cheapest)
@@ -320,6 +326,7 @@ tofu apply \
 **Purpose**: Pre-production validation, integration testing
 
 **Configuration**:
+
 - OpenTofu state: S3 bucket (`backend-test.hcl`)
 - Image tag: `-test` versions
 - Instance type: Same as production
@@ -339,6 +346,7 @@ tofu apply \
 **Purpose**: Live workloads, stable releases
 
 **Configuration**:
+
 - OpenTofu state: S3 bucket (`backend-prod.hcl`)
 - Image tag: Pinned versions (`v1.0.0`)
 - Instance type: Appropriately sized
@@ -396,14 +404,15 @@ The Talmo Lab LabLink deployment uses the `sleap.ai` domain with environment-spe
 | **Dev** | `dev.lablink.sleap.ai` | `34.208.206.60` | Development environment |
 
 **DNS Configuration**:
+
 - **Type**: A Records
 - **TTL**: 300 seconds
 - **Managed via**: AWS Route 53
 - **Name Servers**:
-  - `ns-158.awsdns-19.com`
-  - `ns-697.awsdns-23.net`
-  - `ns-1839.awsdns-37.co.uk`
-  - `ns-1029.awsdns-00.org`
+    - `ns-158.awsdns-19.com`
+    - `ns-697.awsdns-23.net`
+    - `ns-1839.awsdns-37.co.uk`
+    - `ns-1029.awsdns-00.org`
 
 **To replicate this setup**:
 
@@ -497,6 +506,7 @@ See [Security → Change Default Passwords](security.md#change-default-passwords
 ### 3. Test VM Creation
 
 Via web interface:
+
 1. Navigate to `http://<allocator-ip>:80`
 2. Login with admin credentials
 3. Go to **Admin → Create Instances**
@@ -576,12 +586,14 @@ tofu destroy \
 ```
 
 **Warning**: This destroys:
+
 - EC2 instance
 - Security group
 - SSH key pair
 - All associated resources
 
 **Not destroyed**:
+
 - S3 bucket (OpenTofu state)
 - Elastic IPs (must be released manually)
 - Any client VMs created by the allocator
@@ -623,6 +635,7 @@ chmod 600 ~/lablink-key.pem
 ### Instance Not Accessible
 
 **Check**:
+
 1. Security group allows port 80 from your IP
 2. Instance has public IP
 3. Instance is running (`aws ec2 describe-instances`)

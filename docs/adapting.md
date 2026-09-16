@@ -157,6 +157,7 @@ docker logs test-client
 ```
 
 Verify:
+
 - Image starts without errors
 - Dependencies are available
 - Your code runs as expected
@@ -226,6 +227,7 @@ machine:
 ```
 
 Benefits:
+
 - Faster VM startup
 - Pre-installed dependencies
 - Consistent environment

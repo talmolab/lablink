@@ -155,12 +155,14 @@ Costs for running research workload VMs.
 #### Cost Optimization Strategies
 
 **Option 1: Terminate After Use**
+
 - Only run VMs when actively working
 - Cost: Per-hour usage only
 
 **Example**: 10 VMs × 8 hours = 80 hours × $0.526 = **$42.08**
 
 **Option 2: Right-Size Instance Types**
+
 - Use smallest instance that meets requirements
 - Test on smaller instances first
 
@@ -238,11 +240,13 @@ If using resources across regions:
 ### Scenario 1: Development/Testing
 
 **Setup**:
+
 - 1 allocator (t3.large)
 - 2 client VMs (g4dn.xlarge)
 - Running 40 hours/month
 
 **Costs**:
+
 - Infrastructure: $0.05/month
 - Allocator: 40 hours × $0.0832 = $3.33
 - Client VMs: 2 × 40 hours × $0.526 = $42.08
@@ -253,11 +257,13 @@ If using resources across regions:
 ### Scenario 2: Light Production Use
 
 **Setup**:
+
 - 1 allocator (t3.large, 24/7)
 - 5 client VMs (g4dn.xlarge)
 - VMs running 160 hours/month each
 
 **Costs**:
+
 - Infrastructure: $0.95/month (with Route 53)
 - Allocator: $60.74/month
 - Client VMs: 5 × 160 hours × $0.526 = $420.80
@@ -268,11 +274,13 @@ If using resources across regions:
 ### Scenario 3: Heavy Production Use
 
 **Setup**:
+
 - 1 allocator (t3.large, 24/7)
 - 20 client VMs (g4dn.xlarge)
 - VMs running 320 hours/month each
 
 **Costs**:
+
 - Infrastructure: $0.95/month
 - Allocator: $60.74/month
 - Client VMs: 20 × 320 hours × $0.526 = $3,366.40
@@ -285,11 +293,13 @@ At this scale, a Reserved Instance or Savings Plan on the always-on allocator tr
 ### Scenario 4: Minimal (Cost-Conscious)
 
 **Setup**:
+
 - 1 allocator (t3.large)
 - 3 client VMs (g4dn.xlarge)
 - Only running when actively working (40 hours/month)
 
 **Costs**:
+
 - Infrastructure: $0.05/month
 - Allocator: 40 hours × $0.0832 = $3.33
 - Client VMs: 3 × 40 hours × $0.526 = $63.12
@@ -302,6 +312,7 @@ At this scale, a Reserved Instance or Savings Plan on the always-on allocator tr
 ### View Current Costs
 
 **AWS Console**:
+
 1. Navigate to **Billing Dashboard**
 2. View **Cost Explorer**
 3. Filter by tag `Project: LabLink`

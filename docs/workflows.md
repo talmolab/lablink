@@ -65,9 +65,9 @@ A GitHub Release fires both a tag-push run and a release run for the same versio
 
 - **Format**: `{package-name}_v{version}`
 - **Examples**:
-  - `lablink-allocator-service_v0.2.0`
-  - `lablink-client-service_v0.2.0`
-  - `lablink-cli_v0.1.0`
+    - `lablink-allocator-service_v0.2.0`
+    - `lablink-client-service_v0.2.0`
+    - `lablink-cli_v0.1.0`
 
 ## Image Building Workflow
 
