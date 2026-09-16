@@ -25,9 +25,8 @@ This guide includes:
 - 📖 [Documentation](https://talmolab.github.io/lablink/)
 - 🐛 [Report a Bug](https://github.com/talmolab/lablink/issues/new)
 - ✨ [Request a Feature](https://github.com/talmolab/lablink/issues/new)
-- 💬 [Discussions](https://github.com/talmolab/lablink/discussions)
 - 📧 [Developer Guide (CLAUDE.md)](CLAUDE.md)
 
 ---
 
-**Questions?** Open a [discussion](https://github.com/talmolab/lablink/discussions) or reach out in an [issue](https://github.com/talmolab/lablink/issues).
+**Questions?** Open an [issue](https://github.com/talmolab/lablink/issues).

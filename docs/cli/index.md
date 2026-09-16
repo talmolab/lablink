@@ -2,8 +2,8 @@
 
 The `lablink` command is a CLI-driven alternative to the [lablink-template](https://github.com/talmolab/lablink-template) repository. It deploys the same allocator infrastructure to AWS — cloud resources are identical either way — but drives OpenTofu from your own machine instead of GitHub Actions.
 
-!!! note "Status: pre-release"
-    The CLI is on PyPI as [`lablink-cli`](https://pypi.org/project/lablink-cli/). Install it with `uv tool install lablink-cli` (or `pip install lablink-cli`) — see [Installation](installation.md). The published version is a pre-release, so expect rough edges and pin the version if you need reproducibility.
+!!! note "Installing"
+    The CLI is on PyPI as [`lablink-cli`](https://pypi.org/project/lablink-cli/). Install it with `uv tool install lablink-cli` (or `pip install lablink-cli`) — see [Installation](installation.md).
 
     Note the package is `lablink-cli` while the command it installs is `lablink`.
 
