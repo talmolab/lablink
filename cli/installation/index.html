@@ -4755,10 +4755,6 @@
 <p class="admonition-title">The package and the command have different names</p>
 <p>The PyPI package is <strong><code>lablink-cli</code></strong>; the command it installs is <strong><code>lablink</code></strong>. There is no <code>lablink</code> package on PyPI, so <code>pip install lablink</code> will fail.</p>
 </div>
-<div class="admonition warning">
-<p class="admonition-title">Pre-release</p>
-<p>The published version is a pre-release (<code>0.1.0a1</code>). Expect rough edges, and pin an exact version (<code>lablink-cli==0.1.0a1</code>) if you need a reproducible install.</p>
-</div>
 <h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
 <p>Before installing, make sure you have:</p>
 <ul>
@@ -4790,7 +4786,7 @@
 <p>That puts <code>lablink</code> on your <code>PATH</code> in its own isolated environment, which is what you want for a command-line tool — it cannot collide with another project's dependencies. Verify it:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>lablink<span class="w"> </span>--version
 </code></pre></div>
-<p><code>pip install lablink-cli</code> works too, into whichever environment is currently active. No <code>--pre</code> flag is needed despite the alpha version: it is the only release right now, so both installers select it. Once a stable release exists, plain installs will prefer that instead, and you would need <code>--pre</code> to keep getting alphas.</p>
+<p><code>pip install lablink-cli</code> works too, into whichever environment is currently active. Pin an exact version (<code>lablink-cli==&lt;version&gt;</code>) if you need a reproducible install.</p>
 <h2 id="install-from-source">Install from source<a class="headerlink" href="#install-from-source" title="Permanent link">&para;</a></h2>
 <p>Use this if you intend to modify the CLI. Clone the repo and run <code>uv sync --all-packages</code> at the root. This installs all three workspace packages (allocator, client, CLI) as editable — the CLI depends on <code>lablink-allocator-service</code>, which uv resolves from the workspace automatically.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/talmolab/lablink.git
@@ -4807,7 +4803,7 @@
 <p>You should see the grouped command list (Setup, Deployment, Operations, Maintenance) — the same panels Typer prints for <code>--help</code>.</p>
 <div class="admonition tip">
 <p class="admonition-title">Running from outside the repo</p>
-<p>If you want <code>lablink</code> available from any directory, activate <code>.venv</code> in your shell profile, or install via <code>uv tool install --from ./packages/cli lablink-cli</code> (note: this will fail today because the CLI's workspace dep on <code>lablink-allocator-service</code> isn't yet resolvable outside the workspace — revisit after PyPI publish).</p>
+<p>If you want <code>lablink</code> available from any directory, activate <code>.venv</code> in your shell profile, or install via <code>uv tool install --from ./packages/cli lablink-cli</code>.</p>
 </div>
 <h2 id="verify-the-installation">Verify the installation<a class="headerlink" href="#verify-the-installation" title="Permanent link">&para;</a></h2>
 <p>Once installed, run <code>lablink</code> with no arguments to confirm everything is wired up:</p>
