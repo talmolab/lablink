@@ -13,75 +13,13 @@ alternatively, admins can fork the template repo and deploy through its GitHub
 Actions workflows. See [CLI First Deployment](cli/first-deployment.md) and
 [Template Repo Deployment](deployment.md).
 
-```mermaid
-graph TB
-    subgraph GitHub["GitHub"]
-        Lablink[talmolab/lablink<br/>Packages + CI]
-        Template[talmolab/lablink-template<br/>Terraform configs<br/>tagged releases]
-    end
+A deployed LabLink on AWS. Admins and students reach the allocator through
+Route 53; the allocator instance runs Flask, PostgreSQL, the provisioner and
+nginx in one container, provisions client instances, and relays each
+participant's remote-desktop connection to the KasmVNC server on their
+assigned client.
 
-    subgraph Artifacts["Build Artifacts"]
-        PyPI[Python Packages<br/>PyPI]
-        DockerImages[Docker Images<br/>ghcr.io]
-    end
-
-    Lablink --> PyPI
-    Lablink --> DockerImages
-
-    CLI[lablink CLI<br/><br/>• deploy / destroy<br/>• status / logs<br/>• OpenTofu apply]
-    PyPI --> CLI
-    Template -->|terraform bundle| CLI
-
-    subgraph AWS["AWS Cloud"]
-        subgraph AllocatorInstance["Allocator EC2 Instance"]
-            Caddy[Caddy<br/>TLS termination<br/>ports 80/443]
-            subgraph AllocatorContainer["Docker Container: lablink-allocator"]
-                Nginx[nginx :5000<br/>only network-facing<br/>process]
-                Flask[Flask App<br/>127.0.0.1:8000<br/><br/>• Web UI<br/>• API<br/>• OpenTofu]
-                PostgreSQL[(PostgreSQL 17<br/><br/>• vms<br/>• operations<br/>• scheduled_destructions<br/>• settings)]
-                Nginx --> Flask
-                Flask <--> PostgreSQL
-            end
-            Caddy --> Nginx
-        end
-
-        subgraph ClientInstances["Client EC2 Instances (Dynamic)"]
-            subgraph ClientContainer["Docker Container: lablink-client"]
-                Desktop[KasmVNC Desktop<br/>:6080 WebSocket<br/>+ agent :7070]
-                Services[Client Services<br/><br/>• Heartbeat<br/>• GPU Check<br/>• Status]
-                Research[Research Code<br/>User Repo<br/><br/>• SLEAP/Custom<br/>• Your Software]
-                Services --> Research
-            end
-            Note[Multiple instances,<br/>dynamically created]
-        end
-
-        subgraph AWSResources["AWS Resources"]
-            SecurityGroups[Security Groups]
-            ElasticIPs[Elastic IPs<br/>Static IPs]
-            S3[S3 Bucket: TF State<br/>DynamoDB: Lock Table]
-        end
-    end
-
-    CLI -->|tofu apply| AllocatorInstance
-    DockerImages -.-> AllocatorContainer
-    DockerImages -.-> ClientContainer
-    Flask -->|async operation:<br/>tofu apply| ClientInstances
-    Services -.->|heartbeat, GPU health,<br/>status via HTTP API| Flask
-    Nginx -->|proxies noVNC<br/>WebSocket| Desktop
-
-    style GitHub fill:#f0f0f0
-    style Artifacts fill:#e1f5ff
-    style AWS fill:#fff4e1
-    style AllocatorInstance fill:#ffe6e6
-    style AllocatorContainer fill:#fff
-    style ClientInstances fill:#e6ffe6
-    style ClientContainer fill:#fff
-    style AWSResources fill:#f0f0f0
-    style Flask fill:#4a90e2,color:#fff
-    style PostgreSQL fill:#336791,color:#fff
-    style Services fill:#4a90e2,color:#fff
-    style Research fill:#8bc34a,color:#fff
-```
+![LabLink AWS architecture diagram](assets/images/aws_arch_diag.png)
 
 Inside the allocator container, nginx on port 5000 is the only network-facing
 process: Flask binds loopback (127.0.0.1:8000) and PostgreSQL runs co-located

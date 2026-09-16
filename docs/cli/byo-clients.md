@@ -50,6 +50,31 @@ all.
 | `mesh_overlay` | The client joins a Tailscale tailnet; the allocator reaches it over the overlay and proxies the byte path through its own nginx. | Clients aren't on the allocator's LAN — e.g. a Run:AI-hosted workload. |
 | `reverse_tunnel` | The client dials **out** to the allocator and holds one connection open. | The network won't carry Tailscale, or the box can't accept inbound connections at all. |
 
+**`lan_direct`** — every hop stays inside one LAN. The browser loads the viewer
+page from the allocator on port 80, then opens a WebSocket straight to the
+client's KasmVNC on port 6080. The client reports status to the allocator on
+port 80, and the allocator rotates the VNC password through the client agent on
+port 7070.
+
+![lan_direct communication diagram](../assets/images/lan_direct_architecture.png)
+
+**`mesh_overlay`** — the allocator container and the client both join a
+Tailscale tailnet; the participant's browser needs no Tailscale. The browser
+talks only to the allocator, whose nginx proxies the desktop WebSocket over the
+overlay to the client. Status reports and password rotation cross the same
+tailnet.
+
+![mesh_overlay communication diagram](../assets/images/tailscale_architecture.png)
+
+**`reverse_tunnel`** — the client dials out at container start and holds one
+WebSocket open to the allocator's nginx, which hands it to a `wstunnel` server
+inside the allocator container; a restrictions file pins each client to its
+own alias and ports. The participant's browser talks only to the allocator, and
+nginx sends the desktop bytes back down that held-open tunnel to the client's
+KasmVNC, which listens on loopback behind HTTP Basic auth.
+
+![reverse_tunnel communication diagram](../assets/images/reverse_tunnel_architecture.png)
+
 !!! warning "`lan_direct` cannot serve off-LAN participants"
     If participants are remote, pick `mesh_overlay` or `reverse_tunnel` —
     `lan_direct` combined with any exposure mode is rejected, and
