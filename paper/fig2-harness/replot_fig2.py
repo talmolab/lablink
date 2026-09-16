@@ -26,7 +26,6 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
-from matplotlib.ticker import MaxNLocator  # noqa: E402
 
 from trajectory import intended_by_host, load_trajectory, readiness_epoch  # noqa: E402
 
@@ -119,7 +118,7 @@ def _bars_median_iqr(ax, ns, series_by_n, key, ylabel, title, unit="s"):
                 ha="center", va="bottom", fontsize=8.5, color=INK2, zorder=5)
     ax.set_xticks(xs)
     ax.set_xticklabels([str(n) for n in ns])
-    ax.set_xlabel("Pool size  N (VMs)", fontsize=9.5, color=INK2)
+    ax.set_xlabel("Pool size  N (client VMs)", fontsize=9.5, color=INK2)
     ax.set_ylabel(ylabel, fontsize=9.5, color=INK2)
     ax.set_title(title, loc="left", fontsize=11, fontweight="bold", color=INK)
     _despine(ax)
@@ -129,36 +128,38 @@ def _stack_outcomes(ax, ns, series_by_n):
     xs = list(range(len(ns)))
     segs = [("Succeeded", "ok", S_OK), ("Recovered (reboot)", "retry", S_RETRY),
             ("Failed", "fail", S_FAIL)]
-    ymax = max(ns) * 1.12
+    # Bars are normalised to pool size so a couple of reboots in a 10-seat
+    # pool stay visible next to the 150-seat pool; counts are annotated.
     for x, n in zip(xs, ns):
         bottom = 0.0
         for _, key, color in segs:
             v = series_by_n[n][key]
             if v <= 0:
                 continue
-            ax.bar(x, v, width=0.62, bottom=bottom, color=color, edgecolor="white",
+            pct = 100.0 * v / n
+            ax.bar(x, pct, width=0.62, bottom=bottom, color=color, edgecolor="white",
                    linewidth=1.4, zorder=2)
-            if v >= 0.06 * ymax:  # label a segment only if it is tall enough to hold text
-                ax.text(x, bottom + v / 2, str(v), ha="center", va="center",
+            if pct >= 6:  # label a segment only if it is tall enough to hold text
+                ax.text(x, bottom + pct / 2, str(v), ha="center", va="center",
                         fontsize=8.5, color="white", fontweight="bold", zorder=5)
-            bottom += v
+            bottom += pct
         ready = series_by_n[n]["ok"] + series_by_n[n]["retry"]
         label = f"{ready}/{n}"
         if series_by_n[n]["retry"]:
             label += f"\n{series_by_n[n]['retry']} rebooted"
-        ax.text(x, bottom, label, ha="center", va="bottom", fontsize=8.5,
+        ax.text(x, bottom + 1.5, label, ha="center", va="bottom", fontsize=8.5,
                 color=INK2, zorder=5, linespacing=1.1)
     ax.set_xticks(xs)
     ax.set_xticklabels([str(n) for n in ns])
-    ax.set_xlabel("Pool size  N (VMs)", fontsize=9.5, color=INK2)
-    ax.set_ylabel("Client VMs", fontsize=9.5, color=INK2)
-    ax.set_title("C   VM outcomes by pool size",
+    ax.set_xlabel("Pool size  N (client VMs)", fontsize=9.5, color=INK2)
+    ax.set_ylabel("Client VMs (% of pool)", fontsize=9.5, color=INK2)
+    ax.set_title("C   Client VM outcomes by pool size",
                  loc="left", fontsize=11, fontweight="bold", color=INK)
-    ax.yaxis.set_major_locator(MaxNLocator(integer=True))
-    ax.set_ylim(0, ymax * 1.06)
+    ax.set_yticks([0, 25, 50, 75, 100])
+    ax.set_ylim(0, 150)  # headroom for the two-line count labels and the legend
     handles = [plt.Rectangle((0, 0), 1, 1, color=c) for _, _, c in segs]
     ax.legend(handles, [s for s, _, _ in segs], frameon=False, fontsize=8.5,
-              loc="upper left", ncol=1, handlelength=1.1, labelcolor=INK2)
+              loc="upper center", ncol=3, handlelength=1.1, labelcolor=INK2)
     _despine(ax)
 
 
@@ -217,8 +218,8 @@ def main():
 
     _prep_timeline(fig.add_subplot(gs[0, :]), ARMS[EXEMPLAR_N])
     _bars_median_iqr(fig.add_subplot(gs[1, :]), ns, data, "ready",
-                     "lablink client launch → VM ready (s)",
-                     "B   Median time to ready by pool size")
+                     "lablink client launch → client VM ready (s)",
+                     "B   Median time to client VM ready by pool size")
     _stack_outcomes(fig.add_subplot(gs[2, :]), ns, data)
 
     out = HERE.parent / "fig2.png"  # the figure the paper embeds
