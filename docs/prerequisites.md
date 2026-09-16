@@ -10,7 +10,7 @@ What you need depends on which deployment path you take. **An AWS account, the A
 | [**CLI, AWS provider**](cli/first-deployment.md) — EC2 provisioned from your own machine | Yes | Yes | No | No |
 | [**Template repo**](quickstart-template.md) — EC2 provisioned by GitHub Actions | Yes | No (CI runs it) | No | Yes |
 
-Every path needs [Python and uv](#python-and-uv) plus [Git](#git) to install the CLI. Install only the rest of what your row calls for.
+Every path needs [Python and uv](#python-and-uv) to install the CLI, and [Git](#git) if you install it from source. Install only the rest of what your row calls for.
 
 ## Everyone
 
@@ -28,7 +28,7 @@ uv python install 3.11
 
 ### Git
 
-Needed to clone the repo — the CLI is not on PyPI yet, so a source install is the only route. See [CLI: Installation](cli/installation.md).
+Needed only to clone the repo for a [source install](cli/installation.md#install-from-source) of the CLI; the PyPI install does not need it.
 
 ```bash
 git --version

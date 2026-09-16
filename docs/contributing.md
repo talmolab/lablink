@@ -168,7 +168,6 @@ production-image process.
 
 - 📖 [Documentation](https://talmolab.github.io/lablink/) and [FAQ](faq.md)
 - 🐛 [Issues](https://github.com/talmolab/lablink/issues)
-- 💬 [Discussions](https://github.com/talmolab/lablink/discussions)
 
 ## License
 

@@ -5,9 +5,6 @@ The `lablink` command is published to PyPI as [`lablink-cli`](https://pypi.org/p
 !!! note "The package and the command have different names"
     The PyPI package is **`lablink-cli`**; the command it installs is **`lablink`**. There is no `lablink` package on PyPI, so `pip install lablink` will fail.
 
-!!! warning "Pre-release"
-    The published version is a pre-release (`0.1.0a1`). Expect rough edges, and pin an exact version (`lablink-cli==0.1.0a1`) if you need a reproducible install.
-
 ## Prerequisites
 
 Before installing, make sure you have:
@@ -40,7 +37,7 @@ That puts `lablink` on your `PATH` in its own isolated environment, which is wha
 lablink --version
 ```
 
-`pip install lablink-cli` works too, into whichever environment is currently active. No `--pre` flag is needed despite the alpha version: it is the only release right now, so both installers select it. Once a stable release exists, plain installs will prefer that instead, and you would need `--pre` to keep getting alphas.
+`pip install lablink-cli` works too, into whichever environment is currently active. Pin an exact version (`lablink-cli==<version>`) if you need a reproducible install.
 
 ## Install from source
 
@@ -68,7 +65,7 @@ lablink --help
 You should see the grouped command list (Setup, Deployment, Operations, Maintenance) — the same panels Typer prints for `--help`.
 
 !!! tip "Running from outside the repo"
-    If you want `lablink` available from any directory, activate `.venv` in your shell profile, or install via `uv tool install --from ./packages/cli lablink-cli` (note: this will fail today because the CLI's workspace dep on `lablink-allocator-service` isn't yet resolvable outside the workspace — revisit after PyPI publish).
+    If you want `lablink` available from any directory, activate `.venv` in your shell profile, or install via `uv tool install --from ./packages/cli lablink-cli`.
 
 ## Verify the installation
 
