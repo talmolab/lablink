@@ -38,10 +38,8 @@ dependency is matplotlib.
    cmp paper/fig2.png paper/fig2.committed.png && echo IDENTICAL
    ```
 
-   With Python 3.14 and matplotlib 3.11 the output is byte-identical to the
-   committed file. A different matplotlib major version can change PNG
-   encoding or font hinting without changing the plot, so treat a byte
-   mismatch as "inspect the image", not as a data difference.
+   PNG encoding or font hinting can vary by Python and matplotlib version,
+   so inspect a byte mismatch visually before treating it as a data difference.
 
 The scripts that collected `data/` (arm orchestration, allocator poller,
 concurrent seat-claim burst, phase recorder) are not part of this directory.
@@ -156,14 +154,17 @@ Each run directory holds:
 | `polls.csv` | One row per poll: hosts observed and whether the allocator answered. |
 
 Top level: `allocator-deploy.json` is the CLI's deploy-metrics cache for the
-allocator deploys (source of Panel A's 126 s cold deploy). The collector's
+allocator deploys. Panel A uses the latest successful AWS deploy before the
+N = 30 launch: the September 2, 2026 v0.3.1 deploy, 138.274 s. It adds this
+recorded duration to the later N = 30 launch phases to estimate sequential
+cold-start preparation (450.0 s, about 7.5 minutes). The collector's
 per-poll operation snapshots and per-run `*.log` files are not included.
 
 ## What each panel plots
 
 | Panel | Quantity | Source |
 |---|---|---|
-| A, allocator deploy | Recorded cold-deploy duration, 125.7 s (`DEPLOY_S`). | `allocator-deploy.json` |
+| A, allocator deploy | Latest successful AWS deploy before the N = 30 launch, 138.274 s. | `allocator-deploy.json` |
 | A, client apply | `launch_started` → `launch_finished`. | N = 30 `events.jsonl` |
 | A, boot to ready | `launch_finished` → `all_vms_ready`. | N = 30 `events.jsonl` |
 | B | Per-VM seat-ready time: first poll at which the allocator reported the VM running (`trajectory.readiness_epoch`) minus `launch_requested`; bar = median, whiskers = IQR across the run's VMs. Uncertainty is at most one poll interval. | `trajectory.csv`, `events.jsonl` |

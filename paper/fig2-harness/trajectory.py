@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Pure derivations over a Fig 2 trajectory CSV.
 
-Everything panels B, C and D report comes from here. The one rule the
+Everything panels B and C report comes from here. The one rule the
 module exists to enforce: a conclusion is drawn from the sequence of
 snapshots, never from the last one. The VM table holds terminal state
 only, so the last snapshot cannot distinguish "no VM ever failed" from
@@ -51,32 +51,43 @@ def by_host(rows: list[dict]) -> dict[str, list[dict]]:
 
     A VM first appears under its configured hostname; ``machine_identity`` is
     populated a few minutes later when the client registers. Associate those
-    early rows with the next identity observed for that hostname so one VM is
-    not counted twice. Rows that already carry an identity always use it,
-    preserving replacement detection when a hostname is reused.
+    early rows with the identity observed for the same hostname and creation
+    time so one VM is not counted twice. An unregistered replacement retains
+    its own creation-time key when a hostname is reused.
     """
-    identities: dict[str, list[tuple[float, str]]] = {}
+    identities: dict[tuple[str, float], str] = {}
+    observations: dict[str, list[tuple[float, str]]] = {}
     for row in rows:
         if row.get("machine_identity"):
-            identities.setdefault(row["hostname"], []).append(
+            if row.get("created_epoch") is not None:
+                identities[(row["hostname"], row["created_epoch"])] = row[
+                    "machine_identity"
+                ]
+            observations.setdefault(row["hostname"], []).append(
                 (row["poll_epoch"], row["machine_identity"])
             )
-    for observations in identities.values():
-        observations.sort()
+    for host_observations in observations.values():
+        host_observations.sort()
 
     grouped: dict[str, list[dict]] = {}
     for row in rows:
         identity = row.get("machine_identity")
         if not identity:
-            observations = identities.get(row["hostname"], [])
-            identity = next(
-                (
-                    observed_identity
-                    for epoch, observed_identity in observations
-                    if epoch >= row["poll_epoch"]
-                ),
-                observations[-1][1] if observations else row["hostname"],
-            )
+            created_epoch = row.get("created_epoch")
+            if created_epoch is not None:
+                identity = identities.get(
+                    (row["hostname"], created_epoch),
+                    f"{row['hostname']}@{created_epoch}",
+                )
+            else:
+                identity = next(
+                    (observed_identity
+                     for epoch, observed_identity in observations.get(
+                         row["hostname"], []
+                     )
+                     if epoch >= row["poll_epoch"]),
+                    row["hostname"],
+                )
         grouped.setdefault(identity, []).append(row)
     for host_rows in grouped.values():
         host_rows.sort(key=lambda r: r["poll_epoch"])
@@ -85,7 +96,16 @@ def by_host(rows: list[dict]) -> dict[str, list[dict]]:
 
 def intended_by_host(rows: list[dict], expected_n: int) -> dict[str, list[dict]]:
     """Select the first observed cohort; later identities are replacements."""
+    observed_hostnames = {row["hostname"] for row in rows}
+    if len(observed_hostnames) < expected_n:
+        raise ValueError(
+            f"expected {expected_n} VM hostnames, observed {len(observed_hostnames)}"
+        )
     hosts = by_host(rows)
+    if len(hosts) < expected_n:
+        raise ValueError(
+            f"expected {expected_n} VM trajectories, observed {len(hosts)}"
+        )
     ordered = sorted(
         hosts.items(), key=lambda item: (item[1][0]["poll_epoch"], item[0])
     )

@@ -38,7 +38,7 @@ reproducible GPU desktops in its own Amazon Web Services (AWS) account or on
 any machines that run Docker. Each participant claims a seat by entering an
 email address and lands in a full Linux desktop with the instructor's
 software preinstalled, in a browser tab (\autoref{fig:overview}). In our
-benchmark, a 30-seat pool was ready about seven minutes after a cold start.
+benchmark, a 30-seat pool was ready about seven and a half minutes after a cold start.
 LabLink has served approximately 600 participants across 15 events.
 
 ![LabLink overview. (A) An operator deploys the allocator into their own
@@ -140,9 +140,9 @@ laptop with `lablink-cli` or through the template's GitHub Actions workflows.
 The `manual` provider registers, monitors, and proxies bring-your-own
 machines but leaves their creation and teardown to the operator, so only the
 AWS provider delivers the full provision-to-destroy lifecycle. Each package
-is tested and published to PyPI independently, with 90% coverage enforced and
-the allocator's OpenTofu tests run against AWS in CI; production images are
-built only from published versions. Documentation is at
+is tested and published to PyPI independently; CI enforces 90% coverage for
+the client and allocator and runs the allocator's OpenTofu tests against AWS.
+Production images are built only from published versions. Documentation is at
 <https://lablink.talmolab.org/>.
 
 ## Security
@@ -181,7 +181,8 @@ and raw data are in `paper/fig2-harness/`. Readiness is measured from the
 pool-launch command until the allocator marks a VM assignable, excluding the
 one-time allocator deploy.
 
-From a cold start, a ready 30-seat pool takes about seven minutes. Per-client
+Combining the benchmark-day allocator deploy with the 30-seat run, a ready
+pool takes about seven and a half minutes from a cold start. Per-client
 median readiness stayed near five minutes from 5 to 60 seats and about six
 and a half at 150, the size of our largest event, where all VMs were ready 11
 minutes after launch; the infrastructure apply grew from 83 s to 249 s while
@@ -191,8 +192,8 @@ point in the client-image pull, a transient registry failure rather than
 faulty machines.
 
 ![Workshop-scale benchmark, 5 to 150 seats. (A) Wall-clock to prepare one
-30-seat workshop: allocator deploy (126 s), client-VM apply (83 s), and boot
-until all 30 VMs were ready (229 s). (B) Per-client readiness time (median
+30-seat workshop: benchmark-day allocator deploy (138 s), client-VM apply
+(83 s), and boot until all 30 VMs were ready (229 s). (B) Per-client readiness time (median
 and interquartile range) by pool size N. (C) Client VM outcomes per pool:
 ready directly, after one automatic reboot, or
 failed.\label{fig:benchmark}](fig2.png)

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import statistics as st
+from datetime import datetime
 from pathlib import Path
 
 import matplotlib
@@ -35,10 +36,10 @@ ARMS = {
     10: HERE / "data/n010-r1-3330bd815f",
     30: HERE / "data/n030-r1-e0596dd0ab",
     60: HERE / "data/n060-r1-f29a57c79e",  # polling gaps: see its POLLING-GAPS.md
-    150: HERE / "data/n150-r1-f60c8ef9c8",  # 2026-09-14, release client image: see README
+    150: HERE / "data/n150-r1-f60c8ef9c8",  # release client image: see README
 }
 EXEMPLAR_N = 30
-DEPLOY_S = 125.7  # this allocator's real cold deploy (deployments cache)
+DEPLOY_METRICS = HERE / "data/allocator-deploy.json"
 
 # --- palette (validated: CVD ΔE 10.8; labels supply the amber's contrast relief)
 INK, INK2, MUTED = "#1a1a1a", "#5a6472", "#838c99"
@@ -48,19 +49,50 @@ A_DEPLOY, A_APPLY, A_BOOT, A_CLAIM = "#6b7a99", "#5b9bd5", "#2166ac", "#1baf7a"
 
 
 def _launch_epoch(run_dir: str) -> float:
-    for line in open(Path(run_dir) / "events.jsonl"):
-        event = json.loads(line)
-        if event.get("phase") == "launch_requested":
-            return float(event["epoch"])
+    with (Path(run_dir) / "events.jsonl").open() as handle:
+        for line in handle:
+            event = json.loads(line)
+            if event.get("phase") == "launch_requested":
+                return float(event["epoch"])
     raise ValueError(f"no launch_requested in {run_dir}")
 
 
 def _phase(run_dir: str, name: str) -> float | None:
-    for line in open(Path(run_dir) / "events.jsonl"):
-        event = json.loads(line)
-        if event.get("phase") == name:
-            return float(event["epoch"])
+    with (Path(run_dir) / "events.jsonl").open() as handle:
+        for line in handle:
+            event = json.loads(line)
+            if event.get("phase") == name:
+                return float(event["epoch"])
     return None
+
+
+def _required_phase(run_dir: Path, name: str) -> float:
+    epoch = _phase(run_dir, name)
+    if epoch is None:
+        raise ValueError(f"no {name} in {run_dir}")
+    return epoch
+
+
+def _allocator_deploy_seconds(run_dir: Path) -> float:
+    """Use the latest successful AWS deploy recorded before this arm's launch."""
+    launch = _launch_epoch(run_dir)
+    with DEPLOY_METRICS.open() as handle:
+        records = json.load(handle)["allocator_metrics"]
+    eligible = [
+        record for record in records
+        if record["status"] == "success"
+        and record["provider"] == "aws"
+        and datetime.fromisoformat(
+            record["allocator_deploy_end_time"]
+        ).timestamp() <= launch
+    ]
+    if not eligible:
+        raise ValueError(f"no prior successful allocator deploy in {DEPLOY_METRICS}")
+    selected = max(eligible, key=lambda record: record["allocator_deploy_end_time"])
+    duration = float(selected["allocator_total_deployment_duration_seconds"])
+    if duration <= 0:
+        raise ValueError(f"invalid allocator deploy duration in {DEPLOY_METRICS}")
+    return duration
 
 
 def _quantile(values: list[float], p: float) -> float:
@@ -101,10 +133,18 @@ def collect() -> dict[int, dict]:
 
 def _bars_median_iqr(ax, ns, series_by_n, key, ylabel, title, unit="s"):
     xs = list(range(len(ns)))
-    ymax = max(_quantile(series_by_n[n][key], 0.75) for n in ns) * 1.28
+    ymax = max(
+        (_quantile(vals, 0.75) for n in ns
+         if (vals := series_by_n[n][key])),
+        default=1.0,
+    ) * 1.28
     ax.set_ylim(0, ymax)
     for x, n in zip(xs, ns):
         vals = series_by_n[n][key]
+        if not vals:
+            ax.text(x, ymax * 0.05, "No ready VMs", ha="center", va="bottom",
+                    fontsize=8.5, color=INK2)
+            continue
         median = st.median(vals)
         q1, q3 = _quantile(vals, 0.25), _quantile(vals, 0.75)
         ax.bar(x, median, width=0.62, color=SERIES, edgecolor="white",
@@ -164,11 +204,15 @@ def _stack_outcomes(ax, ns, series_by_n):
 
 
 def _prep_timeline(ax, run_dir):
-    apply_s = (_phase(run_dir, "launch_finished") or 0) - (
-        _phase(run_dir, "launch_started") or 0)
-    boot_s = (_phase(run_dir, "all_vms_ready") or 0) - (
-        _phase(run_dir, "launch_finished") or 0)
-    segs = [("Allocator deploy", DEPLOY_S, A_DEPLOY),
+    started = _required_phase(run_dir, "launch_started")
+    finished = _required_phase(run_dir, "launch_finished")
+    ready = _required_phase(run_dir, "all_vms_ready")
+    if not started <= finished <= ready:
+        raise ValueError(f"out-of-order preparation phases in {run_dir}")
+    apply_s = finished - started
+    boot_s = ready - finished
+    deploy_s = _allocator_deploy_seconds(run_dir)
+    segs = [("Allocator deploy", deploy_s, A_DEPLOY),
             ("Client apply", apply_s, A_APPLY),
             ("Boot to ready", boot_s, A_BOOT)]
     total = sum(s for _, s, _ in segs)
