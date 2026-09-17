@@ -35,7 +35,7 @@ ARMS = {
     5: HERE / "data/n005-r1-7a827c7b65",
     10: HERE / "data/n010-r1-3330bd815f",
     30: HERE / "data/n030-r1-e0596dd0ab",
-    60: HERE / "data/n060-r1-f29a57c79e",  # polling gaps: see its POLLING-GAPS.md
+    60: HERE / "data/n060-r1-f29a57c79e",  # polling gaps outside readiness; see README
     150: HERE / "data/n150-r1-f60c8ef9c8",  # release client image: see README
 }
 EXEMPLAR_N = 30

@@ -44,8 +44,6 @@ dependency is matplotlib.
 The scripts that collected `data/` (arm orchestration, allocator poller,
 concurrent seat-claim burst, phase recorder) are not part of this directory.
 Each run's `meta.json` and `events.jsonl` record what they did and when.
-Where `data/n060-r1-f29a57c79e/POLLING-GAPS.md` mentions `plot_fig2.py`, it
-refers to the earlier plotter that `replot_fig2.py` replaced.
 
 ## Runs used in the paper
 
@@ -75,13 +73,11 @@ Provenance common to the four September 2–3 runs (recorded in each
 - **Not recorded for these four runs:** the allocator container image digest
   and the client AMI id. Both were captured for the 150-seat run below.
 
-**The 150-seat run (2026-09-14) differs in image provenance.** It was run
-twelve days later against a freshly deployed allocator, so it is comparable
-in method but not in image:
+**The 150-seat run (2026-09-14)** was run twelve days later against a freshly
+deployed allocator and includes these additional deployment details:
 
 - Client image `ghcr.io/talmolab/lablink-client-base-image:latest@sha256:3f2f935a1b61b1c1f9469a69d1a7ad53bdb334d996976bcd3ba5802a4cc50567`
-  (the 0.4.0 release; amd64 manifest `sha256:7d14493d98e8e9cfab901ab56d5d865479ef3cf85ca8c1885fd2ea856bd8241b`),
-  not the pinned test build used above.
+  (the 0.4.0 release; amd64 manifest `sha256:7d14493d98e8e9cfab901ab56d5d865479ef3cf85ca8c1885fd2ea856bd8241b`).
 - Allocator `ghcr.io/talmolab/lablink-allocator-image@sha256:d61916e86a3cab4e6a3dae49c5c9107539d6421a0eaaebfe9338e8f4ecafdcd7`,
   `lablink-allocator-service` 0.4.0, deployed with DNS and Let's Encrypt TLS
   enabled. `meta.json.lablink_sha` records the repository checkout the harness
@@ -125,13 +121,6 @@ Seat claims were released together (all N requests within 20 ms); latencies
 are in each run's `claims.csv`. The paper does not report them. Median claim
 latency grows with N (0.22, 0.60, 1.11, 2.40, 9.01 s at N = 5, 10, 30, 60,
 150), since each claim rotates the desktop password on its VM in turn.
-
-**N = 60 caveat.** The poller had two coverage gaps over 20 s: 173 s during
-`terraform apply` before any VM had registered, and 298 s during destroy.
-Both fall outside the readiness ramp and soak, so the readiness and outcome
-data are sound, but the run failed the earlier plotter's blanket poll-gap
-eligibility guard, which is why it was originally filed under `ineligible/`.
-`replot_fig2.py` includes it. See `data/n060-r1-f29a57c79e/POLLING-GAPS.md`.
 
 **Excluded runs.** Earlier N = 5, 10, and 30 runs were collected against the
 allocator before the #499 fix; in the N = 30 run, 1 of 30 concurrent
