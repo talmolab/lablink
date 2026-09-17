@@ -1,6 +1,6 @@
 # LabLink
 
-**Cloud-based virtual teaching lab accessible through Chrome browser.**
+**On-demand GPU teaching labs accessible through the browser.**
 
 Run a hands-on software workshop -- students get a full desktop with your software pre-installed, you just share a link.
 
@@ -25,7 +25,10 @@ Students visit a link, enter their email, and get a full cloud desktop with your
 
 LabLink is **software-agnostic**. You can [adapt it for any software](adapting.md) that runs in Docker.
 
-Prefer a local workflow over the template repository? The [LabLink CLI](cli/index.md) deploys the same infrastructure from your own machine with `lablink configure && lablink deploy`.
+The [LabLink CLI](cli/index.md) is the recommended deployment path: run
+`lablink configure && lablink deploy` from your own machine. The template
+repository is available when you want to manage the OpenTofu and workflows
+yourself.
 
 !!! note "Cloud-agnostic via Bring-Your-Own clients"
     LabLink is not tied to AWS. With the CLI's [Bring-Your-Own clients](cli/byo-clients.md) mode, any machine with Docker and an internet connection (to pull LabLink's published packages from PyPI and container images) can serve as a client — lab workstations, on-prem servers, or VMs from any cloud. BYO clients are only available through the CLI; the template-repo path does not support them.
@@ -36,7 +39,7 @@ Prefer a local workflow over the template repository? The [LabLink CLI](cli/inde
 
 === "Prerequisites"
 
-    :material-clipboard-check-outline: Install the required tools: AWS CLI, GitHub CLI, and Git.
+    :material-clipboard-check-outline: Choose a deployment path, then install its required tools.
 
     [:octicons-arrow-right-24: View requirements](prerequisites.md)
 
@@ -84,9 +87,9 @@ Prefer a local workflow over the template repository? The [LabLink CLI](cli/inde
 
     ---
 
-    CI/CD workflows, production deployment, and environment management.
+    Deploy through the template repository's GitHub Actions workflows.
 
-    [:octicons-arrow-right-24: Deployment](deployment.md)
+    [:octicons-arrow-right-24: Template deployment](quickstart-template.md)
 
 </div>
 

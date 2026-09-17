@@ -10,9 +10,11 @@ What you need depends on which deployment path you take. **An AWS account, the A
 | [**CLI, AWS provider**](cli/first-deployment.md) — EC2 provisioned from your own machine | Yes | Yes | No | No |
 | [**Template repo**](quickstart-template.md) — EC2 provisioned by GitHub Actions | Yes | No (CI runs it) | No | Yes |
 
-Every path needs [Python and uv](#python-and-uv) to install the CLI, and [Git](#git) if you install it from source. Install only the rest of what your row calls for.
+The two CLI paths need [Python and uv](#python-and-uv). The template-repo path
+uses its own setup script and does not require either. [Git](#git) is needed
+for a CLI source install or to clone the template repository.
 
-## Everyone
+## CLI paths
 
 ### Python and uv
 
@@ -28,7 +30,8 @@ uv python install 3.11
 
 ### Git
 
-Needed only to clone the repo for a [source install](cli/installation.md#install-from-source) of the CLI; the PyPI install does not need it.
+Needed to clone the repo for a [CLI source install](cli/installation.md#install-from-source)
+or to clone the template repository. A CLI install from PyPI does not need it.
 
 ```bash
 git --version
@@ -54,7 +57,9 @@ If not installed:
 
 ### Docker
 
-The manual provider runs the allocator as a docker-compose stack, and each client box runs the client container. You need Docker **and the `docker compose` v2 plugin** on the allocator host and on every client machine.
+The manual provider runs the allocator as a docker-compose stack and each
+client box as a client container. The allocator host needs Docker **and the
+`docker compose` v2 plugin**; client boxes need Docker.
 
 === "macOS"
     Download [Docker Desktop for Mac](https://docs.docker.com/desktop/install/mac-install/)

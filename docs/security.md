@@ -1,912 +1,137 @@
 # Security
 
-This guide covers security considerations, best practices, and how to secure your LabLink deployment.
+LabLink protects the admin UI, client registration, and browser desktop
+sessions with different credentials. The deployment config and state can
+contain secrets; treat them as sensitive files. Choose an HTTPS exposure mode
+before inviting participants over the internet.
 
-## Security Overview
+## Change Default Passwords
 
-LabLink implements multiple security layers:
+The allocator reads `app.admin_user`, `app.admin_password`, and `db.password`
+from its deployed `config.yaml`. It does not read `ADMIN_PASSWORD` or
+`DB_PASSWORD` environment variables or fetch them from AWS Secrets Manager.
+The handling depends on how you deploy:
 
-- **Authentication**: Admin interface password protection, bearer token for machine-to-machine API
-- **Authorization**: OIDC for GitHub Actions, IAM roles for AWS
-- **Encryption**: HTTPS (optional), encrypted OpenTofu state
-- **Network**: Security groups restrict access
-- **Secrets**: Environment variables, AWS Secrets Manager
+- **CLI on AWS:** `lablink deploy` prompts for admin credentials on every run.
+  It saves them in the deployment working copy under `~/.lablink/deploy/`,
+  never in `~/.lablink/config.yaml`. It does **not** prompt for the database
+  password: set a strong `db.password` in `~/.lablink/config.yaml` yourself
+  before deploying.
+- **CLI with `provider: manual`:** `deploy` uses values from the config or a
+  previous rendered deployment first, then prompts if needed. It saves the
+  result under `~/.lablink/compose/<deployment_name>/config.yaml`.
+- **Template repository:** keep `PLACEHOLDER_ADMIN_PASSWORD` and
+  `PLACEHOLDER_DB_PASSWORD` in the committed config. `scripts/setup.sh`
+  creates GitHub repository secrets `ADMIN_PASSWORD` and `DB_PASSWORD`; the
+  deployment workflow substitutes them in its working copy.
 
-## Threat Model
+Do not commit a config file containing real passwords. Use a strong unique
+admin password for any publicly reachable allocator. The validator rejects
+common weak passwords and passwords shorter than 12 characters for a
+Tailscale Funnel deployment.
 
-### Assets to Protect
+### Database Password
 
-1. **Allocator Server**: Controls infrastructure
-2. **Client VMs**: Run research workloads
-3. **Database**: Contains VM assignments and user data
-4. **AWS Credentials**: Access to cloud resources
-5. **SSH Keys**: Access to EC2 instances
-6. **Admin Credentials**: Access to allocator interface
+Set `db.password` through the deployment path above. PostgreSQL 17 runs
+inside the allocator container, and the standard deployments do not publish
+port 5432 to the host or the internet. The database password still protects
+local and in-container access; replace the CLI default or template placeholder
+before it reaches a running deployment.
 
-### Potential Threats
+## Machine-to-Machine Authentication
 
-| Threat | Impact | Mitigation |
-|--------|--------|------------|
-| Unauthorized admin access | Full system control | Strong passwords, HTTPS, IP restrictions |
-| Unauthorized API access | VM hijacking, status spoofing, log injection | Bearer token auth on all machine-to-machine endpoints |
-| AWS credential exposure | Unauthorized infrastructure changes | OIDC (no stored credentials), IAM policies |
-| SSH key leakage | Direct server access | Ephemeral keys, proper permissions (600) |
-| Database access | Data exposure, manipulation | Firewall rules, strong passwords |
-| Man-in-the-middle | Credential theft, data interception | HTTPS, VPC isolation |
-| Resource exhaustion | Denial of service, high costs | Billing alerts, resource limits |
+- The allocator uses admin HTTP Basic authentication for admin pages and
+  management APIs. Participant requests use their signed browser session,
+  not the admin password.
+- A BYO client registers with a deployment-wide register token. The
+  allocator stores an argon2 hash of that token in PostgreSQL. The plaintext
+  token appears in the allocator log so the CLI can pick it up; protect log
+  access and avoid pasting the token into public channels.
+- Each registered client receives its own secret. The allocator stores its
+  argon2 hash and verifies it on client telemetry endpoints, including
+  heartbeat, GPU health, session metrics, and overlay-hostname updates.
+- The allocator also mints a separate `AGENT_TOKEN` for its control calls to
+  client agents. The client agent checks the bearer value with ordinary
+  string equality, so this path does not claim constant-time comparison.
+  The token is generated per allocator process. A manual-provider client
+  container can outlive an allocator restart and retain an older token until
+  it is re-registered or restarted with updated credentials.
 
-## Authentication & Authorization
+## Browser Desktop Sessions
 
-### Machine-to-Machine Authentication
+On assignment, the allocator rotates the client's KasmVNC password and
+creates a session ID and browser token. It signs the `lablink_session` cookie
+with HMAC-SHA256; the cookie is `HttpOnly` and `SameSite=Strict`, with the
+`Secure` flag when the request arrived over HTTPS. The browser receives a
+`303` redirect to `/desktop`.
 
-Machine-to-machine endpoints use two distinct bearer tokens depending on direction:
+For allocator-proxied desktops, nginx calls Flask's `auth_request` endpoint
+before upgrading `/proxy/<token>` to a WebSocket. The signed cookie must
+resolve to the VM named by the URL token and the VM must be running. nginx
+then sends the rotated KasmVNC credential to the client; the browser does not
+receive it. Reverse-tunnel attachment at `/tun-*` has its own bearer-token
+`auth_request` check.
 
-**Client → Allocator (per-client `client_secret`):**
-
-1. Each client mints its credential at registration via `POST /api/v1/clients/register` (gated by a deployment-wide `register_token`). The allocator generates a random `client_secret` (`secrets.token_urlsafe(32)`), stores only `argon2(client_secret)` in `vms.client_secret_hash`, and returns the plaintext secret once.
-2. On AWS, `user_data.sh` captures the secret into `CLIENT_SECRET` before any client code runs. On manual BYO deployments, `lablink client register` writes it to `~/.lablink/client.env` (mode 0600).
-3. Every client → allocator request includes `Authorization: Bearer <client_secret>`. The allocator resolves the client by URL path or body field (`hostname`/`vm_id`), looks up the stored hash, and verifies with argon2.
-4. **Protected endpoints (client_secret required):** `/api/update_inuse_status`, `/api/gpu_health`, `/api/heartbeat`, `/api/vm-status`, `/api/vm-logs/<hostname>`, `/api/vm-metrics/<hostname>`, `/api/v1/clients/<id>` (unregister).
-
-**Allocator → Agent (deployment-wide `agent_token`):**
-
-The allocator's password-rotation call to each client's agent on port 7070 (`POST /api/session/start`) uses a deployment-wide `agent_token` (`secrets.token_urlsafe(32)`, in-memory only). The agent compares the Bearer header with constant-time comparison and rewrites the per-session KasmVNC password.
-
-**Not protected (Basic auth or public):** `/api/request_vm` (student-facing); admin browser views (`/admin/*`, `/api/export-metrics`, `/api/v1/clients` GET) use HTTP Basic auth against the operator's admin credentials.
-
-**Token lifecycle:** `client_secret` is per-client and per-registration — a client that re-registers gets a fresh secret, and unregistering hard-deletes the row including the hash. `agent_token` is regenerated on every allocator restart. Since client containers are torn down before the allocator restarts, token persistence is not required.
-
-### Change Default Passwords
-
-**Critical**: Change default passwords before deployment!
-
-#### Allocator Admin Password
-
-**Default**: Configuration files use `PLACEHOLDER_ADMIN_PASSWORD` which must be replaced with a secure password.
-
-**Method 1: GitHub Secrets (Recommended for CI/CD)**
-
-For GitHub Actions deployments, add the `ADMIN_PASSWORD` secret to your repository:
-
-1. Go to repository **Settings → Secrets and variables → Actions**
-2. Click **New repository secret**
-3. Name: `ADMIN_PASSWORD`
-4. Value: Your secure password
-5. Click **Add secret**
-
-The deployment workflow automatically injects this secret into configuration files before OpenTofu apply, preventing passwords from appearing in logs.
-
-**Method 2: Manual configuration**
-
-Edit `lablink-infrastructure/config/config.yaml`:
-```yaml
-app:
-  admin_user: "admin"
-  admin_password: "YOUR_SECURE_PASSWORD_HERE"
-```
-
-**Method 3: Environment variable**
-
-```bash
-export ADMIN_PASSWORD="your_secure_password"
-
-# Docker
-docker run -d \
-  -e ADMIN_PASSWORD="your_secure_password" \
-  -p 5000:5000 \
-  ghcr.io/talmolab/lablink-allocator-image:latest
-```
-
-**Password requirements**:
-
-- Minimum 12 characters
-- Mix of uppercase, lowercase, numbers, symbols
-- Not a dictionary word
-- Use a password manager
-
-#### Database Password
-
-**Default**: Configuration files use `PLACEHOLDER_DB_PASSWORD` which must be replaced with a secure password.
-
-**Method 1: GitHub Secrets (Recommended for CI/CD)**
-
-For GitHub Actions deployments, add the `DB_PASSWORD` secret to your repository:
-
-1. Go to repository **Settings → Secrets and variables → Actions**
-2. Click **New repository secret**
-3. Name: `DB_PASSWORD`
-4. Value: Your secure database password
-5. Click **Add secret**
-
-The deployment workflow automatically injects this secret into configuration files before OpenTofu apply, preventing passwords from appearing in logs.
-
-**Method 2: Manual configuration**
-
-Edit `lablink-infrastructure/config/config.yaml`:
-```yaml
-db:
-  user: "lablink"
-  password: "YOUR_SECURE_DB_PASSWORD_HERE"
-```
-
-**Method 3: Environment variable**
-
-```bash
-export DB_PASSWORD="your_secure_db_password"
-```
-
-**Method 4: AWS Secrets Manager (Advanced)**
-
-```bash
-# Store in Secrets Manager
-aws secretsmanager create-secret \
-  --name lablink/db-password \
-  --secret-string "your-secure-db-password"
-
-# Retrieve in application
-import boto3
-client = boto3.client('secretsmanager', region_name='us-west-2')
-response = client.get_secret_value(SecretId='lablink/db-password')
-db_password = response['SecretString']
-```
-
-### OIDC for GitHub Actions
-
-OpenID Connect (OIDC) allows GitHub Actions to authenticate to AWS **without storing credentials**.
-
-#### How It Works
-
-```
-1. GitHub Action requests token from GitHub OIDC provider
-2. GitHub issues short-lived token with repository info
-3. Action presents token to AWS STS
-4. AWS validates token against IAM role trust policy
-5. AWS issues temporary AWS credentials
-6. Action uses credentials for OpenTofu operations
-7. Credentials expire automatically
-```
-
-#### Benefits
-
-- **No stored credentials**: Nothing to leak or rotate
-- **Short-lived**: Credentials expire quickly
-- **Scoped**: Permissions limited to specific role
-
-#### Trust Policy
-
-The IAM role trust policy restricts which repositories can assume the role:
-
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Principal": {
-        "Federated": "arn:aws:iam::ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com"
-      },
-      "Action": "sts:AssumeRoleWithWebIdentity",
-      "Condition": {
-        "StringEquals": {
-          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
-        },
-        "StringLike": {
-          "token.actions.githubusercontent.com:sub": "repo:talmolab/lablink:*"
-        }
-      }
-    }
-  ]
-}
-```
-
-**Key**: `token.actions.githubusercontent.com:sub` restricts to specific repository.
-
-#### Setup
-
-See [AWS Setup → OIDC Configuration](aws-setup.md#step-4-github-actions-oidc-configuration).
-
-### IAM Role Permissions
-
-Follow **principle of least privilege**.
-
-**Minimal permissions** for LabLink deployment:
-
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "ec2:RunInstances",
-        "ec2:TerminateInstances",
-        "ec2:DescribeInstances",
-        "ec2:CreateSecurityGroup",
-        "ec2:DeleteSecurityGroup",
-        "ec2:AuthorizeSecurityGroupIngress",
-        "ec2:RevokeSecurityGroupIngress",
-        "ec2:RevokeSecurityGroupEgress",
-        "ec2:CreateKeyPair",
-        "ec2:DeleteKeyPair",
-        "ec2:DescribeKeyPairs",
-        "ec2:AllocateAddress",
-        "ec2:AssociateAddress",
-        "ec2:DescribeAddresses"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
-        "s3:GetObject",
-        "s3:PutObject",
-        "s3:DeleteObject",
-        "s3:ListBucket"
-      ],
-      "Resource": [
-        "arn:aws:s3:::tf-state-lablink-*",
-        "arn:aws:s3:::tf-state-lablink-*/*"
-      ]
-    }
-  ]
-}
-```
-
-**Restrict by tags** (advanced):
-
-```json
-{
-  "Effect": "Allow",
-  "Action": "ec2:*",
-  "Resource": "*",
-  "Condition": {
-    "StringEquals": {
-      "ec2:ResourceTag/Project": "lablink"
-    }
-  }
-}
-```
+An admin can reserve a VM for peek or connect without giving it to a student.
+The allocator releases reservations older than 30 minutes in a background
+sweep, so closing a browser tab does not hold the seat indefinitely.
 
 ## Network Security
 
-### Security Groups
+The template's allocator security group allows TCP 80, 443, 5000, and 22
+from `0.0.0.0/0`. The application may bind port 5000 to loopback under an
+HTTPS configuration, but the security-group rule itself is broad. The
+client VM security group allows SSH (22) from the internet and KasmVNC
+(6080) and its agent (7070) only from the allocator security group. Neither
+security group exposes PostgreSQL 5432.
 
-LabLink creates security groups for allocator and client VMs.
-
-#### Allocator Security Group
-
-**Inbound Rules**:
-
-| Port | Protocol | Source | Purpose |
-|------|----------|--------|---------|
-| 80 | TCP | 0.0.0.0/0 | HTTP web interface |
-| 22 | TCP | 0.0.0.0/0 | SSH access |
-| 5432 | TCP | VPC CIDR | PostgreSQL (internal) |
-
-**Recommendations**:
-
-1. **Restrict SSH**: Change source from `0.0.0.0/0` to your IP:
-   ```bash
-   YOUR_IP=$(curl -s ifconfig.me)
-   aws ec2 authorize-security-group-ingress \
-     --group-id sg-xxxxx \
-     --protocol tcp \
-     --port 22 \
-     --cidr $YOUR_IP/32
-   ```
-
-2. **Enable HTTPS**: Use port 443 instead of 80 with SSL certificate:
-   ```bash
-   # Install certbot on allocator
-   sudo certbot --nginx -d lablink.yourdomain.com
-   ```
-
-3. **Restrict HTTP**: Limit to known client IPs if possible
-
-#### Client VM Security Group
-
-**Inbound Rules**:
-
-| Port | Protocol | Source | Purpose |
-|------|----------|--------|---------|
-| 22 | TCP | Your IP | SSH access |
-
-**Outbound Rules**:
-
-| Port | Protocol | Destination | Purpose |
-|------|----------|-------------|---------|
-| All | All | 0.0.0.0/0 | Internet access (packages, GitHub) |
-
-**Recommendations**:
-
-1. **Restrict outbound**: If possible, limit to specific destinations:
-    - Package repos (apt, pip)
-    - GitHub
-    - Allocator IP
-
-2. **VPC Endpoints**: Use VPC endpoints for AWS services (S3, EC2) to avoid internet routing
-
-### VPC Configuration
-
-For production, use a dedicated VPC:
-
-```hcl
-resource "aws_vpc" "lablink" {
-  cidr_block           = "10.0.0.0/16"
-  enable_dns_hostnames = true
-  enable_dns_support   = true
-
-  tags = {
-    Name = "lablink-vpc"
-  }
-}
-
-resource "aws_subnet" "public" {
-  vpc_id                  = aws_vpc.lablink.id
-  cidr_block              = "10.0.1.0/24"
-  availability_zone       = "us-west-2a"
-  map_public_ip_on_launch = true
-
-  tags = {
-    Name = "lablink-public-subnet"
-  }
-}
-
-resource "aws_subnet" "private" {
-  vpc_id            = aws_vpc.lablink.id
-  cidr_block        = "10.0.2.0/24"
-  availability_zone = "us-west-2a"
-
-  tags = {
-    Name = "lablink-private-subnet"
-  }
-}
-```
-
-**Benefits**:
-
-- Isolation from other workloads
-- Custom network ACLs
-- VPC Flow Logs for monitoring
+Review those rules for your deployment before making it public. OpenTofu
+resources are in the [template repository](https://github.com/talmolab/lablink-template)
+and the allocator's bundled client OpenTofu files. For a manual-provider
+deployment, use [the connectivity and exposure modes](cli/byo-clients.md#pick-a-connectivity-mode)
+to control which network paths are reachable.
 
 ## HTTP-Only Deployments (`ssl.provider: "none"`)
 
-**Warning**: `ssl.provider: "none"` serves unencrypted HTTP traffic. All data transmitted between users and the allocator is sent in plaintext.
-
-### Data Exposed Over HTTP
-
-With no SSL provider, the following information is transmitted unencrypted:
-
-- Admin usernames and passwords
-- Database credentials
-- VM allocation requests
-- Research data filenames and metadata
-- SSH keys and access tokens
-- All HTTP request/response data
-
-### When HTTP-Only is Acceptable
-
-Use `ssl.provider: "none"` only when:
-
-- Testing in isolated VPCs with no internet access
-- Accessing via VPN on private networks
-- Local testing on development machines
-- Short-term infrastructure testing (less than 1 hour)
-- Automated CI/CD testing pipelines
-- No sensitive data is involved
-
-### When SSL is Required
-
-Use a real SSL provider (`letsencrypt`, `cloudflare`, or `acm`) for:
-
-- Any internet-accessible deployment
-- Handling sensitive research data
-- Multi-user environments
-- Long-running deployments
-- Production or staging environments
-- Compliance requirements (HIPAA, GDPR, etc.)
-
-### Mitigations for HTTP-Only
-
-If you must run without SSL alongside potentially sensitive data:
-
-1. **Restrict access to your IP only**:
-   ```hcl
-   # In OpenTofu security group
-   ingress {
-     from_port   = 80
-     to_port     = 80
-     protocol    = "tcp"
-     cidr_blocks = ["YOUR_IP/32"]
-   }
-   ```
-
-2. **Use a VPN** - All access through VPN tunnel
-
-3. **Deploy in private VPC** - No internet gateway
-
-4. **Time-limited** - Enable an SSL provider as soon as testing is complete
-
-5. **Monitor access** - Review allocator logs for unexpected connections
-
-### Enabling SSL
-
-To switch a deployment from HTTP-only to HTTPS:
-
-1. Update configuration:
-   ```yaml
-   ssl:
-     provider: "letsencrypt"
-     email: "you@example.com"  # required for Let's Encrypt
-   ```
-
-2. Redeploy:
-   ```bash
-   tofu apply
-   ```
-
-3. Wait for Let's Encrypt certificate (30-60 seconds)
-
-4. Access via HTTPS:
-   ```
-   https://your-domain.com
-   ```
-
-5. Clear browser HSTS cache if you previously accessed via HTTP (see [Troubleshooting](troubleshooting.md#reaching-the-allocator))
-
-## Secrets Management
-
-### Environment Variables
-
-For development:
-
-```bash
-export DB_PASSWORD="secure_password"
-export ADMIN_PASSWORD="secure_admin_password"
-export AWS_ACCESS_KEY_ID="AKIA..."
-export AWS_SECRET_ACCESS_KEY="..."
-```
-
-**Pros**:
-
-- Simple
-- No external dependencies
-
-**Cons**:
-
-- Visible in process list
-- Can leak in logs
-- Not encrypted at rest
-
-### AWS Secrets Manager
-
-For production:
-
-**Store secrets**:
-```bash
-aws secretsmanager create-secret \
-  --name lablink/config \
-  --secret-string '{
-    "db_password": "secure_db_password",
-    "admin_password": "secure_admin_password"
-  }'
-```
-
-**Retrieve in application**:
-```python
-import boto3
-import json
-
-def get_secrets():
-    client = boto3.client('secretsmanager', region_name='us-west-2')
-    response = client.get_secret_value(SecretId='lablink/config')
-    secrets = json.loads(response['SecretString'])
-    return secrets
-
-secrets = get_secrets()
-db_password = secrets['db_password']
-admin_password = secrets['admin_password']
-```
-
-**Pros**:
-
-- Encrypted at rest and in transit
-- Automatic rotation
-- Audit logging
-- Versioning
-
-**Cons**:
-
-- Additional cost ($0.40/secret/month)
-- Requires IAM permissions
-
-### GitHub Secrets
-
-For CI/CD workflows, GitHub Secrets provide secure password storage.
-
-**Add secrets**:
-
-1. Go to repository **Settings → Secrets and variables → Actions**
-2. Click **New repository secret**
-3. Add both required secrets:
-    - Name: `ADMIN_PASSWORD`, Value: your secure admin password
-    - Name: `DB_PASSWORD`, Value: your secure database password
-4. Click **Add secret** for each
-
-**How it works**:
-
-The deployment workflow automatically injects secrets into configuration files before OpenTofu runs:
-
-```yaml
-- name: Inject Password Secrets
-  env:
-    ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD || 'CHANGEME_admin_password' }}
-    DB_PASSWORD: ${{ secrets.DB_PASSWORD || 'CHANGEME_db_password' }}
-  run: |
-    sed -i "s/PLACEHOLDER_ADMIN_PASSWORD/${ADMIN_PASSWORD}/g" "$CONFIG_FILE"
-    sed -i "s/PLACEHOLDER_DB_PASSWORD/${DB_PASSWORD}/g" "$CONFIG_FILE"
-```
-
-This replaces `PLACEHOLDER_ADMIN_PASSWORD` and `PLACEHOLDER_DB_PASSWORD` in config files with actual values from secrets, preventing passwords from appearing in OpenTofu logs.
-
-**Pros**:
-
-- Integrated with GitHub Actions
-- Encrypted at rest and in transit
-- Not visible in workflow logs
-- Prevents password exposure in OpenTofu apply output
-
-**Cons**:
-
-- Only available in workflows
-- Can't be read after creation
-
-## SSH Key Security
-
-### Key Generation
-
-OpenTofu generates SSH keys automatically:
-
-```hcl
-resource "tls_private_key" "lablink_key" {
-  algorithm = "RSA"
-  rsa_bits  = 4096
-}
-
-resource "aws_key_pair" "lablink_key_pair" {
-  key_name   = "lablink-${var.resource_suffix}-key"
-  public_key = tls_private_key.lablink_key.public_key_openssh
-}
-```
-
-**Good**:
-
-- Unique key per environment
-- 4096-bit RSA (strong)
-
-**Bad**:
-
-- Stored in OpenTofu state (plaintext)
-- Artifacts expire (GitHub Actions)
-
-### Key Permissions
-
-**Always set proper permissions**:
-
-```bash
-chmod 600 ~/lablink-key.pem
-```
-
-**Why**: Prevents SSH from rejecting key:
-```
-Permissions 0644 for 'lablink-key.pem' are too open.
-It is required that your private key files are NOT accessible by others.
-```
-
-### Key Rotation
-
-Rotate keys regularly:
-
-```bash
-# Destroy and recreate infrastructure
-tofu destroy -var="resource_suffix=dev"
-tofu apply -var="resource_suffix=dev"
-
-# New keys generated automatically
-```
-
-**Frequency**: Every 90 days for production
-
-### Key Storage
-
-**Never**:
-
-- Commit keys to version control
-- Share keys via email/Slack
-- Store keys in cloud storage without encryption
-
-**Instead**:
-
-- Use SSH agent: `ssh-add ~/lablink-key.pem`
-- Store in password manager
-
-## Data Encryption
-
-### Encryption at Rest
-
-#### OpenTofu State
-
-S3 bucket encryption (AES-256):
-```bash
-aws s3api put-bucket-encryption \
-  --bucket tf-state-lablink \
-  --server-side-encryption-configuration '{
-    "Rules": [{
-      "ApplyServerSideEncryptionByDefault": {
-        "SSEAlgorithm": "AES256"
-      }
-    }]
-  }'
-```
-
-#### EBS Volumes
-
-Encrypt EC2 instance volumes:
-
-```hcl
-resource "aws_instance" "lablink_allocator" {
-  ami           = var.ami_id
-  instance_type = "t2.micro"
-
-  root_block_device {
-    volume_size           = 30
-    volume_type           = "gp3"
-    encrypted             = true
-    delete_on_termination = true
-  }
-}
-```
-
-### Encryption in Transit
-
-#### HTTPS for Allocator
-
-Use Let's Encrypt certificate:
-
-```bash
-# SSH into allocator
-ssh -i ~/lablink-key.pem ubuntu@<allocator-ip>
-
-# Install certbot
-sudo apt-get update
-sudo apt-get install -y certbot python3-certbot-nginx
-
-# Get certificate
-sudo certbot --nginx -d lablink.yourdomain.com --non-interactive --agree-tos -m your@email.com
-
-# Auto-renewal
-sudo systemctl enable certbot.timer
-```
-
-Update security group to allow port 443.
-
-#### PostgreSQL SSL
-
-Enable SSL for database connections:
-
-**`postgresql.conf`**:
-```
-ssl = on
-ssl_cert_file = '/etc/ssl/certs/server.crt'
-ssl_key_file = '/etc/ssl/private/server.key'
-```
-
-Client connection:
-```python
-import psycopg2
-
-conn = psycopg2.connect(
-    host="allocator-ip",
-    database="lablink_db",
-    user="lablink",
-    password="password",
-    sslmode="require"  # Force SSL
-)
-```
-
-## Monitoring & Auditing
-
-### VPC Flow Logs
-
-Monitor network traffic:
-
-```bash
-aws ec2 create-flow-logs \
-  --resource-type VPC \
-  --resource-ids vpc-xxxxx \
-  --traffic-type ALL \
-  --log-destination-type cloud-watch-logs \
-  --log-group-name lablink-vpc-flow-logs
-```
-
-### Application Logging
-
-Log security events in application:
-
-```python
-import logging
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-# Log authentication attempts
-@app.route('/admin')
-@requires_auth
-def admin():
-    logger.info(f"Admin access by {request.remote_addr}")
-    return render_template('admin.html')
-
-# Log VM requests
-@app.route('/request_vm', methods=['POST'])
-def request_vm():
-    logger.info(f"VM requested by {request.form.get('email')} from {request.remote_addr}")
-    # ... handle request
-```
-
-## Compliance & Best Practices
-
-### Security Checklist
-
-- [ ] Changed default admin password
-- [ ] Changed default database password
-- [ ] Enabled HTTPS for allocator
-- [ ] Restricted SSH access to known IPs
-- [ ] Enabled S3 bucket encryption
-- [ ] Enabled EBS volume encryption
-- [ ] Set up billing alerts
-- [ ] Rotated SSH keys (if older than 90 days)
-- [ ] Reviewed IAM role permissions
-- [ ] Enabled MFA for AWS account
-- [ ] Set up VPC Flow Logs
-- [ ] Documented security procedures
-
-### Regular Security Tasks
-
-| Task | Frequency |
-|------|-----------|
-| Rotate SSH keys | Every 90 days |
-| Update dependencies | Monthly |
-| Review security group rules | Quarterly |
-| Audit IAM permissions | Quarterly |
-| Penetration testing | Annually |
-
-### Incident Response
-
-If security incident occurs:
-
-1. **Isolate**: Modify security groups to block traffic
-2. **Investigate**: Review VPC Flow Logs and application logs
-3. **Contain**: Terminate compromised instances
-4. **Recover**: Deploy from known-good state
-5. **Learn**: Document incident, improve security
-
-## Security Resources
-
-- [AWS Security Best Practices](https://docs.aws.amazon.com/security/)
-- [OWASP Top 10](https://owasp.org/www-project-top-ten/)
-- [CIS AWS Foundations Benchmark](https://www.cisecurity.org/benchmark/amazon_web_services)
+HTTP sends the admin Basic-auth header, session cookie, bearer tokens, and
+desktop traffic without transport encryption. Use HTTPS for public
+deployments. The AWS host uses Caddy for `letsencrypt`, `cloudflare`, and
+`none`; ACM terminates TLS at an ALB. A Cloudflare Tunnel terminates TLS at
+Cloudflare's edge, so Cloudflare can read traffic there. Tailscale Funnel
+offers a different public exposure path; see
+[Tailscale & Cloudflare Setup](cli/tunnels.md).
+
+An HTTP viewer also cannot use browser WebCodecs H.264 streaming on an
+insecure origin, so it falls back to JPEG/WebP. `lablink doctor` warns about
+this when `ssl.provider: none` is selected.
+
+## GitHub Actions and State
+
+The template's `scripts/setup.sh` creates a GitHub OIDC provider and the
+`github-actions-lablink` IAM role, then stores the role ARN and region as
+repository secrets. The trust policy is scoped to the configured repository
+and the `sts.amazonaws.com` audience. See
+[AWS Setup](aws-setup.md#step-4-github-actions-oidc-configuration) for the
+current managed-policy list.
+
+OpenTofu state can contain sensitive values, including generated SSH keys.
+The template uses an S3 backend and a DynamoDB lock table. `setup.sh` enables
+S3 versioning on a new state bucket; it does not explicitly set a bucket
+encryption policy or public-access block. Apply your organization's storage
+controls and restrict access to the state bucket and workflow artifacts.
 
 ## SSH Access
 
-This section covers SSH access to LabLink allocator and client EC2 instances for debugging, log inspection, configuration changes, and manual operations.
-
 ### SSH Key Management
 
-OpenTofu automatically generates SSH key pairs during deployment:
+The deployment OpenTofu state contains a key for the **allocator**. On the
+template path, the deploy workflow uploads it as a one-day artifact; a local
+OpenTofu run can use `tofu output -raw private_key_pem` from the initialized
+`lablink-infrastructure/` directory. Restrict file
+permissions before using that key.
 
-- **Algorithm**: RSA, 4096 bits
-- **Naming**: `lablink-<environment>-key` (e.g., `lablink-dev-key`, `lablink-prod-key`)
-
-#### Retrieving SSH Keys
-
-**From OpenTofu Output:**
-
-```bash
-cd lablink-infrastructure
-
-# Save to file
-tofu output -raw private_key_pem > ~/lablink-dev-key.pem
-
-# Set proper permissions
-chmod 600 ~/lablink-dev-key.pem
-```
-
-**From GitHub Actions Artifacts:**
-
-1. Navigate to **Actions** tab in GitHub
-2. Click on the deployment workflow run
-3. Scroll to **Artifacts** section
-4. Download `lablink-key-<env>` artifact
-5. Extract `lablink-key.pem`
-6. Set permissions: `chmod 600 ~/lablink-key.pem`
-
-!!! warning "Artifact Expiration"
-    GitHub Actions artifacts expire after 1 day. Retrieve keys promptly or re-run deployment.
-
-### Connecting to Allocator
-
-```bash
-# Get allocator IP
-cd lablink-infrastructure
-tofu output ec2_public_ip
-
-# SSH in (default user: ubuntu)
-ssh -i ~/lablink-dev-key.pem ubuntu@<allocator-public-ip>
-```
-
-### Connecting to Client VMs
-
-```bash
-# Get client VM IPs via allocator database
-ssh -i ~/lablink-key.pem ubuntu@<allocator-ip>
-sudo docker exec -it <container-id> psql -U lablink -d lablink_db -c "SELECT hostname, status FROM vms;"
-
-# SSH to client VM (uses same key)
-ssh -i ~/lablink-key.pem ubuntu@<client-vm-ip>
-```
-
-### Common SSH Tasks
-
-```bash
-# List running containers
-sudo docker ps
-
-# View allocator container logs
-sudo docker logs <container-id>
-
-# Access container shell
-sudo docker exec -it <container-id> bash
-
-# Inside container: access PostgreSQL
-psql -U lablink -d lablink_db
-
-# Inside container: restart PostgreSQL (known issue on first boot)
-/etc/init.d/postgresql restart
-
-# Check GPU on client VMs
-nvidia-smi
-
-# Transfer files
-scp -i ~/lablink-key.pem local-file.txt ubuntu@<ip>:~/
-scp -i ~/lablink-key.pem ubuntu@<ip>:~/remote-file.txt ./
-```
-
-### SSH Configuration File
-
-For easier access, add to `~/.ssh/config`:
-
-```bash
-Host lablink-dev
-    HostName 54.123.45.67
-    User ubuntu
-    IdentityFile ~/.ssh/lablink-dev-key.pem
-    StrictHostKeyChecking no
-    UserKnownHostsFile /dev/null
-```
-
-Then simply: `ssh lablink-dev`
-
-### Troubleshooting SSH Issues
-
-| Error | Cause | Solution |
-|-------|-------|---------|
-| `Permission denied (publickey)` | Wrong key or permissions | `chmod 600 ~/lablink-key.pem` |
-| `Connection timed out` | Security group or instance down | Check SG allows port 22, verify instance is running |
-| `REMOTE HOST IDENTIFICATION HAS CHANGED` | Instance recreated with same IP | `ssh-keygen -R <ip-address>` |
-| `Too many authentication failures` | SSH tried multiple keys | `ssh -o IdentitiesOnly=yes -i ~/lablink-key.pem ubuntu@<ip>` |
-
-## Next Steps
-
-- **[AWS Setup](aws-setup.md)**: Secure AWS resource configuration
-- **[Deployment](deployment.md)**: Secure deployment practices
-- **[Troubleshooting](troubleshooting.md)**: Security-related issues
+Client VMs use a different keypair generated by the allocator's own OpenTofu
+workspace. Its output is `lablink_private_key_pem` inside the allocator
+container. The deployment key does not open client VMs. See
+[Troubleshooting](troubleshooting.md) for access steps and use the allocator
+logs or `lablink logs` to diagnose a client before reaching for SSH.

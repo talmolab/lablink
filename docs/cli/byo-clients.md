@@ -8,14 +8,8 @@ OpenTofu, no cloud bill.
 Set `provider: manual` in your config and every command in the
 [CLI Reference](../reference/cli.md) switches to this path.
 
-Beyond the split in [CLI Overview](index.md#two-providers), the practical
-differences:
-
-| | AWS provider | Manual provider |
-|---|---|---|
-| Needs OpenTofu | Yes | No |
-| Needs docker locally | No | **Yes** (allocator + clients are containers) |
-| Cost | Per-hour EC2 + EBS + optional ALB | Your own hardware |
+[CLI Overview](index.md#two-providers) has the provider comparison; in short,
+this path trades OpenTofu and an AWS bill for docker on your own hardware.
 
 Good fits: a lab with GPU workstations already on a bench, a workshop on
 institution-owned machines, or a scheduler-hosted workload (e.g. Run:AI) you can't
@@ -28,7 +22,7 @@ flow, but the allocator is submitted as a workload rather than started with
 
 ## Prerequisites
 
-- **docker** and the **`docker compose` v2 plugin** on the allocator host and on every client box.
+- **docker** on every client box; **docker** plus the **`docker compose` v2 plugin** on the allocator host.
 - The CLI installed — see [Installation](installation.md).
 - A network path from each client box to the allocator, or from the allocator to each client. Which direction you need is what [connectivity mode](#pick-a-connectivity-mode) decides.
 
@@ -123,7 +117,7 @@ afterwards — there is no remote state to bootstrap.
     inherited from an AWS deployment will hit it.
 
     For public TLS, either use a
-    [participant exposure mode](../configuration.md#exposure-mode-cloudflare_tunnel)
+    [participant exposure mode](../configuration.md#manual-provider-options-manual)
     (which terminates TLS for you) or front the compose stack with your own reverse
     proxy.
 
@@ -164,13 +158,16 @@ and verifies it before printing the summary. Recorded at 2×, with the
 allocator image already pulled; a cold first run adds a few minutes of
 download before anything in this clip happens.*
 
-This renders `docker-compose.yml`, a `.env`, and a copy of your `config.yaml` into
-`~/.lablink/compose/<deployment_name>/`, then runs `docker compose up -d` and waits
-for the allocator's health endpoint. Postgres runs inside the same stack, with its
-data in a named volume.
+This renders the bundle — `docker-compose.yml`, `.env`, a copy of your
+`config.yaml`, `custom-startup.sh`, an `allocator-url` file and, when a Tailscale
+sidecar is needed, a compose override — into `~/.lablink/compose/<deployment_name>/`,
+then runs `docker compose up -d` and waits for the allocator's health endpoint. The
+allocator listens on host port 80. Postgres runs inside the allocator container,
+with its data in a named volume.
 
-You'll be prompted for an admin username and password, which are not written to
-`config.yaml`.
+You're prompted for an admin username and password unless `config.yaml` or a
+previous deploy's rendered copy already has them. They're saved in the rendered
+`config.yaml` under `~/.lablink/compose/…`, not in `~/.lablink/config.yaml`.
 
 When it finishes, `deploy` prints what you need to onboard boxes:
 
@@ -178,6 +175,7 @@ When it finishes, `deploy` prints what you need to onboard boxes:
 Deployment complete.
   Allocator URL (local): http://localhost
   Allocator URL (LAN):   http://192.168.1.42
+  Admin URL:             http://192.168.1.42/admin
   Admin user:            admin
   Register token:        Xf3k9…
 
@@ -185,16 +183,17 @@ Next step: on each BYO box on the same LAN, run
   lablink client register --allocator-url http://192.168.1.42 --register-token Xf3k9…
 ```
 
+Exposed deployments (`participant_exposure` other than `none`) print an
+`Allocator URL (public)` line first, and the register command uses it.
+
 The printed `client register` command is already tailored to your connectivity
 mode — mesh-overlay and reverse-tunnel deployments get the extra flags filled in.
 Copy it as-is.
 
 !!! tip "Lost the token?"
     ```bash
-    docker logs lablink-allocator 2>&1 | grep REGISTER_TOKEN
+    docker logs lablink-allocator | grep REGISTER_TOKEN
     ```
-    The `2>&1` matters — the allocator logs to stderr, so without it `grep` sees
-    nothing.
 
 If `deploy` could only detect `localhost` and not a LAN address, the command it
 prints is valid only for a client on the allocator host itself. Substitute the
@@ -217,7 +216,7 @@ token, for that exposure mode) is covered in
 Run this **on the machine you're adding**, not on the allocator host:
 
 ```bash
-lablink client register --allocator-url http://192.168.1.42:5000 --register-token Xf3k9…
+lablink client register --allocator-url http://192.168.1.42 --register-token Xf3k9…
 ```
 
 <div class="video-container">
@@ -274,14 +273,14 @@ lablink status
 
 | Task | Command | Manual-provider notes |
 |---|---|---|
-| Check health | `lablink status` | Shows compose container status + the allocator's health endpoint. No cost estimate — the hardware is yours. |
-| Read logs | `lablink logs` | Tails the local `lablink-allocator` container. Per-VM client logs aren't centralized in this mode — run `docker logs lablink-client` on the box itself. |
+| Check health | `lablink status` | Compose container status, the allocator's health endpoint, and a table of registered clients. No cost estimate — the hardware is yours. |
+| Read logs | `lablink logs` | The same TUI as on AWS: the local `lablink-allocator` container plus every registered box, whose client container ships its own logs to the allocator. |
 | Add a box | `lablink client register` | Run on the new box. |
 | Remove a box | `lablink client unregister` | Run on that box. |
 
-Only `client launch` is unavailable — it no-ops with a message pointing you back at
-`client register`. Every other command, `stats` and `export-metrics` included,
-behaves as it does on the AWS path.
+`client launch` and `client destroy` no-op with a message pointing you at
+`client register` / `client unregister`. Every other command, `stats` and
+`export-metrics` included, behaves as it does on the AWS path.
 
 ## Removing a box
 
@@ -312,8 +311,8 @@ lablink client reset-overlay
 ## Tearing down
 
 ```bash
-lablink destroy              # stops the stack, wipes the Postgres volume
-lablink destroy --keep-data  # stops the stack, preserves registration history
+lablink destroy              # stops the stack, wipes the Postgres volume and working dir
+lablink destroy --keep-data  # stops the stack, preserves both
 ```
 
 <div class="video-container">
@@ -336,8 +335,8 @@ lablink cleanup
 ```
 
 Under the manual provider this runs `docker compose down --volumes` and deletes
-`~/.lablink/compose/<deployment_name>/`. (`--dry-run` is AWS-only; the manual path
-confirms interactively instead.)
+`~/.lablink/compose/<deployment_name>/` — immediately, with no confirmation prompt.
+`--dry-run` prints what would go instead.
 
 ## Next steps
 

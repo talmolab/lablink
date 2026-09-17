@@ -7,17 +7,18 @@ This page describes LabLink's architecture, components, and how they interact.
 Two repositories feed a deployment. This repo (`talmolab/lablink`) publishes the
 Python packages to PyPI and the Docker images to ghcr.io;
 [`talmolab/lablink-template`](https://github.com/talmolab/lablink-template)
-holds the allocator's Terraform configs, released as tagged bundles. The
+holds the allocator's OpenTofu configs, released as tagged bundles. The
 `lablink` CLI downloads a pinned template release and runs OpenTofu itself —
 alternatively, admins can fork the template repo and deploy through its GitHub
-Actions workflows. See [CLI First Deployment](cli/first-deployment.md) and
-[Template Repo Deployment](deployment.md).
+Actions workflows. See [LabLink CLI](cli/index.md) for how the paths compare,
+[CLI First Deployment](cli/first-deployment.md) and
+[Template Repo Deployment](deployment.md) for the steps.
 
-A deployed LabLink on AWS. Admins and students reach the allocator through
-Route 53; the allocator instance runs Flask, PostgreSQL, the provisioner and
-nginx in one container, provisions client instances, and relays each
-participant's remote-desktop connection to the KasmVNC server on their
-assigned client.
+A deployed LabLink on AWS. Admins and students reach the allocator by its
+Elastic IP or, optionally, a Route 53 name; the allocator instance runs Flask,
+PostgreSQL, the provisioner and nginx in one container, provisions client
+instances, and relays each participant's remote-desktop connection to the
+KasmVNC server on their assigned client.
 
 ![LabLink AWS architecture diagram](assets/images/aws_arch_diag.png)
 
@@ -47,27 +48,20 @@ resulting objects rather than branching on provider type.
 ### Compute provider — where client machines come from
 
 Discovered through the `lablink.providers` entry-point group, so a new backend can be
-added without touching core code. Two ship today:
-
-| `provider` | Behaviour |
-|---|---|
-| `aws` | Provisions EC2 client VMs with OpenTofu. |
-| `manual` | Provisions nothing. Machines you already own register themselves via `POST /api/v1/clients/register`. |
+added without touching core code. Two ship today, `aws` and `manual` — see
+[Two providers](cli/index.md#two-providers) for the comparison.
 
 Capability flags, not provider-type checks, gate the behaviour that differs:
 
-- **`can_provision_hosts`** — false for `manual`, which is why that deployment surfaces its register token in the container logs for the CLI to pick up, rather than passing it through a OpenTofu output.
+- **`can_provision_hosts`** — false for `manual`, which is why that deployment surfaces its register token in the container logs for the CLI to pick up, rather than passing it through an OpenTofu output.
 - **`can_recover_hosts`** — false for `manual`, so the auto-reboot loop skips BYO boxes instead of attempting AWS calls against machines it doesn't own.
 
 ### Client connectivity — how the desktop is reached
 
-Selectable for the `manual` provider only, as a small closed set:
-
-| `manual.connectivity` | Byte path |
-|---|---|
-| `lan_direct` | The browser opens a WebSocket straight to the client's LAN IP. Requires the client and participant on the allocator's LAN. |
-| `mesh_overlay` | The client joins a Tailscale tailnet; the allocator reaches it over the overlay and proxies through its own nginx. |
-| `reverse_tunnel` | The client dials **out** to the allocator and holds one connection open, for boxes that can't accept inbound connections. |
+Selectable for the `manual` provider only, as a small closed set —
+`lan_direct`, `mesh_overlay`, `reverse_tunnel`. The byte path of each and how
+to choose are in
+[Pick a connectivity mode](cli/byo-clients.md#pick-a-connectivity-mode).
 
 Each strategy implements `prepare_browser_session`, which is what
 `/api/request_vm` calls to rotate the client's VNC password and persist the
@@ -76,11 +70,9 @@ connectivity-specific branches in it.
 
 AWS deployments always use the allocator-proxied path and ignore this setting.
 
-See [Bring-Your-Own Clients](cli/byo-clients.md#pick-a-connectivity-mode) for
-choosing between these,
-[Configuration](configuration.md#manual-provider-options-manual) for the settings,
-and [API Endpoints](api-endpoints.md#client-registration-api) for the registration
-contract.
+See [Configuration](configuration.md#manual-provider-options-manual) for the
+settings and [API Endpoints](api-endpoints.md#client-registration-api) for the
+registration contract.
 
 ## Component Details
 
@@ -90,10 +82,11 @@ contract.
 
 **Technology Stack**:
 
-- **Flask**: Web application framework, behind nginx (the container's only network-facing process)
-- **PostgreSQL 17**: Relational database for VM state, co-located in the container
+- **Flask**: Web application framework, behind nginx (the container's only network-facing process); Caddy on the host adds automatic HTTPS
+- **PostgreSQL 17**: Relational database for VM state, co-located in the container; `SKIP LOCKED` gives race-free seat claims
 - **psycopg2**: Direct SQL through a shared connection pool (see `db/` layout in `CLAUDE.md`); no ORM — SQLAlchemy appears in the dependencies only as APScheduler's job store
 - **APScheduler**: Scheduled destruction jobs
+- **Hydra/OmegaConf**: Structured config with typed overrides
 - **OpenTofu**: Infrastructure provisioning
 - **Docker**: Containerization
 
@@ -119,20 +112,19 @@ contract.
 
 3. **Database Management**:
 
-    - Tracks VM states (`initializing`, `running`, `error`, `rebooting`)
+    - Tracks VM states (`initializing`, `running`, `error`, `rebooting`; `unknown` is accepted by the status endpoint but nothing writes it)
     - Claims seats atomically with `FOR UPDATE SKIP LOCKED`
 
 4. **Infrastructure Orchestration**:
-    - Spawns and destroys client VMs via OpenTofu, as **async operations**: `/api/launch` and `/destroy` enqueue a job in the `operations` table, a background worker runs `tofu apply`/`destroy`, and the admin dashboard polls `/api/operations` for progress — only one operation runs at a time
+    - Spawns and destroys client VMs via OpenTofu, as **async operations**: `/api/launch` and `/destroy` enqueue a job in the `operations` table, a background worker runs `tofu apply`/`destroy`, and the admin dashboard polls `/api/operations` for progress. Only one operation runs at a time — enforced by the `operations_single_flight` partial unique index, not by application locking
     - Manages AWS credentials
     - Handles security group configuration
 
 5. **Auto-Reboot Service**:
-    - Background daemon that monitors for failed VMs
-    - Automatically reboots VMs in error state, with unhealthy GPUs, or stuck initializing/rebooting
-    - Primary method: SSH hard reboot (`cloud-init clean && reboot`)
-    - Fallback: EC2 stop/start cycle (for OOM or hung processes)
-    - Respects cooldown periods (default: 300s) and max attempt limits (default: 3)
+    - Background thread, 60 s sweep, that picks up VMs with `status=error`, `Healthy=Unhealthy`, `initializing` for >25 min, `rebooting` for >10 min, or `running` with no heartbeat for >3 min
+    - Assigned VMs get a **warm** `sudo reboot` (the container survives via its restart policy); unassigned VMs get a **cold** `docker rm -f; cloud-init clean && reboot` that re-provisions from scratch
+    - EC2 stop/start only when SSH fails (always cold)
+    - 300 s cooldown between attempts; after 3 attempts the VM is set to `error` and its seat released
 
 **Configuration**: See `packages/allocator/src/lablink_allocator_service/conf/structured_config.py`
 
@@ -143,6 +135,7 @@ contract.
 **Technology Stack**:
 
 - **Python**: Service implementation
+- **KasmVNC + noVNC**: Browser-only remote desktop, no client install
 - **Docker**: Container runtime
 - **Custom Software**: SLEAP or user-defined
 
@@ -168,9 +161,7 @@ contract.
 
 **Desktop performance**: the client deliberately overrides seven upstream
 defaults, because stock KasmVNC and XFCE never reduce cost while the screen is
-moving — they hold near-maximum quality through a full-screen redraw and fall
-behind, which participants perceive as choppy motion. Do not revert these to
-their defaults without re-measuring:
+moving. Do not revert these to their defaults without re-measuring:
 
 | Override | Default | Why |
 |---|---|---|
@@ -182,49 +173,11 @@ their defaults without re-measuring:
 | `Xft` `RGBA: none` | `rgb` (subpixel) | Subpixel antialiasing puts coloured fringes on every glyph, and at `-DynamicQualityMin 4` those fringes are the first thing the encoder discards — text ends up ringed with colour noise. Greyscale antialiasing compresses better and stays legible at the quality floor. |
 | Solid backdrop (`image-style: 0`) | wallpaper image | The exposed desktop is re-encoded during every window drag. A flat fill costs almost nothing per damage rect where a photograph costs a lot — and it saves the 57 MB `ubuntu-wallpapers` package. |
 
-Caveat: on browser connections the bundled viewer's quality preset re-sends
-`dynamic_quality_min` and `video_time` as pseudo-encodings at connect,
-overriding the argv values per-session. The images bake the preset default to
-High (3) — `dynamic_quality_min 7`, `video_time 5`, 60 FPS cap — chosen over
-Extreme (4) because Extreme's `video_time 100` prevents video/H.264 streaming
-mode from ever engaging. The argv values still govern any client that doesn't
-send the pseudo-encodings. H.264 streaming additionally requires the viewer
-page to be served over HTTPS (WebCodecs is unavailable on insecure origins;
-the session falls back to JPEG/WebP image mode — see
-[Configuration](configuration.md)).
-
-The encoder settings are passed on the `Xvnc` command line, not written
-to `~/.vnc/kasmvnc.yaml`. That file is read only by the `kasmvncserver` Perl
-wrapper, which `start.sh` bypasses to exec `Xvnc` directly, so tuning placed
-there is silently ignored.
-
-Every desktop setting is generated by `packages/client/desktop-config.sh`,
-which `start.sh` runs before launching the session; that script's header is the
-one place explaining why it writes the xfconf XML store directly and why it is
-standalone. Turning the compositor off costs window drop shadows and ARGB
-transparency — `xfce4-terminal`'s transparent background, for instance, renders
-opaque. That is the trade, not a bug.
-
-The desktop is XFCE 4.18 on Ubuntu 24.04, themed with Yaru, Ubuntu's own theme.
-Yaru ships xfwm4 window decorations alongside the GTK theme and icons, so
-window borders match rather than falling back to XFCE's default. The package
-set names `xfce4-whiskermenu-plugin` and `xfce4-notifyd` directly instead of
-pulling `xfce4-goodies`, which cost 92 MB and 82 packages for the two of them.
-Accessories that came with that metapackage — mousepad, ristretto, xfburn,
-xfce4-dict, the clipboard-history plugin, and around 20 panel plugins — are
-deliberately absent.
-
-`Xvnc` is launched with `__EGL_VENDOR_LIBRARY_FILENAMES` pinned to mesa and
-`__EGL_EXTERNAL_PLATFORM_CONFIG_DIRS` pointed at an empty directory. Do not
-remove these. The container toolkit bind-mounts the *host* driver's
-`libEGL_nvidia.so.0` and `libnvidia-egl-gbm.so.1` into the container, along
-with `10_nvidia.json` and `15_nvidia_gbm.json`, and libEGL loads them during
-`GlxExtensionInit`. Those libraries are the host driver's while `libdrm.so.2`
-is the image's, and on 24.04 that skew aborts Xvnc with a double free in
-`drmFreeDevices` — the desktop never starts. The bind mounts cannot be moved
-aside from inside the container, so the loader is pointed away from them
-instead. The variables are set on the `Xvnc` process only: `xstartup`, the
-desktop session, and SLEAP all keep the full driver stack and CUDA.
+Encoder flags go on the `Xvnc` command line; `~/.vnc/kasmvnc.yaml` is still
+written but inert, because `start.sh` bypasses the `kasmvncserver` wrapper
+that reads it. The full rationale — the viewer-preset caveat, the EGL vendor
+pinning, the trimmed XFCE package set — lives as comments in
+`packages/client/start.sh` and `packages/client/desktop-config.sh`.
 
 **Configuration**: See `packages/client/src/lablink_client_service/conf/structured_config.py`
 
@@ -238,80 +191,55 @@ connectivity details, per-session browser state, liveness counters, startup timi
 and — when enabled — session metrics. Full column-by-column reference:
 [Database](database.md#vms-table).
 
-**Triggers**: one, maintaining `updated_at` on `scheduled_destructions`. LabLink no
-longer uses `LISTEN`/`NOTIFY`; see
-[Database](database.md#triggers) for what replaced it.
+**Triggers**: one, maintaining `updated_at` on `scheduled_destructions`. Seat
+assignment uses `FOR UPDATE SKIP LOCKED`; see [Database](database.md#triggers).
 
 ### VM State Machine
 
-The `status` field in the `vms` table follows this lifecycle:
+The `Status` column in the `vms` table follows this lifecycle:
 
 ```mermaid
 stateDiagram-v2
-    [*] --> available: VM Created<br/>(tofu apply)
+    [*] --> initializing: user_data.sh POSTs /api/vm-status
+    initializing --> running: client start.sh reports running
+    initializing --> error: user_data.sh or start.sh fails
+    running --> error: start.sh fails
+    initializing --> rebooting: stuck > 25 min
+    running --> rebooting: heartbeat silent > 3 min<br/>or Healthy = Unhealthy
+    error --> rebooting: auto-reboot,<br/>while attempts remain
+    rebooting --> initializing: VM comes back<br/>(warm or cold reboot)
+    rebooting --> rebooting: stuck > 10 min, retry
+    rebooting --> error: 3 attempts exhausted,<br/>seat released
+    running --> [*]: tofu destroy
+    error --> [*]: tofu destroy
 
-    available --> in_use: Software process starts<br/>(detected by update_inuse_status)
-    in_use --> available: Software process stops<br/>(task complete or crash)
-
-    available --> failed: Startup failure<br/>(boot error)
-    in_use --> failed: Health check failed<br/>(GPU error, system crash)
-
-    failed --> rebooting: Auto-reboot triggered<br/>(or manual reboot)
-    rebooting --> available: Reboot succeeds<br/>(VM re-initializes)
-    rebooting --> failed: Reboot fails<br/>(or stuck > 10 min)
-
-    failed --> available: Admin intervention<br/>(manual reset)
-    failed --> [*]: VM Destroyed<br/>(tofu destroy)
-    available --> [*]: VM Destroyed<br/>(tofu destroy)
-    in_use --> [*]: Force destroy<br/>(admin action)
-
-    note right of available
-        VM ready, waiting
-        Software not running
-        Heartbeat active
+    note right of running
+        Healthy is a separate column.
+        Unhealthy makes the VM unassignable
+        and reboot-eligible. Clear Unhealthy
+        NULLs it; Status is untouched.
     end note
 
-    note right of in_use
-        Configured software running
-        User workload active
-        Sending status updates
-    end note
-
-    note right of failed
-        Requires attention
-        Health checks failing
-        Removed from pool
-    end note
-
-    note right of rebooting
-        Reboot in progress
-        SSH or stop/start
-        Max 3 attempts
+    note right of error
+        After 3 reboots the VM stays
+        error until destroyed. There is
+        no admin reset endpoint.
     end note
 ```
 
-**State Transitions**:
+| `Status` | Written by | Meaning |
+|---|---|---|
+| `initializing` | `user_data.sh` on boot; client `start.sh` on container start (so also after a warm reboot) | Booting or starting the client container |
+| `running` | client `start.sh`, once services are about to launch | Claimable when `UserEmail` and `AdminReservedAt` are `NULL` and `Healthy` is not `Unhealthy` |
+| `error` | `user_data.sh` / `start.sh` failure paths; the auto-reboot service when attempts are exhausted | Out of the pool |
+| `rebooting` | the auto-reboot service | Attempt in flight; `reboot_count` incremented |
+| `unknown` | nothing | Accepted by `/api/vm-status`, never written |
 
-- **available → in_use**: Configured software process starts running on the VM
-- **in_use → available**: Software process stops (task complete or process ends)
-- **available/in_use → failed**: Health checks fail or errors occur
-- **failed → rebooting**: Auto-reboot service detects failure and initiates reboot
-- **rebooting → available**: VM successfully reboots and re-initializes
-- **rebooting → failed**: Reboot fails or VM stuck in rebooting state > 10 minutes
-- **failed → available**: Admin manually resets and fixes the VM
-- **any → [*]**: VM is destroyed via OpenTofu
+Two columns that are **not** status: `UserEmail` (assignment) and `InUse`
+(whether the configured software is running, maintained by the client's
+`update_inuse_status`). A participant can hold a seat with `InUse = FALSE`.
 
-**State Mapping to Database Columns**
-
-| State        | `Status` column value | `InUse` column value | Description                                        |
-| ------------ | --------------------- | -------------------- | -------------------------------------------------- |
-| available    | "running"             | `False`              | VM is ready and waiting for user workload          |
-| in_use       | "running"             | `True`               | Configured software is running on VM               |
-| failed       | "error"               | (Any)                | VM has encountered an error or health check failed |
-| initializing | "initializing"        | `False`              | VM is booting up and not yet ready                 |
-| rebooting    | "rebooting"           | `False`              | VM is being rebooted (SSH or stop/start)           |
-
-**Note**: The `in_use` status indicates whether the configured software (e.g., SLEAP) is actively running on the VM, not whether a user has been assigned the VM. This is monitored by the `update_inuse_status` service which checks for the configured process.
+### AWS Infrastructure
 
 #### Security Groups
 
@@ -343,11 +271,10 @@ to the database.
     - Separate state per named deployment (CLI) or per environment (template repo)
     - DynamoDB lock table prevents concurrent applies
     - Versioning enabled
-    - Encrypted at rest
 
 - **EBS Volumes**: Instance root volumes
-    - Allocator: 30GB (configurable)
-    - Clients: Depends on AMI
+    - Allocator (`t3.large`): the template sets no `root_block_device`, so the AMI default applies (8 GiB gp3 for stock Ubuntu)
+    - Clients: 80 GiB
 
 ## Data Flow
 
@@ -379,7 +306,7 @@ sequenceDiagram
     alt Rotation OK
         Agent-->>Flask: 200
         Flask->>DB: Persist session state,<br/>clear Unhealthy
-        Flask-->>User: 302 /desktop<br/>+ signed lablink_session cookie
+        Flask-->>User: 303 /desktop<br/>+ signed lablink_session cookie
         User->>Flask: GET /desktop
         Flask-->>User: noVNC viewer
     else RotationFailed
@@ -422,6 +349,7 @@ sequenceDiagram
 
     Note over VM: Boot sequence begins
     VM->>VM: Execute user_data script
+    VM->>Flask: POST /api/vm-status<br/>(status: initializing)
 
     VM->>Docker: Pull Docker image<br/>from ghcr.io
     VM->>VM: Clone user repository<br/>(if configured)
@@ -429,8 +357,9 @@ sequenceDiagram
     Docker->>Flask: POST /api/vm-status<br/>(status: running)
 ```
 
-Only one operation (apply or destroy) can run at a time; a second request
-while one is in progress is rejected with the in-flight job's id.
+A second `/api/launch` or `/destroy` while one is in progress is rejected with
+the in-flight job's id — the `operations_single_flight` index makes the second
+`INSERT` fail.
 
 ### Health Check Flow
 
@@ -444,51 +373,23 @@ sequenceDiagram
         Client->>Client: Check GPU status
         alt Status changed
             Client->>Flask: POST /api/gpu_health<br/>(gpu_status, hostname)
-            Flask->>DB: Update Healthy column,<br/>touch LastSeen
+            Flask->>DB: Update Healthy column,<br/>touch last_seen_at
             Flask-->>Client: ACK
         end
     and Heartbeat — every 30 seconds
         Client->>Flask: POST /api/heartbeat
-        Flask->>DB: Touch LastSeen
+        Flask->>DB: Touch last_seen_at
         Flask-->>Client: ACK
     end
 
-    Note over DB: Unhealthy VMs are picked up by the<br/>auto-reboot service. Stale LastSeen<br/>marks the VM unreachable
+    Note over DB: The auto-reboot sweep picks up<br/>Healthy = Unhealthy, and running VMs<br/>whose last_seen_at is > 3 min old
 ```
 
 Both endpoints authenticate with the per-client secret issued at
-registration. GPU health lands in the `Healthy` column rather than flipping
-`Status` directly — the auto-reboot service decides what to do about an
-unhealthy VM.
-
-## Deployment Paths
-
-There are four ways to stand up an allocator. Three drive `lablink deploy`,
-selected by `provider` in `config.yaml` (and, for the manual provider, by
-whether Docker runs the container for you or you hand the rendered bundle to
-something else); the fourth uses the template repo directly:
-
-- **CLI → AWS** (`provider: aws`, the default): downloads a pinned,
-  checksummed OpenTofu template release from `talmolab/lablink-template`,
-  applies it locally, and stores state remotely in an S3 bucket
-  (`lablink-tf-state-<account-id>`) with a DynamoDB lock table — one state
-  key per named deployment. See
-  [CLI First Deployment](cli/first-deployment.md).
-- **CLI → docker-compose** (`provider: manual`): renders a docker-compose
-  stack (allocator + optional Tailscale sidecar) into
-  `~/.lablink/compose/<deployment_name>/` and runs it with
-  `docker compose up -d`, on a machine you already have — no AWS account, no
-  OpenTofu. See [Bring-Your-Own Clients](cli/byo-clients.md).
-- **CLI → external runtime** (`provider: manual`, with
-  `lablink deploy --render-only`): renders the same bundle as the
-  docker-compose path, then stops short of starting containers — for when
-  the allocator has to run as a workload on a platform you don't control the
-  Docker daemon for (a Run:AI workspace, a Kubernetes pod). See
-  [External runtime](cli/external-runtime.md).
-- **Template repo fork**: GitHub Actions workflows in the template repo run
-  `tofu apply`/`destroy` for isolated `dev`/`test`/`prod` environments, each
-  with its own backend config and resource-name suffix. See
-  [Deployment](deployment.md).
+registration. GPU health lands in the `Healthy` column (`Healthy`,
+`Unhealthy`, `N/A`) rather than flipping `Status` directly — the auto-reboot
+service decides what to do about an unhealthy VM. A stale heartbeat is not a
+state of its own; it simply makes the VM reboot-eligible.
 
 ## CI/CD Pipeline
 
@@ -521,35 +422,3 @@ Infrastructure deployment workflows live in the
 - **Network**: Security groups restrict access by port and source; client desktops are reachable only through the allocator's proxy
 
 See [Security](security.md) for detailed security considerations.
-
-## Scalability Considerations
-
-**Current Architecture**:
-
-- Single allocator per environment
-- Multiple clients per allocator
-- Database handles concurrent requests
-
-**Scaling Options**:
-
-- Horizontal: Multiple allocators with load balancer
-- Vertical: Larger instance types for allocator
-
-## Technology Choices
-
-| Component      | Technology      | Rationale                          |
-| -------------- | --------------- | ---------------------------------- |
-| Web Framework  | Flask           | Lightweight, Python ecosystem      |
-| Database       | PostgreSQL      | ACID compliance, `SKIP LOCKED` for race-free seat claims |
-| Remote Desktop | KasmVNC + noVNC | Browser-only access, no client install |
-| Proxy / TLS    | nginx + Caddy   | Single ingress into the container; automatic HTTPS on the host |
-| IaC            | OpenTofu        | Declarative, AWS support           |
-| Containers     | Docker          | Portability, dependency isolation  |
-| CI/CD          | GitHub Actions  | Native GitHub integration          |
-| CLI            | Typer           | Deploys and manages infrastructure from the terminal |
-| Config         | Hydra/OmegaConf | Structured configs, easy overrides |
-
-## Next Steps
-
-- **[Configuration](configuration.md)**: Customize components
-- **[Deployment](deployment.md)**: Deploy the system

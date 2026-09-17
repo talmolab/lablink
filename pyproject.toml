@@ -1,7 +1,7 @@
 [project]
 name = "lablink"
 version = "0.4.0"
-description = "Cloud-based virtual teaching lab accessible through Chrome browser"
+description = "On-demand GPU teaching labs accessible through the browser"
 authors = [
     {name = "Talmo Lab", email = "noreply@talmolab.org"}
 ]

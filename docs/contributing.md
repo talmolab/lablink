@@ -55,8 +55,8 @@ GitHub). Run it with `uv run pytest -m integration` — it needs network
 access but no cloud credentials.
 
 !!! warning "Two gotchas that silently mislead you"
-Use `PYTHONPATH=src`, never `PYTHONPATH=.` — inside a git worktree, `.` can
-resolve to another checkout's code, so you test the wrong tree.
+    Use `PYTHONPATH=src`, never `PYTHONPATH=.` — inside a git worktree, `.` can
+    resolve to another checkout's code, so you test the wrong tree.
 
     `--ignore=tests/terraform` skips tests that shell out to the `terraform`
     binary and need AWS credentials. They fail locally regardless of your
@@ -137,7 +137,7 @@ at build time, and a route without a docstring fails the build.
 
 ```bash
 uv run --extra docs mkdocs serve     # http://localhost:8000, auto-reloads
-uv run --extra docs mkdocs build --strict
+uv run --extra docs mkdocs build
 ```
 
 Write short sentences in the active voice, test every command you document, and

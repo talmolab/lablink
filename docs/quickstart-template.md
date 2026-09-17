@@ -1,9 +1,15 @@
 # Quickstart: Template repo
 
-Deploy LabLink to AWS by creating a repository from [lablink-template](https://github.com/talmolab/lablink-template) and pushing commits to `main`. GitHub Actions runs OpenTofu against shared S3-backed state. Best for workshops, shared environments, and production.
+Deploy LabLink to AWS by creating a repository from
+[lablink-template](https://github.com/talmolab/lablink-template). Its GitHub
+Actions workflow runs OpenTofu against S3-backed state when you push to `test`
+or start **Deploy LabLink Infrastructure** manually. Pushing to `main` alone
+does not deploy.
 
 !!! tip "Prefer a local flow?"
-    The [CLI quickstart](cli/first-deployment.md) deploys the same infrastructure from your own machine with `lablink configure && lablink deploy`. Both paths are equivalent — pick whichever fits your setup.
+    The [CLI quickstart](cli/first-deployment.md) is the recommended route for
+    a standard deployment. Use this template when you want to maintain its
+    OpenTofu resources or GitHub Actions workflow.
 
 ## Prerequisites
 
@@ -55,20 +61,24 @@ It automatically:
 
 - Creates an OIDC identity provider for GitHub Actions
 - Creates an IAM role with required permissions
-- Creates an S3 bucket for OpenTofu state (with versioning and encryption)
+- Creates an S3 bucket for OpenTofu state with versioning
 - Creates a DynamoDB table for state locking
 - Optionally creates a Route 53 hosted zone
 - Sets four GitHub repository secrets: `AWS_ROLE_ARN`, `AWS_REGION`, `ADMIN_PASSWORD`, `DB_PASSWORD`
 - Generates secure passwords for admin and database access
 
-!!! tip "Manual Setup"
-    If you prefer to create AWS resources individually, see the [AWS Setup (Manual)](aws-setup.md) guide.
+For the resources and IAM permissions the script creates, see
+[AWS Setup](aws-setup.md).
 
 ## Step 3: Configure
 
 After setup completes, the script automatically runs `./scripts/configure.sh` to generate your deployment configuration.
 
-Either tool below writes the same `lablink-infrastructure/config/config.yaml`, with the same prompts — instance type and AMI settings, DNS and SSL configuration. Pick whichever you prefer.
+Either tool below writes `lablink-infrastructure/config/config.yaml`. The
+shell script retains its example-file comments and all fields. The CLI wizard
+rewrites the file without comments and does not expose every template field,
+including `allocator.image_tag` and `machine.image`; use the shell script or
+edit those fields in the file when needed.
 
 === "Shell script (no install)"
 
@@ -78,7 +88,7 @@ Either tool below writes the same `lablink-infrastructure/config/config.yaml`, w
 
     Included in the template repo, so there is nothing extra to install.
 
-=== "TUI wizard (recommended)"
+=== "Optional CLI wizard"
 
     ```bash
     uv tool install lablink-cli
@@ -89,7 +99,10 @@ Either tool below writes the same `lablink-infrastructure/config/config.yaml`, w
 
     `--template` is what makes it write the repo's config file instead of `~/.lablink/config.yaml`, fill in the password placeholders the deploy workflow expects, and skip the AWS state setup that Step 2 already did. See the [CLI reference](reference/cli.md#configuring-a-template-repo) for details.
 
-Both tools leave the passwords as `PLACEHOLDER_ADMIN_PASSWORD` and `PLACEHOLDER_DB_PASSWORD`. The OpenTofu Deploy workflow replaces them with the `ADMIN_PASSWORD` and `DB_PASSWORD` secrets that Step 2 created, so the config file is safe to commit — and you should leave those two values alone.
+Both tools leave the passwords as `PLACEHOLDER_ADMIN_PASSWORD` and
+`PLACEHOLDER_DB_PASSWORD`. **Deploy LabLink Infrastructure** replaces them
+with the `ADMIN_PASSWORD` and `DB_PASSWORD` secrets from Step 2, so leave
+those placeholders unchanged in the committed config.
 
 !!! note "Re-running Configuration"
     You can re-run either tool at any time to update settings; both load your existing values as the defaults.
@@ -103,7 +116,8 @@ Both tools leave the passwords as `PLACEHOLDER_ADMIN_PASSWORD` and `PLACEHOLDER_
   </video>
 </div>
 
-Commit your configuration and push to the `main` branch:
+Run `./scripts/doctor.sh` for a local preflight check. Commit your
+configuration, then push to the branch you want to use:
 
 ```bash
 git add lablink-infrastructure/config/config.yaml
@@ -111,11 +125,15 @@ git commit -m "Add deployment configuration"
 git push
 ```
 
-Monitor the deployment:
+Start the deployment in one of two ways:
 
-1. Go to the **Actions** tab in your GitHub repository
-2. Run the **OpenTofu Deploy** workflow manually
-4. Wait for the workflow to complete (~2-5 minutes)
+- Push the commit to `test`. That branch triggers the **Deploy LabLink
+  Infrastructure** workflow for the `test` environment. Set the repository
+  variable `DEPLOYMENT_NAME` to your config's deployment name first; otherwise
+  the workflow uses `my-lablink`.
+- In the **Actions** tab, select **Deploy LabLink Infrastructure** and click
+  **Run workflow**. Enter `deployment_name` and choose `test`, `prod`, or
+  `ci-test` for `environment`.
 
 <div class="video-container">
   <video controls width="100%">
@@ -124,11 +142,15 @@ Monitor the deployment:
   </video>
 </div>
 
-The workflow will:
+Monitor the run in the **Actions** tab. It will:
 
 - Authenticate to AWS via OIDC
+- Pull the configured allocator image and validate `config.yaml`
+- Replace password placeholders and pin `deployment_name` / `environment` in the working copy
 - Initialize OpenTofu with the S3 backend
 - Deploy the allocator EC2 instance, security groups, and SSH key pair
+- Upload the allocator SSH key as an artifact retained for one day, then verify the deployment
+- Run `tofu destroy` if the apply step fails
 
 ## Step 5: Verify
 
@@ -143,36 +165,26 @@ Once the deployment completes:
 
 ### Access the Web UI
 
-1. Find the allocator's public IP from the OpenTofu output in the GitHub Actions logs
-2. Navigate to `http://<ec2_public_ip>` in your browser
-3. Log in with username `admin` and the `ADMIN_PASSWORD` that was auto-generated during setup
+1. Find `allocator_fqdn` in the workflow's OpenTofu output. It contains the
+   full URL, including `http://` or `https://` for your selected SSL mode.
+2. Open that URL in your browser.
+3. Log in with the configured `app.admin_user` and the `ADMIN_PASSWORD` saved
+   during setup.
 
 ### Create Test VMs
 
-1. Go to `http://<ec2_public_ip>/admin`
-2. Click **"Create VMs"**
+1. Open `/admin` on the allocator URL.
+2. Click **Create New VM Instance**, which opens the **Launch New LabLink Instances** page
 3. Enter number of VMs (try 1-2 for testing)
-4. Click **"Launch VMs"** and wait ~5 minutes
+4. Click **Launch VMs** and allow about 5–7 minutes for startup; check the
+   instance status before inviting participants.
 
 ### Verify Deployment Script (Optional)
 
 The template includes a verification script:
 
 ```bash
-./scripts/verify-deployment.sh
-```
-
-### SSH Check
-
-```bash
-# Download the SSH key from OpenTofu output (via GitHub Actions artifacts or manually)
-ssh -i ~/lablink-key.pem ubuntu@<ec2_public_ip>
-
-# Verify allocator is running
-sudo docker ps
-
-# Check VMs registered in database
-sudo docker exec $(sudo docker ps -q) psql -U lablink -d lablink_db -c "SELECT hostname FROM vms;"
+./scripts/verify-deployment.sh test
 ```
 
 ## Step 6: Cleanup
@@ -188,14 +200,19 @@ When you're done testing, destroy the infrastructure:
 
 === "Via GitHub Actions"
 
-    Manually run the **OpenTofu Destroy** workflow from the Actions tab.
+    Run **Destroy LabLink Infrastructure** from the Actions tab with the same
+    `deployment_name` and `environment`, and enter `yes` for `confirm_destroy`.
+    It attempts to destroy client VMs before the allocator infrastructure.
 
 === "Via OpenTofu"
 
+    Destroy client VMs from the allocator admin UI first. From the repository
+    root, initialize the same environment and destroy the allocator:
+
     ```bash
+    ./scripts/init-terraform.sh test
     cd lablink-infrastructure
-    scripts/init-terraform.sh test
-    tofu destroy -var="resource_suffix=test"
+    tofu destroy -var="deployment_name=my-lablink" -var="environment=test"
     ```
 
 === "Cleanup Orphaned Resources"
@@ -203,7 +220,8 @@ When you're done testing, destroy the infrastructure:
     If resources were left behind (e.g., from a failed destroy), use the cleanup script:
 
     ```bash
-    scripts/cleanup-orphaned-resources.sh test
+    ./scripts/cleanup-orphaned-resources.sh test --dry-run
+    ./scripts/cleanup-orphaned-resources.sh test
     ```
 
 !!! warning "AWS Costs"

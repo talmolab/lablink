@@ -19,17 +19,24 @@ Everything else has a working default.
 
 | Scenario | SSL | DNS required | Rate limits | Extra cost |
 |----------|-----|--------------|-------------|------------|
-| [IP only](#ip-only) | None | No | None | None |
-| [Let's Encrypt](#lets-encrypt) | Auto via Caddy | Route53 | 5 certs/domain/week | None |
-| [CloudFlare](#cloudflare) | CloudFlare proxy | CloudFlare | None | None |
-| [ACM + ALB](#acm-alb) | AWS-managed | Route53 | None | ~$20/month |
+| IP only | None | No | None | None |
+| Let's Encrypt | Auto via Caddy | Route53 | 5 certs/domain/week | None |
+| CloudFlare | CloudFlare proxy | CloudFlare | None | None |
+| ACM + ALB | AWS-managed | Route53 | None | ALB charges; [check current pricing](https://aws.amazon.com/elasticloadbalancing/pricing/) |
 
-Ready-to-use YAML for each is in [Full Configuration Examples](#full-configuration-examples).
+A copy-paste base file is in [Full Configuration Examples](#full-configuration-examples). The
+template repo ships one overlay per scenario as
+[`lablink-infrastructure/config/*.example.yaml`](https://github.com/talmolab/lablink-template/tree/main/lablink-infrastructure/config)
+(`ip-only`, `letsencrypt`, `cloudflare`, `acm`).
 
 ## First Steps: Change Default Passwords
 
 !!! danger "Critical Security Step"
-    **Before deploying LabLink or creating any VMs, you MUST replace `PLACEHOLDER_ADMIN_PASSWORD` and `PLACEHOLDER_DB_PASSWORD` in your config.** See [Security → Change Default Passwords](security.md#change-default-passwords) for all methods (GitHub Secrets, manual config, environment variables, AWS Secrets Manager).
+    Set strong admin and database passwords before exposing a deployment. For
+    the template-repo path, keep `PLACEHOLDER_ADMIN_PASSWORD` and
+    `PLACEHOLDER_DB_PASSWORD` in the committed config: the deploy workflow
+    replaces them from GitHub secrets. See
+    [Security → Change Default Passwords](security.md#change-default-passwords).
 
 ## Configuration System
 
@@ -86,9 +93,6 @@ allocator:
 
 client:
   software: "sleap"
-
-monitoring:      # mirrors the allocator's monitoring block; see below
-  enabled: false
 ```
 
 ## Configuration Reference
@@ -121,10 +125,14 @@ allocator container with a fixed identity (database `lablink_db`, user
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `password` | string | `lablink` | Database password (override with `PLACEHOLDER_DB_PASSWORD` or GitHub secret) |
+| `password` | string | `lablink` | Database password. The template workflow substitutes `PLACEHOLDER_DB_PASSWORD` from its GitHub secret. |
 
 !!! warning "Production Security"
-    Configure `DB_PASSWORD` secret for GitHub Actions deployments, or manually replace the placeholder. See [Security](security.md#database-password).
+    On the CLI path, replace the default `lablink` value in
+    `~/.lablink/config.yaml` with a strong password before deploying; the CLI
+    does not prompt for it. On the template path, keep the placeholder in
+    committed config and set the `DB_PASSWORD` GitHub secret. See
+    [Security](security.md#database-password).
 
 ### Machine Options (`machine`)
 
@@ -140,17 +148,9 @@ Configuration for client VM specifications. **These are the key options for adap
 
 #### Machine Type Options
 
-Common GPU instance types:
-
-| Instance Type | GPU | vCPUs | Memory | GPU Memory | Use Case |
-|---------------|-----|-------|--------|------------|----------|
-| `g4dn.xlarge` | NVIDIA T4 | 4 | 16 GB | 16 GB | Light workloads, testing |
-| `g4dn.2xlarge` | NVIDIA T4 | 8 | 32 GB | 16 GB | Medium workloads |
-| `g5.xlarge` | NVIDIA A10G | 4 | 16 GB | 24 GB | Training, inference |
-| `g5.2xlarge` | NVIDIA A10G | 8 | 32 GB | 24 GB | Large models |
-| `p3.2xlarge` | NVIDIA V100 | 8 | 61 GB | 16 GB | Deep learning training |
-
-See [AWS Instance Types](https://aws.amazon.com/ec2/instance-types/) for complete list.
+Any EC2 instance type is accepted. The GPU and CPU-only types the CLI wizard
+offers are listed in [Cost Estimation](cost-estimation.md#gpu-instance-types),
+along with a link to current regional prices.
 
 #### Docker Image
 
@@ -163,7 +163,7 @@ The Docker image determines what software runs on your VMs. Options:
 3. **Use different tag**:
     - `:latest` - latest stable release
     - `:linux-amd64-test` - development version
-    - `:v1.0.0` - specific version
+    - `:0.4.0` - specific version (no `v` prefix)
 
 #### AMI ID
 
@@ -204,28 +204,6 @@ aws ec2 describe-images --region us-west-2 \
 A stock Canonical Ubuntu AMI will **not** work — it has no Docker, NVIDIA driver or
 `nvidia-container-runtime`, and the client boot script installs none of them.
 
-#### Repository
-
-**Default**: `None` (no repository cloned)
-
-Git repository to clone onto the client VM. Use this for:
-
-- Custom analysis scripts
-- Training data
-- Configuration files
-- Research code
-
-Set to empty string or omit if no repository needed:
-```yaml
-repository: ""
-```
-
-#### Software Identifier
-
-**Default**: `sleap`
-
-String identifier for the research software. Used by client service for software-specific logic.
-
 ### Application Options (`app`)
 
 General application settings.
@@ -240,9 +218,11 @@ General application settings.
 `MISSING` is a sentinel, not a usable credential — the allocator refuses to start if
 it is still there at runtime. How it gets filled in depends on the path:
 
-- **CLI**: `lablink configure` never asks for credentials. `lablink deploy` resolves them
-  at deploy time from `config.yaml`, then from the previous deployment's rendered config,
-  then by prompting you, and writes the result into the deployment's own config.
+- **CLI**: `lablink configure` never asks for credentials. On AWS, `lablink deploy`
+  prompts for them on every run and writes them only into the deployment's working
+  copy under `~/.lablink/deploy/`, never into `~/.lablink/config.yaml`. On the manual
+  provider, `deploy` — and `destroy` on either provider — resolves them from
+  `config.yaml`, then from the previous deployment's saved config, then by prompting.
 - **Template repo**: the committed config carries `PLACEHOLDER_ADMIN_PASSWORD` /
   `PLACEHOLDER_DB_PASSWORD`, which the deploy workflow substitutes from your GitHub
   secrets. A `PLACEHOLDER_*` value that reaches a *running* allocator means the
@@ -351,14 +331,17 @@ Example tags:
 
 - `linux-amd64-latest` - latest stable release
 - `linux-amd64-latest-test` - development version
-- `linux-amd64-v1.2.3` - specific version
+- `linux-amd64-0.4.0` - specific version (no `v` prefix)
 
 ### Bucket Name
 
 **Option**: `bucket_name`
-**Default**: `tf-state-lablink-allocator-bucket`
+**Schema default**: `tf-state-lablink-allocator-bucket`
 
-S3 bucket for OpenTofu state storage. Must be globally unique.
+S3 bucket for OpenTofu state storage. Must be globally unique. `lablink setup`
+creates `lablink-tf-state-<account-id>` and writes it to the CLI config; the
+template setup script uses the bucket name you choose and writes it to the
+template config.
 
 ### Startup Script Options (`startup_script`)
 
@@ -475,76 +458,8 @@ Enforced by both `lablink-validate-config` and the `lablink` CLI:
   in Certificate Transparency logs within minutes and is scanned by bots almost
   immediately, so a weak admin password stops being survivable the moment you publish.
 
-#### Exposure mode: `tailscale_funnel`
-
-Publishes the allocator at `<machine>.<tailnet>.ts.net` using the same Tailscale
-sidecar `mesh_overlay` already provisions. No domain required, but the hostname
-is not yours to choose — Tailscale Funnel supports no custom domains.
-
-Tailnet, auth-key, and one-time Funnel-grant setup is walked through in
-[Tailscale & Cloudflare Setup](cli/tunnels.md#tailscale).
-
-#### Exposure mode: `cloudflare_tunnel`
-
-Publishes the allocator at a hostname you choose, through a Cloudflare Tunnel in
-your own Cloudflare account. `cloudflared` ships inside the allocator image and
-is started only when this mode is set; LabLink makes no Cloudflare API calls.
-
-!!! warning "Requires a domain whose nameservers point at Cloudflare"
-    A custom hostname needs Cloudflare's free-plan **full setup** — the domain's
-    nameservers must be delegated to Cloudflare. Cloudflare's partial (CNAME)
-    setup is Business-tier and subdomain zones are Enterprise-tier, so an
-    institutional domain such as `salk.edu` **cannot** be used on the free plan.
-    Register a domain you control instead (typically ~$10/yr), or use
-    `tailscale_funnel`, which needs no domain at all.
-
-**One-time setup** — creating the tunnel, delegating the domain, and copying
-the token — is walked through step by step in
-[Tailscale & Cloudflare Setup](cli/tunnels.md#cloudflare-tunnel). The tunnel
-and its DNS record live in your Cloudflare account, so the URL is stable across
-every `lablink deploy` and `lablink destroy`.
-
-**Configuration:**
-
-```yaml
-provider: manual
-deployment_name: smith-lab
-ssl:
-  provider: none        # Cloudflare supplies the public certificate
-manual:
-  connectivity: mesh_overlay   # lan_direct is rejected with any exposure mode
-  overlay_tailnet: example.ts.net
-  participant_exposure: cloudflare_tunnel
-  public_hostname: lab.smithlab.org
-```
-
-**Deploy:**
-
-```bash
-lablink deploy \
-  --tailscale-authkey tskey-auth-... \
-  --cloudflare-tunnel-token eyJhIjoiN...
-```
-
-The token is stored only in the deployment's `.env` (mode `0600`), never in
-`config.yaml`, and is carried forward on redeploys — pass
-`--cloudflare-tunnel-token` on the first deploy, or again to rotate it. If the
-mode is set and no token is available, both `lablink deploy` and the container's
-`start.sh` fail loudly rather than starting an allocator that looks healthy but
-is unreachable.
-
-After `docker compose up`, `lablink deploy` makes one request to
-`https://<public_hostname>/api/health`. A miss is a warning, not a failure — a
-freshly created DNS record may still be propagating, in which case retry the URL
-in your browser in a few minutes.
-
-##### Cloudflare can read your traffic
-
-Cloudflare Tunnel terminates TLS at Cloudflare's edge, so admin logins, session
-cookies and participant desktop streams are all decrypted there. Tailscale
-Funnel does not do this — its relays forward encrypted bytes and TLS terminates
-on your own machine. If your data cannot transit a third party in cleartext, use
-`tailscale_funnel` and accept its `.ts.net` hostname.
+For setup steps and working examples of both exposure modes, see
+[Tailscale & Cloudflare Setup](cli/tunnels.md).
 
 ## Validating Configuration
 
@@ -602,19 +517,18 @@ directory preview what the config will actually build.
 
 ## Full Configuration Examples
 
-Five scenarios, one base file. Everything outside `dns`, `eip` and `ssl` is
-identical in all of them, so start from the base and apply one overlay.
-
-### Base
-
-Copy this, then replace the two `PLACEHOLDER_*` passwords and `bucket_name`.
-The `dns`/`eip`/`ssl` values come from whichever scenario you pick below.
+This example uses IP-only HTTP for testing. Set your deployment name and
+`bucket_name` before deploying; `lablink setup` writes the CLI bucket name for
+you. For the template path, keep the `PLACEHOLDER_*` passwords in the committed
+file so the deploy workflow replaces them from GitHub secrets. For the CLI
+path, replace `PLACEHOLDER_DB_PASSWORD` in `~/.lablink/config.yaml` with a
+strong password; `lablink deploy` prompts for the admin password. For a
+manual OpenTofu deploy, replace both placeholders with strong passwords in
+your private working copy.
 
 ```yaml
-# LabLink base configuration — combine with one scenario overlay below.
-
-deployment_name: "lablink"        # required; prefixes every AWS resource name
-environment: "prod"               # dev | test | ci-test | prod
+deployment_name: "lablink"
+environment: "prod"
 provider: "aws"
 
 db:
@@ -628,28 +542,10 @@ app:
 machine:
   machine_type: "g4dn.xlarge"
   image: "ghcr.io/talmolab/lablink-client-base-image:latest"
-  ami_id: ""                      # resolves a Deep Learning Base AMI for app.region
+  ami_id: "" # resolves a Deep Learning Base AMI for app.region
   repository: "https://github.com/talmolab/sleap-tutorial-data.git"
   software: "sleap"
 
-allocator:
-  image_tag: "linux-amd64-latest"
-
-bucket_name: "tf-state-lablink-YOURORG"
-
-startup_script:
-  enabled: false
-  path: ""
-  on_error: "continue"
-```
-
-### IP Only
-
-Reach the allocator at `http://<ALLOCATOR_IP>` over plain HTTP. No domain, no
-certificate, no issuance limits — the simplest setup, and the right one for
-repeated test deploys.
-
-```yaml
 dns:
   enabled: false
   terraform_managed: false
@@ -663,89 +559,19 @@ ssl:
   provider: "none"
   email: ""
   certificate_arn: ""
+
+allocator:
+  image_tag: "linux-amd64-latest"
+
+bucket_name: "tf-state-lablink-YOURORG"
 ```
 
-### Let's Encrypt
-
-Caddy obtains and renews a certificate automatically. Access at
-`https://test.lablink.example.com`.
-
-**Prerequisites:** a Route53 hosted zone for the domain, with the registrar's
-nameservers pointed at it.
-
-Set `terraform_managed: true` to let OpenTofu create and destroy the A record,
-or `false` if you maintain it yourself.
-
-```yaml
-dns:
-  enabled: true
-  terraform_managed: true         # false = you manage the A record
-  domain: "test.lablink.example.com"
-  zone_id: ""
-
-eip:
-  strategy: "persistent"
-
-ssl:
-  provider: "letsencrypt"
-  email: "admin@example.com"
-  certificate_arn: ""
-```
-
-!!! warning "5 certificates per domain per 7 days"
-    Every deploy requests a fresh certificate, and the failure surfaces only as
-    `ERR_SSL_PROTOCOL_ERROR` in the browser. Use a fresh subdomain per test
-    cycle, or [IP Only](#ip-only).
-
-### CloudFlare
-
-CloudFlare's proxy terminates TLS, so there are no issuance limits. Access at
-`https://lablink.example.com`.
-
-**Prerequisites:** the domain is managed in CloudFlare with the proxy enabled
-(orange cloud). `terraform_managed` must be `false` — CloudFlare owns the record.
-
-```yaml
-dns:
-  enabled: true
-  terraform_managed: false
-  domain: "lablink.example.com"
-  zone_id: ""
-
-eip:
-  strategy: "persistent"
-
-ssl:
-  provider: "cloudflare"
-  email: ""
-  certificate_arn: ""
-```
-
-### ACM + ALB
-
-AWS-managed certificates behind an Application Load Balancer. No issuance
-limits, but the ALB adds roughly **$20/month**. Access at
-`https://lablink.example.com`.
-
-**Prerequisites:** a Route53 hosted zone, plus an ACM certificate already
-requested and validated for the domain — you need its ARN.
-
-```yaml
-dns:
-  enabled: true
-  terraform_managed: true
-  domain: "lablink.example.com"
-  zone_id: ""
-
-eip:
-  strategy: "persistent"
-
-ssl:
-  provider: "acm"
-  email: ""
-  certificate_arn: "arn:aws:acm:us-west-2:123456789012:certificate/abcd1234-EXAMPLE"
-```
-
+For domain-based deployment, use the matching
+[template configuration example](https://github.com/talmolab/lablink-template/tree/main/lablink-infrastructure/config)
+(`letsencrypt.example.yaml`, `cloudflare.example.yaml`, or
+`acm.example.yaml`) and the [SSL options](#ssltls-options-ssl) above. The
+[IP-only template example](https://github.com/talmolab/lablink-template/blob/main/lablink-infrastructure/config/ip-only.example.yaml)
+is the corresponding source file for the example here.
 
 ## Next Steps
 

@@ -455,11 +455,10 @@ def logs(
 ) -> None:
     """View allocator and client logs.
 
-    AWS provider: launches the interactive TUI that streams allocator
-    and per-VM client logs. Manual provider: tails the local
-    'lablink-allocator' docker container's logs (per-VM client logs
-    are not centralized; run 'docker logs lablink-client' on each
-    BYO box).
+    Launches the interactive TUI that streams the allocator log and
+    per-VM client logs. On the manual provider the client entries are
+    the registered BYO boxes, whose logs the in-container shipper
+    forwards to the allocator.
     """
     from lablink_cli.commands.logs import run_logs
 
@@ -477,9 +476,10 @@ def cleanup(
     dry_run: bool = typer.Option(
         False,
         "--dry-run",
-        help="Show what would be deleted without making changes "
-        "(AWS provider only; manual provider's cleanup is non-destructive "
-        "until you confirm).",
+        help="Show what would be deleted without making changes. "
+        "Without it, the manual provider runs 'docker compose down "
+        "--volumes' and removes the workdir immediately, with no "
+        "confirmation prompt.",
     ),
 ) -> None:
     """Remove deployment resources and local state.
@@ -894,9 +894,9 @@ def export_metrics(
         "--allocator",
         help=(
             "Export per-deploy allocator metrics from the local cache, "
-            "scoped to this config's deployment_name. Works without a "
-            "running allocator (e.g. after `lablink destroy`); passed "
-            "alone it loads no config and exports every deployment."
+            "scoped to this config's deployment_name and provider. Works without a "
+            "running allocator (e.g. after `lablink destroy`); if no "
+            "config exists, it exports the whole cache."
         ),
     ),
     config: str = typer.Option(
@@ -910,8 +910,8 @@ def export_metrics(
 
     Pass --client for per-VM metrics from the allocator. Pass --allocator
     for per-deploy metrics from the local cache, scoped to this config's
-    deployment_name. With no flag, exports both. Passing only --allocator
-    skips the network entirely.
+    deployment_name and provider. With no flag, exports both. Passing only
+    --allocator skips the network entirely.
     """
     from lablink_cli.commands.export_metrics import run_export_metrics
 

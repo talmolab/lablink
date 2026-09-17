@@ -3,11 +3,12 @@
 Complete reference for every `lablink` command. Grouped to match the `lablink --help` output.
 
 !!! note "Manual reference"
-    This page is hand-written from `packages/cli/src/lablink_cli/app.py`. For the authoritative help text, run `lablink <command> --help`. Auto-generated reference is planned once the package is published to PyPI.
+    This page is hand-written from `packages/cli/src/lablink_cli/app.py`. For the authoritative help text, run `lablink <command> --help`.
 
 ## Global options
 
-`lablink` itself takes only `--version` / `-v`. Everything else, including
+`lablink` itself takes `--version` / `-v`, `--install-completion`, and
+`--show-completion`. Everything else, including
 `--config`, is a **per-command** option and goes *after* the command:
 
 ```bash
@@ -97,8 +98,9 @@ Provision provider-specific bootstrap resources.
 lablink setup [--config PATH]
 ```
 
-**AWS provider:** creates the S3 bucket (versioned + encrypted) and DynamoDB lock
-table used for OpenTofu remote state. Automatically run during
+**AWS provider:** creates the versioned S3 bucket and DynamoDB lock table used
+for OpenTofu remote state, and optionally a Route 53 zone. It writes
+`bucket_name` and any new `dns.zone_id` back to the config file. Automatically run during
 [`configure`](#configure) — use this command on its own to recreate the resources
 if they were deleted out of band.
 
@@ -121,22 +123,24 @@ lablink doctor
 
 Takes no options. The checks it runs depend on the provider in your config:
 
-**AWS provider** — six checks:
+**AWS provider** — seven checks:
 
 | Check | Passes when |
 |---|---|
-| OpenTofu installed | The `tofu` binary is on `PATH` |
+| OpenTofu installed | The `tofu` binary is on `PATH` and reports version 1.10.0 or newer |
 | Config file | `config.yaml` exists at the resolved path |
 | Config validates | The file merges cleanly against the schema |
 | AWS credentials | STS can resolve an identity in the configured region |
 | S3 state bucket | The OpenTofu state bucket exists |
-| AMI for region | The CLI has an AMI mapping for the configured region |
+| Client AMI | `machine.ami_id` exists in the configured region, or the default Deep Learning Base AMI resolves there |
+| Viewer streaming | HTTPS is configured for H.264 browser streaming; HTTP gives a warning because sessions fall back to JPEG/WebP |
 
 **Manual provider** — checks that `docker` is on `PATH` and that the
 `docker compose` v2 subcommand is available.
 
 If no config is readable yet, `doctor` falls back to the AWS checks so it can still
-tell you what's missing. Exit code is non-zero if any check fails.
+tell you what's missing. The command currently exits with code 0 even when a
+check fails; inspect the table before deploying.
 
 ---
 
@@ -161,9 +165,11 @@ cached / bundled copy), renders your config into OpenTofu variables, and runs
 Postgres), plus a Tailscale sidecar when the configuration needs one. Postgres data
 lives in a named volume.
 
-Either way it prompts once for an admin username (default `admin`) and an admin
-password. Neither is stored in `config.yaml` — they are passed to OpenTofu /
-the container only.
+On AWS, every deploy prompts for an admin username (default `admin`) and
+password, then saves them in the deployment's working copy under
+`~/.lablink/deploy/`, not in `~/.lablink/config.yaml`. On the manual provider,
+deploy uses values in the config or saved deployment copy before prompting and
+saves them in the rendered config under `~/.lablink/compose/`.
 
 | Option | Description |
 |---|---|
@@ -194,8 +200,9 @@ directory. Removes the allocator EC2 instance, security groups, key pair, and an
 ALB/Route 53 records OpenTofu owns. Client VMs owned by the allocator are
 destroyed along with it.
 
-The S3 state bucket and DynamoDB lock table are **not** removed — reuse them on the
-next deploy, or tear them down with [`cleanup`](#cleanup).
+The S3 state bucket and DynamoDB lock table are **not** removed — reuse them on
+the next deploy. [`cleanup`](#cleanup) removes only deployment state objects and
+lock entries, not the shared bucket or table.
 
 **Manual provider:** brings the compose stack down. By default this also wipes the
 Postgres data volume.
@@ -203,7 +210,7 @@ Postgres data volume.
 | Option | Description |
 |---|---|
 | `-c`, `--config PATH` | Path to `config.yaml`. |
-| `-y`, `--yes` | Skip confirmation prompts. Password prompts still appear. |
+| `-y`, `--yes` | Skip confirmation prompts. Credentials are prompted for only when neither the config nor the saved deployment copy has them. |
 | `-v`, `--verbose` | Show the full OpenTofu output instead of a summary. |
 | `--keep-data` | Preserve the Postgres data volume instead of the default full wipe, so registration history and sessions survive a later redeploy. **Manual provider only** — ignored for AWS. |
 
@@ -270,7 +277,7 @@ Under the manual provider this command no-ops with a message pointing you at
 | Option | Description |
 |---|---|
 | `-c`, `--config PATH` | Path to `config.yaml`. |
-| `-y`, `--yes` | Skip the confirmation prompt. Password prompts still appear. |
+| `-y`, `--yes` | Skip the confirmation prompt. Credentials are prompted for only when they are not already available. |
 | `-v`, `--verbose` | Show the full OpenTofu output instead of a summary. |
 
 ---
@@ -387,7 +394,7 @@ Run it **on a client box**, not on the allocator host. Three checks:
 | Check | Passes when |
 |---|---|
 | Registered | `~/.lablink/client.env` exists and carries this box's credentials |
-| Container | the `lablink-client` container exists and is running |
+| Client container | the `lablink-client` container exists and is running |
 | Log shipper | the in-container shipper is alive and forwarding to the allocator |
 
 Most failures are fixed by re-running [`client register`](#client-register).
@@ -410,10 +417,13 @@ lablink status [--config PATH]
 
 **AWS provider** shows four sections:
 
-1. **OpenTofu State** — outputs like `ec2_public_ip`, `ec2_public_dns`, DNS/ALB records.
+1. **OpenTofu State** — outputs like `ec2_public_ip` and DNS/ALB records.
 2. **Health Checks** — DNS resolution, allocator `/api/health`, SSL cert expiry (if HTTPS is enabled).
 3. **Client VMs** — per-VM state and current hourly burn rate.
-4. **Cost Estimate** — daily and monthly dollar estimates, pulled from the AWS Pricing API with a fallback table.
+4. **Cost Estimate (daily)** — daily and monthly dollar estimates, pulled from the AWS Pricing API with a fallback table.
+
+It also prints an **Admin URL** built from the deployment's IP or domain and
+SSL settings.
 
 If your AWS credentials are missing or expired, an **AWS credentials** section is
 printed first with the reason and how to authenticate. The OpenTofu state and
@@ -424,8 +434,9 @@ If the credentials are valid but lack a required IAM permission — or any other
 error occurs — the affected section reports that error in place, with guidance to
 fix the policy rather than to re-authenticate.
 
-**Manual provider** shows the docker-compose container status and the allocator's
-HTTP health endpoint. There is no cost estimate — the hardware is yours.
+**Manual provider** shows the docker-compose container status, the allocator's
+HTTP health endpoint, and registered clients. There is no cost estimate — the
+hardware is yours.
 
 | Option | Description |
 |---|---|
@@ -453,9 +464,8 @@ an error is not interrupted by a tick that found nothing new. Each tick is armed
 only after the previous fetch finishes, so a slow allocator SSH round-trip
 stretches the cadence instead of stacking up connections.
 
-**Manual provider:** tails the local `lablink-allocator` container's logs. Per-VM
-client logs are not centralized in this mode — run `docker logs lablink-client` on
-each BYO box.
+**Manual provider:** opens the same viewer. It shows the local allocator log
+and client logs forwarded by each registered BYO box.
 
 | Option | Description |
 |---|---|
@@ -549,16 +559,18 @@ Remove deployment resources and local state.
 lablink cleanup [--dry-run] [--config PATH]
 ```
 
-**AWS provider:** deletes orphaned EC2/IAM/EIP/security-group resources tagged with
-your deployment name — the kind of leftovers a failed or interrupted `destroy`
-leaves behind — plus the environment-specific OpenTofu state files.
+**AWS provider:** deletes orphaned EC2/IAM/EIP/security-group resources and
+key pairs associated with your deployment — the kind of leftovers a failed or
+interrupted `destroy` leaves behind — plus environment-specific OpenTofu state
+objects and lock entries. It does not delete the shared S3 bucket or DynamoDB
+table.
 
 **Manual provider:** runs `docker compose down --volumes` on the local stack and
 removes the compose working directory.
 
 | Option | Description |
 |---|---|
-| `--dry-run` | Show what would be deleted without making changes. **AWS provider only** — the manual provider's cleanup is non-destructive until you confirm. |
+| `--dry-run` | Show what would be deleted without making changes on either provider. Without it, manual cleanup runs immediately with no confirmation prompt. |
 | `-c`, `--config PATH` | Path to `config.yaml`. |
 
 ---

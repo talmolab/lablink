@@ -77,19 +77,8 @@ lablink
 
 If you installed from source rather than PyPI, use `uv run lablink` instead, or activate the venv first.
 
-On a fresh install (no config yet), you'll see a **Getting started** panel pointing at the next three commands:
-
-```text
-╭─ Getting started ──────────────────────────────────────╮
-│ Welcome to LabLink. First-time setup:                  │
-│                                                        │
-│   1. lablink configure   create config + AWS state…    │
-│   2. lablink doctor      verify prerequisites          │
-│   3. lablink deploy      deploy the allocator          │
-│                                                        │
-│ For the full command list, run 'lablink --help'.       │
-╰────────────────────────────────────────────────────────╯
-```
+On a fresh install (no config yet), you'll see a **Getting started** panel
+pointing you to `lablink configure`, `lablink doctor`, and `lablink deploy`.
 
 If you instead see the full command list (Setup / Deployment / Operations / Maintenance panels), it means `~/.lablink/config.yaml` already exists from a previous run — that's fine, skip ahead to [Step 1: Configure](first-deployment.md#step-1-configure).
 
@@ -101,16 +90,9 @@ Run `lablink doctor` to validate prerequisites end-to-end:
 uv run lablink doctor
 ```
 
-It checks:
-
-| Check | What it verifies |
-|---|---|
-| OpenTofu installed | `tofu` is on PATH and reports a version |
-| Config file | `~/.lablink/config.yaml` exists |
-| Config validates | The config parses and passes schema validation |
-| AWS credentials | `sts:GetCallerIdentity` succeeds for the configured region |
-| S3 state bucket | The `bucket_name` in your config actually exists |
-| AMI for region | The CLI knows an AMI for `cfg.app.region` |
+The checks depend on the provider in your config. See the
+[`doctor` reference](../reference/cli.md#doctor) for the current checks and
+their meanings.
 
 A fresh install (before `lablink configure`) will fail on "Config file" and anything that depends on it. That's expected — move on to [First Deployment](first-deployment.md).
 
@@ -162,7 +144,7 @@ uv sync --all-packages
 `lablink destroy` removes what OpenTofu owns. Two things deliberately outlive it:
 
 - **Orphaned resources** left by an interrupted deploy. `lablink cleanup --dry-run` lists them; `lablink cleanup` deletes them.
-- **The S3 state bucket and DynamoDB lock table**, kept so the next deploy can reuse them (~$0.05/month). To remove those too, see [Cleanup orphaned resources](managing-deployments.md#cleanup-orphaned-resources).
+- **The S3 state bucket and DynamoDB lock table**, kept so the next deploy can reuse them. `lablink cleanup` removes deployment state objects and lock entries, but does not delete the bucket or table. Remove those AWS resources separately if you no longer need them.
 
 Confirm nothing is left before moving on:
 
@@ -199,7 +181,7 @@ This is local-only — it touches nothing in AWS. What you lose:
 | `config.yaml` | Re-run `lablink configure` to recreate it |
 | `cache/terraform/` | Re-downloaded on the next deploy |
 | `deployments/` | Per-deploy metrics history is gone; export it first with `lablink export-metrics` if you want to keep it |
-| `deploy/` | OpenTofu working directories. **Delete these only after `lablink destroy` succeeds** — losing them while resources still exist orphans them from local state |
+| `deploy/` | OpenTofu working directories and saved deployment credentials. The state is remote in S3, so a new working directory can reconnect to it; deleting this copy may make a later `destroy` prompt for credentials. |
 
 !!! tip "Keeping the config"
     To reinstall later against the same deployment, keep `~/.lablink/config.yaml` and delete the rest.

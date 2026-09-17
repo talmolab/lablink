@@ -20,7 +20,7 @@ config, `lablink setup` does the Route53 work for you:
 lablink setup
 ```
 
-It finds or creates a hosted zone for the registrable part of `dns.domain`
+It finds or creates a hosted zone using the last two labels of `dns.domain`
 (`example.com` for `test.example.com`), writes the resulting `dns.zone_id` back
 into your config file, and — if it created the zone — prints the four AWS
 nameservers to hand to your registrar.
@@ -30,11 +30,11 @@ Your config file is `~/.lablink/config.yaml` for CLI deployments, or
 [lablink-template](https://github.com/talmolab/lablink-template) checkout.
 
 !!! warning "Not for delegated subdomains"
-    `lablink setup` always targets the registrable domain, so for
-    `test.lablink.example.com` it creates a zone for `example.com` — not
-    `lablink.example.com`. If the parent domain is managed somewhere else and
-    you only control a subdomain, use the delegated setup below and set
-    `zone_id` yourself.
+    `lablink setup` uses the last two labels, which is not always the
+    registrable domain (for example, `lab.example.ac.uk` becomes `ac.uk`).
+    For `test.lablink.example.com` it targets `example.com`, not
+    `lablink.example.com`. If you only control a delegated subdomain, use the
+    setup below and set `zone_id` yourself.
 
 ## Delegated subdomain (parent domain managed elsewhere)
 
@@ -117,16 +117,13 @@ is required for `ssl.provider: "cloudflare"`.
 
 ## SSL
 
-`ssl.provider: "letsencrypt"` installs Caddy on the allocator, which requests a
-certificate on first boot and renews it automatically. It needs the DNS record
-already resolving publicly, and ports 80 and 443 open.
+The host installs Caddy for `none`, `letsencrypt`, and `cloudflare`; only
+`acm` omits it. With `ssl.provider: "letsencrypt"`, Caddy requests a
+certificate on first boot and renews it automatically. It needs the DNS
+record resolving publicly and ports 80 and 443 open.
 
-!!! warning "Redeploying the same domain hits the Let's Encrypt rate limit"
-    Every deploy requests a fresh certificate, and Let's Encrypt allows only
-    **5 duplicate certificates per week** per hostname. Past that, the site
-    fails in the browser with `ERR_SSL_PROTOCOL_ERROR` and nothing else says
-    why. For repeated test deploys use a fresh subdomain each cycle, or
-    `ssl.provider: "none"`.
+For Let's Encrypt certificate limits during repeated deployments, see
+[Configuration](configuration.md#ssl-providers).
 
 Certificate problems show up in Caddy's log on the allocator:
 
@@ -135,8 +132,8 @@ ssh -i ~/lablink-key.pem ubuntu@<allocator-ip>
 sudo journalctl -u caddy -f
 ```
 
-The full provider comparison — `none`, `letsencrypt`, `cloudflare`, `acm` —
-is in [Configuration](configuration.md#ssl-providers).
+The provider comparison — `none`, `letsencrypt`, `cloudflare`, `acm` — is in
+[Configuration](configuration.md#ssl-providers).
 
 ## Verifying a deployment
 

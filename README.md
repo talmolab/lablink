@@ -1,6 +1,6 @@
 # LabLink
 
-**Cloud-based virtual teaching lab accessible through Chrome browser.**
+**On-demand GPU teaching labs accessible through the browser.**
 
 Run a hands-on workshop without the install day. LabLink gives every participant
 their own cloud GPU desktop with your software already installed, reachable from a

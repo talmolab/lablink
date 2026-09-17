@@ -1,158 +1,107 @@
 # Workshop Guide
 
-A step-by-step guide for running a hands-on workshop with LabLink, from setup to cleanup.
-
-!!! info "Prerequisites"
-    This guide assumes you have already [deployed LabLink](quickstart.md) and [configured it for your software](adapting.md).
+Prepare client machines before participants arrive, watch their health during
+the session, and remove them afterward. This guide assumes you have
+[deployed LabLink](quickstart.md) and [configured the client software](adapting.md).
 
 ## Before the Workshop
 
 ### 1. Create VMs
 
-Spin up VMs ahead of time so they're ready when participants arrive. VMs take approximately 5 minutes to provision.
+For an AWS deployment, open the printed **Admin URL** and choose **Create
+New VM Instance**. On the **Launch New LabLink Instances** page, enter the
+number of participants plus a few spare seats and click **Launch VMs**.
+The request queues an OpenTofu job; the dashboard shows its progress. Recent
+workshop measurements put a client boot around 5–7 minutes, so launch ahead
+of the start time.
 
-1. Navigate to the admin panel at `http://<allocator-ip>/admin`
-2. Log in with your admin credentials
-3. Click **"Create VMs"**
-4. Enter the number of VMs to launch (one per participant, plus a few extras)
-5. Click **"Launch VMs"**
+![Admin create VMs page](assets/images/admin-create-vms.png)
 
-![Create VMs dialog](assets/images/admin-create-vms.png)
+From the CLI, the equivalent is:
 
-!!! tip
-    Create a few extra VMs beyond your expected headcount. You can always destroy unused ones later, but creating more mid-session takes 5 minutes.
+```bash
+lablink client launch --num-vms 5
+lablink status
+```
+
+With `provider: manual`, register each box instead; see
+[Bring-Your-Own Clients](cli/byo-clients.md#step-4-register-each-box).
 
 ### 2. Verify VMs Are Healthy
 
-Wait for all VMs to show **"running"** status in the dashboard before the workshop begins.
+Wait for each client to report `running` and check its `Healthy` value and
+logs. `Status` can be `initializing`, `running`, `error`, or `rebooting`;
+`unknown` is accepted by the status endpoint but not currently written.
+`InUse` records whether the configured software is running, not whether a
+participant holds a seat. `UserEmail` is the assignment field.
 
 ![Admin panel overview](assets/images/admin-panel-overview.png)
 
-The dashboard shows the following for each VM:
+The per-VM actions are **Peek (view-only)** for an assigned session,
+**Connect (VNC)** for an unassigned running VM, **Release** for an admin
+reservation, and **Clear Unhealthy** when that flag is set. There is no
+per-VM reboot or destroy button.
 
-| Column | Description |
-|--------|-------------|
-| **Hostname** | VM instance identifier |
-| **User Email** | Email of the participant assigned to the VM |
-| **In Use** | Whether the VM is currently claimed by a participant |
-| **VM Status** | Overall VM health status (running, initializing, stopped) |
-| **GPU Health Status** | GPU availability and CUDA status |
-| **Total Startup Duration** | How long the VM took to become ready |
-| **Logs** | Link to view startup and runtime logs for the VM |
-| **Access** | Per-VM actions (open the desktop, reboot, destroy) |
+For a VM with errors, open its logs or use `lablink logs`. The AWS auto-reboot
+sweep runs every 60 seconds and considers error or unhealthy VMs,
+`initializing` for more than 25 minutes, `rebooting` for more than 10 minutes,
+and silent heartbeats for more than 3 minutes. It tries up to three reboots;
+the seat is released if attempts are exhausted.
 
-!!! warning "What if a VM is stuck?"
-    If a VM stays in "initializing" for more than 10 minutes or shows "error" status, it will be automatically rebooted. Check the VM logs for details.
+### 3. Optionally Schedule Destruction
 
-### 3. (Optional) Schedule Auto-Destruction
+The admin scheduling page asks for a schedule name and a **UTC** destruction
+time, with optional recurrence. A schedule is a backstop for a workshop with
+a fixed end time. Check that its time and recurrence match your event before
+leaving it active.
 
-If your workshop has a fixed end time, schedule VMs to be automatically destroyed:
-
-1. Set the desired destruction date and time in the admin panel
-2. Confirm the schedule
-
-![Scheduled destruction](assets/images/admin-scheduled-destruction.png)
-
-This is useful as a safety net to avoid leaving VMs running (and incurring costs) if you forget to clean up manually.
+![Scheduled destruction page](assets/images/admin-scheduled-destruction.png)
 
 ## Share with Participants
 
-### What to Share
-
-Give participants the allocator URL:
-
-```
-http://<allocator-ip>
-```
-
-Or if you configured DNS:
-
-```
-https://lablink.yourdomain.com
-```
-
-### What Participants Do
-
-1. Visit the URL in their browser
-2. Enter their email address
-3. The allocator assigns them a VM and drops them straight into its desktop
-4. The desktop opens in the browser tab with your software pre-installed
-
-No installation, no setup -- participants only need a browser.
+Share the allocator's participant URL, using the domain and HTTPS mode you
+configured. Participants open it in a browser, enter their email, and receive
+an available desktop. Ask them to download work they need to keep before
+client VMs are destroyed; LabLink does not collect their files automatically.
 
 ## During the Workshop
 
-### Monitor the Dashboard
+Keep the admin dashboard open to track `Status`, `Healthy`, `UserEmail`, and
+`InUse`. The **Allocator Logs** page and `lablink logs` help diagnose startup
+or connection problems. Use **Create New VM Instance** or
+`lablink client launch --num-vms N` if the pool is short; existing sessions
+continue while the new job runs.
 
-Keep the admin panel open to track participant activity:
-
-![Admin panel](assets/images/admin-panel.png)
-
-- **VM Status** column shows if VMs are running normally
-- **GPU Health Status** confirms GPU availability for compute workloads
-- **In Use** shows which VMs have been claimed
-- **User Email** shows who is using each VM
-
-### Adding More VMs
-
-If more participants arrive than expected:
-
-1. Click **"Create VMs"** in the admin panel
-2. Enter the additional number needed
-3. Click **"Launch VMs"**
-
-New VMs are created without affecting existing running VMs. They'll be ready in about 5 minutes.
-
-### Handling Issues
-
-- **VM shows "error"**: The auto-reboot service will attempt to recover it automatically (up to 3 times). Check the logs link for details.
-- **Participant can't connect**: Verify their VM shows "running" status and that they were assigned one. Try having them reload the allocator page to get a fresh session.
-- **All VMs assigned**: Create additional VMs as described above.
+If a participant cannot connect, check that their VM is `running`, whether
+it is `Unhealthy`, and whether a seat is assigned. After resolving a
+transient issue, a participant can reload the allocator page to get a fresh
+session. See [Troubleshooting](troubleshooting.md) for deeper checks.
 
 ## End of Workshop
 
 ### Destroy VMs
 
-!!! warning "Participant files are not recoverable"
-    LabLink does not collect work off the VMs. Tell participants to download
-    anything they want to keep before the session ends -- destroying a VM
-    destroys its disk.
+Ask participants to save their files first. In the admin dashboard, choose
+**Delete VMs**, then **Run tofu destroy** and confirm. The request starts an
+asynchronous operation; watch the job banner until it finishes. This
+terminates AWS client VMs and clears their database records.
 
-Tear down all VMs:
+The CLI equivalent is:
 
-1. Click **"Delete VMs"** in the admin panel
-2. Click **"Run tofu destroy"** and confirm
+```bash
+lablink client destroy
+lablink status
+```
 
-![Destroy All VMs](assets/images/admin-destroy-vms.png)
-
-This terminates all client EC2 instances and clears VM records from the database.
+For BYO clients, run `lablink client unregister` on each box instead.
 
 ## After the Workshop
 
-### Destroy the Allocator (Optional)
+Destroy the allocator if you no longer need it. For a CLI deployment, run
+`lablink destroy`. For a template deployment, run **Destroy LabLink
+Infrastructure** with the original `deployment_name` and `environment`, and
+set `confirm_destroy` to `yes`. See
+[Deployment](deployment.md#destroying-a-deployment).
 
-If you don't need LabLink running until your next workshop, destroy the allocator infrastructure to stop incurring costs:
-
-=== "Via GitHub Actions"
-
-    Manually run the **OpenTofu Destroy** workflow from the Actions tab.
-
-=== "Via OpenTofu"
-
-    ```bash
-    cd lablink-infrastructure
-    tofu destroy -var="resource_suffix=test"
-    ```
-
-See [Deployment](deployment.md#destroying-a-deployment) for details.
-
-### Review Costs
-
-Check [Cost Estimation](cost-estimation.md) for guidance on reviewing your AWS bill and optimizing costs for future workshops.
-
-## Related
-
-- [API Endpoints](api-endpoints.md) for programmatic access to admin features
-- [Configuration](configuration.md) for admin password and app settings
-- [Security & Access](security.md) for authentication details
-- [Troubleshooting](troubleshooting.md) for common issues
+Review actual AWS charges in Cost Explorer and use
+[Cost Estimation](cost-estimation.md) to plan the next workshop.
