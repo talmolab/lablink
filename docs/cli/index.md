@@ -28,32 +28,18 @@ Both paths deploy the same allocator service and manage the same set of AWS reso
 
 | | Template repo | CLI |
 |---|---|---|
-| What you maintain | A full repo forked from `lablink-template` (Dockerfile, OpenTofu `.tf` files, GitHub Actions workflows, configs) | A single `config.yaml` |
-| Customization surface | Every file in the repo — tweak AMIs, Docker images, OpenTofu resources, CI workflow, secrets | Whatever the `config.yaml` schema exposes (instance type, region, DNS, SSL) |
+| What you maintain | A full repo forked from `lablink-template` (OpenTofu `.tf` files, GitHub Actions workflows, configs) | A single `config.yaml` |
+| Customization surface | OpenTofu resources, CI workflow, and config values | Whatever the `config.yaml` schema exposes, including instance type, images, region, DNS, and SSL |
 | Where OpenTofu runs | GitHub Actions | Your machine |
-| Where state lives | Shared S3 (per-repo) | Local S3 bucket you own |
-| How you trigger a deploy | Push to `main` / run workflow | `lablink deploy` |
+| Where state lives | S3 backend in your AWS account | S3 backend in your AWS account |
+| How you trigger a deploy | Push to `test` or run the deployment workflow | `lablink deploy` |
 | Secrets management | GitHub repository secrets | AWS credentials on your machine, passwords prompted |
 | Who can deploy | Anyone with repo access | Whoever has the AWS creds locally |
-| Best for | Deployments you need to customize — bring-your-own Docker image, extra AWS resources, custom CI, bespoke workflow edits | Standard deployments where you just want it up — no repo to own, no workflow to maintain |
+| Best for | Custom AWS resources or CI workflows | Standard deployments without a repository to maintain |
 
-## When to pick which
-
-Pick the **CLI** when you want to:
-
-- Stand up a standard deployment without maintaining a fork of the template
-- Keep the surface small — one config file, no Dockerfile or `.tf` edits
-- Skip hopping between a GitHub repo, Actions logs, and local tooling
-- Drive OpenTofu directly from your laptop and see its output inline
-
-Pick the **template repo** when you want to:
-
-- Bring your own Docker image, custom AMI baking, or your own entrypoint
-- Add or modify AWS resources OpenTofu doesn't provision by default
-- Customize the GitHub Actions workflow (extra steps, different triggers, etc.)
-- Hand the deployment off to a team via GitHub permissions instead of sharing AWS credentials
-
-You can switch between them later — both read the same `config.yaml` schema for the settings the CLI exposes.
+Both paths let you select a custom client Docker image or AMI through
+`config.yaml`. You can switch paths later because they use the same config
+schema for those settings.
 
 ## Next steps
 

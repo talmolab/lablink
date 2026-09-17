@@ -12,14 +12,14 @@ This guide covers the PostgreSQL database used by LabLink, including schema, man
 
 LabLink uses **PostgreSQL** for:
 
-- Tracking VM states (`initializing`, `running`, `error`, `rebooting`)
+- Tracking VM states (`initializing`, `running`, `error`, `rebooting`; the status endpoint also accepts `unknown`, but nothing writes it)
 - Storing seat assignments, and claiming them atomically so concurrent requesters can't collide
 - Holding per-session browser state (session IDs, rotated VNC credentials)
 - Registration records and hashed secrets for BYO clients
 - Async operation and scheduled-destruction bookkeeping
 - Session metrics, when `monitoring.enabled` is set
 
-**Version**: PostgreSQL 13+
+**Version**: PostgreSQL 17
 **Location**: Runs in allocator Docker container
 **Access**: Port 5432 (internal)
 
@@ -47,10 +47,10 @@ It carries five groups of columns:
 | `HostName` | VARCHAR(1024) PK | Hostname / instance ID |
 | `UserEmail` | VARCHAR(1024) | Assigned participant, `NULL` when free |
 | `InUse` | BOOLEAN NOT NULL | Whether the configured software is actively running |
-| `Healthy` | VARCHAR(1024) | Health status |
-| `Status` | VARCHAR(1024) | `initializing`, `running`, `error`, `rebooting` |
+| `Healthy` | VARCHAR(1024) | `Healthy`, `Unhealthy`, `N/A`, or `NULL` |
+| `Status` | VARCHAR(1024) | `initializing`, `running`, `error`, `rebooting`; `unknown` is accepted by the API but never written |
 | `CreatedAt` | TIMESTAMP | Row creation time |
-| `last_release_time` | TIMESTAMP | When the seat was last released |
+| `last_release_time` | TIMESTAMP | Indexed for assignment ordering, but currently never written |
 
 **Provider and connectivity** — how the allocator reaches this machine
 
@@ -92,7 +92,7 @@ by `init.sql` — the one exception to the note above.
 
 **Startup timings and logs**
 
-`CloudInitLogs`, `DockerLogs`, and the `TerraformApply*`, `CloudInit*`, `Container*`
+`CloudInitLogs`, `DockerLogs`, and the `TofuApply*`, `CloudInit*`, `Container*`
 and `TotalStartupDurationSeconds` timing columns, which break VM startup into its
 OpenTofu / cloud-init / container-start phases for bottleneck analysis.
 
@@ -130,8 +130,8 @@ instead of blocking on a long OpenTofu run.
 | Column | Type | Description |
 |---|---|---|
 | `id` | SERIAL PK | |
-| `op_type` | VARCHAR(16) NOT NULL | What kind of operation |
-| `status` | VARCHAR(16) NOT NULL | Current state |
+| `op_type` | VARCHAR(16) NOT NULL | `launch` or `destroy` |
+| `status` | VARCHAR(16) NOT NULL | `queued`, `running`, `succeeded`, `failed`, or `interrupted` |
 | `params` | TEXT | Serialized request parameters |
 | `created_by` | VARCHAR(255) | Requesting admin |
 | `created_at` | TIMESTAMP NOT NULL | Defaults to `NOW()` |
@@ -140,6 +140,9 @@ instead of blocking on a long OpenTofu run.
 | `resources_total` / `resources_completed` | INTEGER | Progress counters |
 
 Exposed via [`/api/operations`](api-endpoints.md#provisioning-and-operations).
+`idx_operations_created_at` supports recent-job listings. The partial unique
+index `operations_single_flight` permits only one `queued` or `running` row, so
+a second launch or destroy request cannot start concurrently.
 
 ### `scheduled_destructions` Table
 
@@ -174,17 +177,8 @@ client registration can be verified without keeping the token in memory alone.
 One, `scheduled_destructions_updated_at`, which maintains `updated_at` on that
 table.
 
-!!! note "LISTEN/NOTIFY has been removed"
-    LabLink used to drive client assignment through a `notify_vm_changes` trigger
-    firing `pg_notify` on a `vm_updates` channel, with each client holding a
-    `LISTEN` connection open and blocking on `POST /vm_startup` for a CRD command
-    and PIN. All of it — the trigger, the channel, the `db.message_channel` config
-    key, the endpoint, and the client-side `subscribe` service — is gone.
-
-    Assignment now runs the other direction: `/api/request_vm` claims a seat with
-    `FOR UPDATE SKIP LOCKED` and the allocator calls the assigned client's local
-    agent to rotate its VNC password. No pub/sub, and no long-lived database
-    connection per client.
+Seat assignment uses `FOR UPDATE SKIP LOCKED` in `/api/request_vm`; the
+allocator then calls the assigned client's agent to rotate its VNC password.
 
 ## Accessing the Database
 
@@ -205,34 +199,11 @@ sudo docker exec -it $CONTAINER_ID psql -U lablink -d lablink_db
 
 The database identity is fixed — `lablink_db`, user `lablink`, on
 `localhost:5432` inside the allocator container. Only the password comes
-from config (`lablink-infrastructure/config/config.yaml`):
+from [configuration](configuration.md#database-options-db):
 
 ```yaml
 db:
-  password: "lablink" # Change in production!
-```
-
-### From Python (Inside Container)
-
-```python
-import psycopg2
-
-conn = psycopg2.connect(
-    dbname="lablink_db",
-    user="lablink",
-    password="lablink",
-    host="localhost",
-    port=5432
-)
-
-cursor = conn.cursor()
-cursor.execute("SELECT * FROM vms;")
-rows = cursor.fetchall()
-
-for row in rows:
-    print(row)
-
-conn.close()
+  password: "<strong-private-password>"
 ```
 
 ## Common Database Operations
@@ -295,12 +266,15 @@ WHERE useremail = 'user@example.com';
 
 ### Release a Seat
 
-Clearing the assignment and the per-session state returns a VM to the pool:
+Clearing the assignment and the per-session state returns a VM to the pool.
+The allocator's `release_seat` does not update `last_release_time`:
 
 ```sql
 UPDATE vms
 SET useremail = NULL, sessionid = NULL, browsertoken = NULL,
-    sessionstartedat = NULL, last_release_time = NOW()
+    vncpassword = NULL, upstream = NULL, browser_ws_url = NULL,
+    browser_credential = NULL, sessionstartedat = NULL,
+    adminreservedat = NULL
 WHERE hostname = 'i-0abc123def456';
 ```
 
@@ -341,14 +315,7 @@ DELETE FROM vms WHERE hostname = 'i-0abc123def456';
 ```
 
 !!! warning
-Only delete after VM instance is terminated in AWS.
-
-### Clear All VMs
-
-```sql
--- Use with caution!
-TRUNCATE TABLE vms;
-```
+    Only delete after the VM instance is terminated in AWS.
 
 ## Troubleshooting
 
@@ -357,32 +324,12 @@ TRUNCATE TABLE vms;
 **Check logs**:
 
 ```bash
-sudo docker exec <container-id> tail -f /var/log/postgresql/postgresql-13-main.log
+sudo docker logs lablink-allocator
 ```
 
-**Common issues**:
-
-1. **Port already in use**:
-
-   ```bash
-   sudo netstat -tulpn | grep 5432
-   # Kill process using port
-   ```
-
-2. **Disk full**:
-
-   ```bash
-   df -h
-   # Clean up space
-   ```
-
-3. **Corrupt data files**:
-   ```bash
-   # Stop container, remove volume, restart
-   sudo docker stop <container-id>
-   sudo docker rm <container-id>
-   # Redeploy with fresh database
-   ```
+If the log reports a full disk, check free space on the allocator host with
+`df -h`. Keep the container and its data in place while investigating startup
+errors; removing its volume deletes assignments and operation history.
 
 ### Cannot Connect to Database
 
@@ -398,21 +345,14 @@ sudo docker exec <container-id> pg_isready -U lablink
 sudo docker exec <container-id> psql -U lablink -d lablink_db -c "SELECT 1;"
 ```
 
-**Check pg_hba.conf**:
-
-```bash
-sudo docker exec <container-id> cat /etc/postgresql/13/main/pg_hba.conf
-```
-
-Should include:
-
-```
-host    all             all             0.0.0.0/0            md5
-```
+The production image currently copies its `pg_hba.conf` override to a
+PostgreSQL 15 path, while the running cluster is PostgreSQL 17. Inspect the
+active configuration inside the container rather than assuming the copied
+file is in use.
 
 ### Restart PostgreSQL
 
-Known issue requiring manual restart after first boot:
+If PostgreSQL needs a manual restart inside the allocator container:
 
 ```bash
 # SSH into allocator
@@ -422,7 +362,7 @@ ssh -i ~/lablink-key.pem ubuntu@<allocator-ip>
 sudo docker exec -it <container-id> bash
 
 # Inside container
-/etc/init.d/postgresql restart
+pg_ctlcluster 17 main restart
 
 # Verify
 pg_isready -U lablink
@@ -431,30 +371,11 @@ pg_isready -U lablink
 ## Security
 
 The database is reachable only from inside the allocator container
-(`localhost:5432`), so the one thing to do is **change the default
-password** — see [Security](security.md#database-password).
+(`localhost:5432`). Set a strong password through the deployment path as
+described in [Security](security.md#database-password).
 
 ## Next Steps
 
-- **[Security & Access](security.md#ssh-access)**: Connect to database via SSH
-- **[Troubleshooting](troubleshooting.md)**: Fix database issues
+- **[Troubleshooting](troubleshooting.md)**: Investigate deployment failures
 - **[Security](security.md)**: Secure database access
 - **[Architecture](architecture.md)**: Understand database role
-
-## Quick Reference
-
-```sql
--- View all VMs
-SELECT * FROM vms;
-
--- Count by status
-SELECT status, COUNT(*) FROM vms GROUP BY status;
-
--- Find claimable seats
-SELECT * FROM vms
-WHERE status = 'running' AND useremail IS NULL AND adminreservedat IS NULL;
-
--- Release a seat back to the pool
-UPDATE vms SET useremail = NULL, sessionid = NULL, browsertoken = NULL
-WHERE hostname = 'i-xxxxx';
-```

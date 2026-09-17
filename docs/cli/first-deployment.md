@@ -1,6 +1,8 @@
 # First Deployment
 
-This walkthrough takes you from a clean install through a live allocator and back to an empty AWS account. Budget about 15 minutes end to end.
+This walkthrough takes you from a clean install through a live allocator and
+then tears down the deployment. The shared state bucket and lock table remain
+for reuse. Budget about 15 minutes end to end.
 
 !!! note "This is the AWS path"
     Everything below assumes the default `provider: aws` — the allocator on EC2,
@@ -28,15 +30,19 @@ lablink configure
 
 This launches an interactive TUI wizard that walks you through:
 
-- **Deployment name** — a short label (e.g. `sleap-workshop`, `dev`). Used to tag AWS resources and as the folder name under `~/.lablink/deploys/`.
-- **AWS region** — e.g. `us-west-2`. Must be a region the CLI has an AMI mapping for (run `lablink doctor` to see the list).
-- **Machine settings** — client VM instance type and AMI. Defaults come from the bundled `lablink-template` config.
-- **DNS / SSL** — optional Route 53 domain and ACM certificate configuration.
+- **Deployment name and provider** — the label used for AWS resources and the working directory under `~/.lablink/deploy/`; choose AWS for this guide.
+- **Region and machine** — choose an AWS region, client instance type, software, and optional repository. The client AMI can resolve automatically in-region or be set in `machine.ami_id`; `lablink doctor` verifies it.
+- **DNS and SSL** — choose IP-only, Let's Encrypt, Cloudflare, ACM, or self-signed TLS.
+- **Startup, monitoring, and review** — set optional startup and session-metrics options, then review the config.
 
-The wizard writes `~/.lablink/config.yaml` and then **automatically runs `lablink setup`** to create the two AWS resources OpenTofu needs before it can run:
+The wizard writes `~/.lablink/config.yaml` and then **automatically runs `lablink setup`** to create the AWS resources OpenTofu needs before it can run:
 
-1. An **S3 bucket** for OpenTofu state (versioned + encrypted).
+1. An **S3 bucket** for OpenTofu state (versioning enabled).
 2. A **DynamoDB table** for state locking.
+
+If you enabled a Terraform-managed DNS zone, setup also creates the Route 53
+zone. It writes `bucket_name` and, when applicable, `dns.zone_id` back to the
+config file.
 
 (Manual-provider configs skip that step — there's no remote state to bootstrap.)
 
@@ -48,6 +54,11 @@ You can inspect what was written with:
 ```bash
 lablink show-config
 ```
+
+Before deploying, edit `db.password` in `~/.lablink/config.yaml` to a strong
+unique value. The wizard and AWS deploy prompt do not collect the database
+password; the schema default is `lablink`. The admin password is prompted for
+in Step 3 and stays in the deployment working copy.
 
 ## Step 2: Sanity check
 
@@ -64,22 +75,12 @@ lablink doctor
 
 *The clip starts with `lablink show-config` from Step 1, then runs `doctor`.*
 
-All six AWS checks should now pass:
-
-```text
-┌─────────────────────────┬────────┬─────────────────────────────────────┐
-│ Check                   │ Status │ Detail                              │
-├─────────────────────────┼────────┼─────────────────────────────────────┤
-│ OpenTofu installed     │ PASS   │ v1.6.6 (/usr/local/bin/tofu)   │
-│ Config file             │ PASS   │ ~/.lablink/config.yaml              │
-│ Config validates        │ PASS   │ No errors                           │
-│ AWS credentials         │ PASS   │ Account: 123…, Identity: arn:…      │
-│ S3 state bucket         │ PASS   │ tf-state-lablink-…                  │
-│ AMI for region          │ PASS   │ us-west-2 → ami-0bd08c9d…           │
-└─────────────────────────┴────────┴─────────────────────────────────────┘
-```
-
-If any row is `FAIL`, the detail column tells you which command to run next (usually `lablink configure` or `aws configure`).
+The AWS path runs seven checks, including an OpenTofu version check (minimum
+1.10.0), a `Client AMI` check against EC2 in your chosen region, and a `Viewer
+streaming` check. The latter warns if HTTP would disable H.264 in the browser.
+See [`doctor`](../reference/cli.md#doctor) for the full list. If a row is
+`FAIL`, follow the action in its detail column before deploying. `doctor`
+currently exits with code 0 even when a check fails, so inspect the table.
 
 ## Step 3: Deploy
 
@@ -99,8 +100,8 @@ lablink deploy
 This will:
 
 1. Download the pinned `lablink-template` OpenTofu files into `~/.lablink/cache/terraform/<version>/` (first run only).
-2. Copy them into a working directory at `~/.lablink/deploys/<deployment-name>/`.
-3. Prompt you once for an **admin username** (default `admin`) and **admin password**. These are injected into the OpenTofu variables — they are not stored in `config.yaml`.
+2. Copy them into a working directory at `~/.lablink/deploy/<deployment-name>/<environment>/`.
+3. Prompt you for an **admin username** (default `admin`) and **admin password** on each AWS deploy. These are written into the working copy of `config.yaml`, not `~/.lablink/config.yaml`.
 4. Run `tofu init` + `tofu apply`, showing the plan and asking for confirmation.
 5. Wait for the allocator EC2 instance to come up and its `/api/health` endpoint to report `healthy`.
 
@@ -109,7 +110,8 @@ Expect 2–5 minutes for OpenTofu + another 1–3 minutes for the allocator to f
 !!! tip "Skip interactive confirmations"
     Pass `-y` / `--yes` to skip OpenTofu plan confirmation. The admin credentials are still prompted for.
 
-When deploy completes, note the `ec2_public_ip` in the OpenTofu output — that's your allocator URL.
+When deploy completes, use the `Admin URL` printed by `lablink status`. It
+accounts for the chosen DNS and SSL settings.
 
 ## Step 4: Verify
 
@@ -117,14 +119,12 @@ When deploy completes, note the `ec2_public_ip` in the OpenTofu output — that'
 lablink status
 ```
 
-This shows four sections:
+The output includes OpenTofu state, health checks, client inventory, and a
+daily cost estimate. See the [status reference](../reference/cli.md#status)
+for each section.
 
-- **OpenTofu State** — outputs like `ec2_public_ip`, `ec2_public_dns`, and any DNS/ALB records.
-- **Health Checks** — DNS resolution (if you configured a domain), `/api/health` response, and SSL certificate expiry (if HTTPS is enabled).
-- **Client VMs** — per-VM state reported by the allocator (empty until you run `lablink client launch`).
-- **Cost Estimate** — daily and monthly dollar estimates for the allocator, EBS, optional ALB/Route 53, and running client VMs.
-
-Open the allocator in a browser using `http://<ec2_public_ip>` (or your configured domain) and log in with the admin username and password you entered during deploy.
+Open the printed `Admin URL` in a browser and log in with the credentials you
+entered during deploy.
 
 ## Step 5: Launch a client VM
 
@@ -156,7 +156,9 @@ This runs `tofu destroy` on the deployment workspace and removes the EC2 instanc
 !!! warning "Costs don't stop until destroy finishes"
     The allocator EC2 instance, EBS volume, and (if configured) ALB accrue charges while running. See [Cost Estimation](../cost-estimation.md).
 
-After destroy, the S3 state bucket and DynamoDB lock table still exist — they're cheap (~$0.05/month) and reused on the next deploy. If you want to remove them too, see [cleanup](managing-deployments.md#cleanup-orphaned-resources).
+After destroy, the S3 state bucket and DynamoDB lock table still exist for a
+future deploy. `lablink cleanup` clears per-deployment state objects and lock
+entries, but does not delete the bucket or table.
 
 ## Next steps
 

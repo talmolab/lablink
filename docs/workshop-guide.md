@@ -9,13 +9,14 @@ A step-by-step guide for running a hands-on workshop with LabLink, from setup to
 
 ### 1. Create VMs
 
-Spin up VMs ahead of time so they're ready when participants arrive. VMs take approximately 5 minutes to provision.
+Spin up VMs ahead of time so they're ready when participants arrive. VMs typically
+take 5–7 minutes to provision.
 
-1. Navigate to the admin panel at `http://<allocator-ip>/admin`
+1. Open the allocator's **Admin URL** (printed by `lablink status` or shown in the deployment output) and append `/admin`
 2. Log in with your admin credentials
-3. Click **"Create VMs"**
+3. Click **Create New VM Instance**
 4. Enter the number of VMs to launch (one per participant, plus a few extras)
-5. Click **"Launch VMs"**
+5. Click **Launch VMs**
 
 ![Create VMs dialog](assets/images/admin-create-vms.png)
 
@@ -35,14 +36,14 @@ The dashboard shows the following for each VM:
 | **Hostname** | VM instance identifier |
 | **User Email** | Email of the participant assigned to the VM |
 | **In Use** | Whether the VM is currently claimed by a participant |
-| **VM Status** | Overall VM health status (running, initializing, stopped) |
+| **VM Status** | Overall VM status (`running`, `initializing`, `error`, or `rebooting`) |
 | **GPU Health Status** | GPU availability and CUDA status |
 | **Total Startup Duration** | How long the VM took to become ready |
 | **Logs** | Link to view startup and runtime logs for the VM |
-| **Access** | Per-VM actions (open the desktop, reboot, destroy) |
+| **Access** | Per-VM actions such as Peek, Connect, Release, and Clear Unhealthy |
 
 !!! warning "What if a VM is stuck?"
-    If a VM stays in "initializing" for more than 10 minutes or shows "error" status, it will be automatically rebooted. Check the VM logs for details.
+    The recovery service checks error and unhealthy VMs, initializing VMs stuck for more than 25 minutes, rebooting VMs stuck for more than 10 minutes, and running VMs silent for more than 3 minutes. Check the VM logs for details.
 
 ### 3. (Optional) Schedule Auto-Destruction
 
@@ -62,7 +63,7 @@ This is useful as a safety net to avoid leaving VMs running (and incurring costs
 Give participants the allocator URL:
 
 ```
-http://<allocator-ip>
+    The allocator's **Admin URL** or public URL printed after deployment
 ```
 
 Or if you configured DNS:
@@ -97,11 +98,12 @@ Keep the admin panel open to track participant activity:
 
 If more participants arrive than expected:
 
-1. Click **"Create VMs"** in the admin panel
+1. Click **Create New VM Instance** in the admin panel
 2. Enter the additional number needed
 3. Click **"Launch VMs"**
 
-New VMs are created without affecting existing running VMs. They'll be ready in about 5 minutes.
+New VMs are created without affecting existing running VMs. They typically take
+5–7 minutes to become ready.
 
 ### Handling Issues
 
@@ -120,12 +122,13 @@ New VMs are created without affecting existing running VMs. They'll be ready in 
 
 Tear down all VMs:
 
-1. Click **"Delete VMs"** in the admin panel
+1. Click **Delete VMs** in the admin panel
 2. Click **"Run tofu destroy"** and confirm
 
 ![Destroy All VMs](assets/images/admin-destroy-vms.png)
 
-This terminates all client EC2 instances and clears VM records from the database.
+This starts an asynchronous operation that terminates all client EC2 instances
+and clears VM records from the database. Watch the job banner until it finishes.
 
 ## After the Workshop
 
@@ -135,13 +138,16 @@ If you don't need LabLink running until your next workshop, destroy the allocato
 
 === "Via GitHub Actions"
 
-    Manually run the **OpenTofu Destroy** workflow from the Actions tab.
+    Run **Destroy LabLink Infrastructure** from the Actions tab with the
+    original `deployment_name` and `environment`, and set `confirm_destroy` to
+    `yes`.
 
 === "Via OpenTofu"
 
     ```bash
     cd lablink-infrastructure
-    tofu destroy -var="resource_suffix=test"
+    ../scripts/init-terraform.sh test
+    tofu destroy -var="deployment_name=YOUR-DEPLOYMENT" -var="environment=test"
     ```
 
 See [Deployment](deployment.md#destroying-a-deployment) for details.

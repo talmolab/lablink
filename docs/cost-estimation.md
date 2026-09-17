@@ -1,441 +1,95 @@
 # Cost Estimation
 
-This guide helps you understand and estimate AWS costs for running LabLink.
+LabLink's AWS costs depend on your region, instance types, how long the
+allocator and client VMs run, attached storage, public IPv4 addresses, data
+transfer, and optional DNS or load balancing. Check the
+[AWS Pricing Calculator](https://calculator.aws/) for a current estimate
+before deploying.
 
-## Cost Overview
+## Get a deployment estimate
 
-LabLink costs consist of:
+For a CLI deployment, run `lablink status`. Its **Cost Estimate (daily)**
+section uses the AWS Pricing API when available and a built-in fallback table
+otherwise. It includes the allocator, EBS, optional ALB and Route 53 costs,
+and client VMs.
 
-1. **Infrastructure costs** (one-time or monthly)
-2. **Compute costs** (per hour, based on usage)
-3. **Storage costs** (monthly)
-4. **Data transfer costs** (per GB)
-
-## Quick Estimate with the CLI
-
-The fastest way to get a cost estimate for your deployment is the built-in cost estimator script. It reads your `config.yaml` and queries the AWS Pricing API for live, region-specific pricing.
+The template repository also has a script. Run it from the root of your
+template checkout; it reads
+`lablink-infrastructure/config/config.yaml`:
 
 ```bash
 ./scripts/estimate-costs.sh
 ```
 
-!!! note "Prerequisites"
-    - **jq** — required for JSON parsing (`brew install jq` on macOS, `sudo apt-get install jq` on Ubuntu)
-    - **AWS CLI** — recommended for live pricing. If unavailable, the script falls back to hardcoded estimates.
-    - Must be run from the **repository root** (where `lablink-infrastructure/` exists).
+The script requires `jq`; the AWS CLI enables live price lookups. Its current
+allocator EBS estimate assumes a 20 GiB root volume, while the template does
+not set `root_block_device` and uses the selected AMI's default. Check the
+deployed volume size before relying on that line of the estimate.
 
-The script reads the following from your `lablink-infrastructure/config/config.yaml`:
+## Compute
 
-| Config Key | What It Affects |
-|---|---|
-| `app.region` | AWS region for pricing lookup |
-| `machine.machine_type` | Client VM instance type |
-| `ssl.provider` | Whether ALB cost is included |
-| `dns.enabled` | Whether Route 53 cost is included |
+The template runs one `t3.large` allocator. Its instance type is fixed in
+`lablink-infrastructure/main.tf`; `machine.machine_type` selects the **client
+VM** type. The allocator accrues EC2 charges while running. Client EC2 usage
+scales with the number of machines and their running hours:
 
-**Example output:**
-
-```
-LabLink Infrastructure Cost Estimate
-=====================================
-Region: us-west-2 (US West (Oregon))
-Config: lablink-infrastructure/config/config.yaml
-Prices: AWS Pricing API
-
-  Resource                                Monthly Cost
-  -------------------------------------  ------------
-  Allocator EC2 (t3.large)                     $60.74
-  Client VM EC2 (g4dn.xlarge)                 $383.98  *
-  EBS root volume (gp3, 20 GB)                  $1.60
-  Elastic IP                                    $3.65
-  -------------------------------------  ------------
-  Base infrastructure total                   $65.99/month
-  Per client VM (when running)               $383.98/month *
-
-  * Client VM costs scale with usage. VMs are billed only while running.
-    Example: 10 VMs x 8hr/day x 22 days/month = $925.76/month
-  * Prices are on-demand estimates from AWS Pricing API. Actual costs may vary.
+```text
+client compute cost = client count × hours running × hourly instance price
 ```
 
-The base infrastructure total represents always-on costs (allocator, storage, Elastic IP, logging). Client VM costs are separate since VMs are only billed while running.
-
-## AWS Pricing Calculator
-
-For exact pricing, use the [AWS Pricing Calculator](https://calculator.aws/).
-
-!!! note
-    Prices shown are for **us-west-2** region as of January 2025. Check current AWS pricing for your region.
-
-## Infrastructure Costs (Minimal)
-
-### S3 Bucket (OpenTofu State)
-
-**Purpose**: Store OpenTofu state files
-
-| Item | Usage | Monthly Cost |
-|------|-------|--------------|
-| Storage | < 1 GB | $0.02 |
-| Requests | ~ 100/month | $0.01 |
-| Versioning | Enabled | Included |
-
-**Estimated Monthly Cost**: **$0.05**
-
-### Elastic IPs
-
-**Purpose**: Static IP addresses for allocators
-
-| Item | Quantity | Monthly Cost |
-|------|----------|--------------|
-| Elastic IP (associated) | 2 (test, prod) | $0.00 |
-| Elastic IP (unassociated) | 0 | $0.00 |
-
-!!! warning
-    Unassociated Elastic IPs cost **$0.005/hour** ($3.60/month). Always associate or release unused IPs.
-
-**Estimated Monthly Cost**: **$0.00** (when associated)
-
-### Route 53 (Optional)
-
-**Purpose**: DNS management for custom domains
-
-| Item | Quantity | Monthly Cost |
-|------|----------|--------------|
-| Hosted Zone | 1 | $0.50 |
-| Queries | 1M | $0.40 |
-
-**Estimated Monthly Cost**: **$0.90**
-
-### Total Infrastructure Cost
-
-**Without Route 53**: **~$0.05/month**
-**With Route 53**: **~$0.95/month**
-
-## Compute Costs (Variable)
-
-### Allocator Instance
-
-Costs for running the allocator EC2 instance.
-
-| Instance Type | vCPUs | RAM | Price (On-Demand) | Monthly (24/7) |
-|---------------|-------|-----|-------------------|----------------|
-| **t3.large** | 2 | 8 GB | $0.0832/hour | $60.74 |
-
-!!! note "This is not a config key"
-    The allocator's instance type is fixed at **t3.large** — it's a OpenTofu local in [lablink-template](https://github.com/talmolab/lablink-template)'s `lablink-infrastructure/main.tf`, exposed only as an output. There is nothing in `config.yaml` to change it. `machine.machine_type` sets the **client VM** type, not the allocator's.
-
-**Estimated Monthly Cost**: **$60.74** (if running 24/7)
-
-#### Cost Optimization
-
-**Option 1: Destroy When Not Needed**
-
-The allocator is the only always-on cost, so a workshop-shaped usage pattern saves the most. 8 hours/day × 20 days = 160 hours = **$13.31/month**.
-
-**Option 2: Reserved Instances or Savings Plans** (1-year commitment)
-
-Meaningful discounts on a 24/7 allocator, but they lock you in for a year — only worth it if the allocator genuinely stays up. Check the [AWS Pricing Calculator](https://calculator.aws/) for current rates before committing.
-
-### Client VM Instances
-
-Costs for running research workload VMs.
-
-#### GPU Instance Types
-
-| Instance Type | GPU | vCPUs | RAM | GPU Memory | Price/Hour | Monthly (24/7) |
-|---------------|-----|-------|-----|------------|------------|----------------|
-| **g4dn.xlarge** | T4 | 4 | 16 GB | 16 GB | $0.526 | $384 |
-| **g4dn.2xlarge** | T4 | 8 | 32 GB | 16 GB | $0.752 | $549 |
-| **g4dn.4xlarge** | T4 | 16 | 64 GB | 16 GB | $1.204 | $879 |
-| **g5.xlarge** | A10G | 4 | 16 GB | 24 GB | $1.006 | $735 |
-| **g5.2xlarge** | A10G | 8 | 32 GB | 24 GB | $1.212 | $885 |
-| **p3.2xlarge** | V100 | 8 | 61 GB | 16 GB | $3.06 | $2,234 |
-
-**Most Common**: **g4dn.xlarge** (good balance of performance and cost)
-
-#### Cost Optimization Strategies
-
-**Option 1: Terminate After Use**
-
-- Only run VMs when actively working
-- Cost: Per-hour usage only
-
-**Example**: 10 VMs × 8 hours = 80 hours × $0.526 = **$42.08**
-
-**Option 2: Right-Size Instance Types**
-
-- Use smallest instance that meets requirements
-- Test on smaller instances first
-
-!!! note "What about Spot Instances?"
-    LabLink does not currently support Spot Instances for client VMs. The
-    client-VM Terraform ships inside the allocator container image, so there is
-    no configuration key or user-editable file to enable spot pricing — it
-    would require modifying the allocator's bundled Terraform and rebuilding
-    the image.
-
-#### CPU-Only Instance Types (Non-GPU)
-
-For non-GPU workloads:
-
-| Instance Type | vCPUs | RAM | Price/Hour | Monthly (24/7) |
-|---------------|-------|-----|------------|----------------|
-| **c5.xlarge** | 4 | 8 GB | $0.17 | $124 |
-| **c5.2xlarge** | 8 | 16 GB | $0.34 | $248 |
-| **c6i.xlarge** | 4 | 8 GB | $0.17 | $124 |
-
-**Use Case**: Data processing without GPU requirements
-
-## Storage Costs
-
-### EBS Volumes (EC2 Storage)
-
-| Volume Type | Allocator | Client VM | Price/GB-Month |
-|-------------|-----------|-----------|----------------|
-| **gp3** | 20 GB | 80 GB | $0.08 |
-
-**Allocator**: 20 GB × $0.08 = **$1.60/month**
-**Client VM**: 80 GB × $0.08 = **$6.40/month per VM**
-
-**Note**: EBS charges apply even for stopped instances. Terminate to avoid charges.
-
-### S3 Storage (Backups)
-
-| Item | Usage | Monthly Cost |
-|------|-------|--------------|
-| Standard Storage | 10 GB | $0.23 |
-| Glacier (Archive) | 100 GB | $0.40 |
-
-**Use Case**: Database backups, logs, artifacts
-
-## Data Transfer Costs
-
-### Inbound (Free)
-
-- Data transfer **into** AWS is free
-- Pulling Docker images: Free
-- SSH/API calls into instances: Free
-
-### Outbound
-
-| Destination | Price per GB |
-|-------------|--------------|
-| First 100 GB/month | Free |
-| Next 10 TB/month | $0.09 |
-| Internet (general) | $0.09 |
-
-**Typical Usage**: < 100 GB/month (covered by free tier)
-
-### Inter-Region Transfer
-
-If using resources across regions:
-
-| Transfer Type | Price per GB |
-|---------------|--------------|
-| Cross-region | $0.02 |
-
-**Avoid**: Keep all resources in same region
-
-## Example Cost Scenarios
-
-### Scenario 1: Development/Testing
-
-**Setup**:
-
-- 1 allocator (t3.large)
-- 2 client VMs (g4dn.xlarge)
-- Running 40 hours/month
-
-**Costs**:
-
-- Infrastructure: $0.05/month
-- Allocator: 40 hours × $0.0832 = $3.33
-- Client VMs: 2 × 40 hours × $0.526 = $42.08
-- Storage: $1.60 (allocator) + $12.80 (2 clients) = $14.40
-
-**Total**: **~$60/month**
-
-### Scenario 2: Light Production Use
-
-**Setup**:
-
-- 1 allocator (t3.large, 24/7)
-- 5 client VMs (g4dn.xlarge)
-- VMs running 160 hours/month each
-
-**Costs**:
-
-- Infrastructure: $0.95/month (with Route 53)
-- Allocator: $60.74/month
-- Client VMs: 5 × 160 hours × $0.526 = $420.80
-- Storage: $1.60 + (5 × $6.40) = $33.60
-
-**Total**: **~$516/month**
-
-### Scenario 3: Heavy Production Use
-
-**Setup**:
-
-- 1 allocator (t3.large, 24/7)
-- 20 client VMs (g4dn.xlarge)
-- VMs running 320 hours/month each
-
-**Costs**:
-
-- Infrastructure: $0.95/month
-- Allocator: $60.74/month
-- Client VMs: 20 × 320 hours × $0.526 = $3,366.40
-- Storage: $1.60 + (20 × $6.40) = $129.60
-
-**Total**: **~$3,558/month**
-
-At this scale, a Reserved Instance or Savings Plan on the always-on allocator trims the $60.74, but the client VMs dominate — terminating them promptly when idle matters far more.
-
-### Scenario 4: Minimal (Cost-Conscious)
-
-**Setup**:
-
-- 1 allocator (t3.large)
-- 3 client VMs (g4dn.xlarge)
-- Only running when actively working (40 hours/month)
-
-**Costs**:
-
-- Infrastructure: $0.05/month
-- Allocator: 40 hours × $0.0832 = $3.33
-- Client VMs: 3 × 40 hours × $0.526 = $63.12
-- Storage: Minimal (terminate when done) = $0.50
-
-**Total**: **~$67/month**
-
-## Cost Monitoring
-
-### View Current Costs
-
-**AWS Console**:
-
-1. Navigate to **Billing Dashboard**
-2. View **Cost Explorer**
-3. Filter by tag `Project: LabLink`
-
-**AWS CLI**:
-```bash
-aws ce get-cost-and-usage \
-  --time-period Start=2025-01-01,End=2025-01-31 \
-  --granularity MONTHLY \
-  --metrics UnblendedCost \
-  --filter file://filter.json
-```
-
-**`filter.json`**:
-```json
-{
-  "Tags": {
-    "Key": "Project",
-    "Values": ["LabLink"]
-  }
-}
-```
-
-### Tag Resources
-
-Tag all resources for cost tracking:
-
-```hcl
-# terraform/main.tf
-resource "aws_instance" "lablink_allocator" {
-  # ... other config
-
-  tags = {
-    Name    = "lablink-allocator-${var.environment}"
-    Project = "LabLink"
-    Environment = var.environment
-    ManagedBy = "OpenTofu"
-  }
-}
-```
-
-View costs by tag in Cost Explorer.
-
-## Cost Optimization Checklist
-
-- [ ] Terminate VMs when not in use
-- [ ] Use Reserved Instances for always-on allocators (75% savings)
-- [ ] Right-size instance types (don't over-provision)
-- [ ] Use gp3 volumes instead of gp2 (20% cheaper)
-- [ ] Set up billing alerts
-- [ ] Monitor costs weekly in Cost Explorer
-- [ ] Tag all resources for cost attribution
-- [ ] Use Lifecycle Policies to delete old S3 backups
-- [ ] Terminate (not stop) unused instances
-- [ ] Release unused Elastic IPs
-- [ ] Clean up old EBS snapshots
-
-## Free Tier
-
-New AWS accounts get 12 months of free tier:
-
-| Service | Free Tier (Monthly) |
-|---------|---------------------|
-| EC2 (t2.micro / t3.micro) | 750 hours |
-| EBS (gp2/gp3) | 30 GB |
-| S3 | 5 GB storage |
-| Data Transfer | 100 GB out |
-
-**Note**: neither the allocator nor the client VMs are covered. The free tier only extends to micro instances, and LabLink's allocator is a **t3.large**; GPU instances (g4dn, g5, p3) are excluded outright. Expect to pay for compute from day one.
-
-## Hidden Costs to Watch
-
-1. **Unassociated Elastic IPs**: $3.60/month each
-2. **Stopped instances with EBS**: Storage charges still apply
-3. **Old EBS snapshots**: Accumulate over time
-4. **Unused load balancers**: $16-18/month
-5. **NAT Gateways**: $32/month + data transfer
-
-**Solution**: Regular cleanup and monitoring
-
-## Cost Comparison
-
-### LabLink vs Self-Managed
-
-| Aspect | LabLink | Self-Managed |
-|--------|---------|--------------|
-| Infrastructure setup | $0-1/month | $0 |
-| Allocator runtime | $61/month (24/7) | $0 (your time) |
-| Client VMs | Same | Same |
-| Management time | Minimal | Significant |
-
-**LabLink advantage**: Time savings outweigh small infrastructure costs
-
-### LabLink vs Managed Services
-
-| Service | Monthly Cost (5 VMs) | Setup Complexity |
-|---------|----------------------|------------------|
-| **LabLink** | ~$516 | Moderate |
-| **AWS Batch** | ~$500+ | High |
-| **SageMaker** | ~$600+ | Moderate |
-| **Cloud GPUs (vast.ai)** | ~$200-400 | Low |
-
-**LabLink advantage**: Balance of cost, features, and control
-
-## Budget Recommendations
-
-### By Use Case
-
-| Use Case | Recommended Monthly Budget |
-|----------|----------------------------|
-| Individual researcher (occasional) | $50-100 |
-| Individual researcher (regular) | $200-500 |
-| Small research group | $500-1,500 |
-| Large research group | $1,500-5,000+ |
-
-## Next Steps
-
-- **[AWS Setup](aws-setup.md)**: Set up billing alerts
-- **[Configuration](configuration.md)**: Choose cost-effective instance types
-- **[Deployment](deployment.md)**: Deploy with cost optimization
-
-## Questions About Costs?
-
-- Check [AWS Pricing](https://aws.amazon.com/pricing/)
-- Use [AWS Pricing Calculator](https://calculator.aws/)
-- Contact AWS Support for enterprise pricing
+Destroy client VMs when a workshop ends. Stopping an EC2 instance ends its
+compute usage charge, but its EBS volumes still accrue storage charges; see
+[AWS's instance lifecycle guide](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-lifecycle.html).
+
+### GPU Instance Types
+
+The CLI wizard offers these GPU client types; `config.yaml` can specify any
+EC2 instance type supported in your region. Use the
+[AWS Pricing Calculator](https://calculator.aws/) for current regional prices.
+
+| Type | GPU | vCPUs | RAM | GPU memory |
+|---|---|---:|---:|---:|
+| `g4dn.xlarge` | T4 | 4 | 16 GiB | 16 GiB |
+| `g4dn.2xlarge` | T4 | 8 | 32 GiB | 16 GiB |
+| `g5.xlarge` | A10G | 4 | 16 GiB | 24 GiB |
+| `g5.2xlarge` | A10G | 8 | 32 GiB | 24 GiB |
+| `p3.2xlarge` | V100 | 8 | 61 GiB | 16 GiB |
+
+The CPU-only wizard choices are `t3.large`, `t3.xlarge`, `t3.2xlarge`,
+`m5.xlarge`, and `m5.2xlarge`. LabLink does not currently provision Spot
+client instances.
+
+## Storage and networking
+
+- **EBS:** The template sets client root volumes to 80 GiB. It leaves the
+  allocator root volume at the AMI default. EBS storage can keep accruing
+  charges while an instance is stopped.
+- **Public IPv4:** AWS currently charges **$0.005 per address-hour** for both
+  associated and idle public IPv4 addresses, including Elastic IPs. One
+  continuously allocated address is about $3.65 for a 730-hour month. Check
+  [Amazon VPC pricing](https://aws.amazon.com/vpc/pricing/) for the current
+  rate and any applicable credits.
+- **State storage:** The S3 state bucket and DynamoDB lock table remain after
+  a deployment is destroyed. S3 versioning retains old state versions until
+  you manage them.
+- **Optional services:** Route 53 hosted zones and DNS queries, an ALB for
+  `ssl.provider: acm`, and internet data transfer can add charges. The
+  template does not create S3 database backups or CloudWatch log storage as
+  part of a standard deployment.
+
+## Track and limit spending
+
+Use AWS Cost Explorer or a budget in the Billing console to track actual
+charges. Template resources are tagged with
+`Project=<deployment_name>`, `Environment=<environment>`, and
+`ManagedBy=terraform`; filter by those values to inspect a deployment.
+The template's tag names are fixed in its OpenTofu files.
+
+AWS Free Tier terms depend on when the account was created and its plan.
+Accounts created on or after July 15, 2025 use the newer credit-based
+program; see the [AWS Free Tier guide](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/free-tier.html)
+and your account's Billing console. Do not assume a `t3.large` allocator or
+GPU client is covered by an older micro-instance allowance.
+
+For deployment teardown, see [Managing Deployments](cli/managing-deployments.md#destroy-the-deployment)
+or [Template Repository Deployment](deployment.md#destroying-a-deployment).

@@ -1,17 +1,26 @@
 # Troubleshooting
 
-**First step:** run the built-in checks and read the output before anything else.
+**First step:** open the admin **Allocator Logs** page or run `lablink logs`,
+then run the built-in checks and read their output:
 
 ```bash
 lablink doctor          # operator-side prerequisites, for the provider you configured
-lablink status          # is the allocator up, and what does it think its VMs are doing
+lablink status          # allocator health and client inventory
 lablink client doctor   # on a BYO client box: registration, container, log shipper
 ```
 
 `lablink doctor` branches on your provider — Docker checks under `manual`, and OpenTofu, AWS credentials, S3 and AMI checks under `aws`. Most problems below are named in its output.
 
+Run `tofu output` commands below from the initialized infrastructure
+directory: `lablink-infrastructure/` in a template checkout, or
+`~/.lablink/deploy/<deployment_name>/<environment>/` for the CLI.
+
 !!! info "Which port?"
-    The allocator container listens on **5000**. Ports 80 and 443 only answer when Caddy is running, which happens for `ssl.provider: letsencrypt` and `cloudflare` only. With `none` or `acm`, `curl localhost:80` on the instance will fail even though the allocator is perfectly healthy — use `curl localhost:5000`.
+    Inside the AWS host, the allocator container listens on **5000**. Caddy
+    proxies host port 80 to it for `none`, `letsencrypt`, and `cloudflare`;
+    `acm` uses an ALB. With domain-based HTTPS, port 5000 may be bound to
+    loopback, so test through the configured public URL from outside. A
+    manual-provider compose stack exposes host port 80.
 
 ## Docker
 
@@ -52,7 +61,9 @@ lablink client doctor   # on a BYO client box: registration, container, log ship
        chmod 600 ~/lablink-key.pem
        ls -l ~/lablink-key.pem      # -rw-------
        ```
-    2. **Wrong key** — re-extract it from OpenTofu state.
+    2. **Wrong key** — the deployment key opens the allocator, while client
+       VMs use the allocator-generated keypair. For the allocator, re-extract
+       it from OpenTofu state:
        ```bash
        tofu output -raw private_key_pem > ~/lablink-key.pem
        chmod 600 ~/lablink-key.pem
@@ -65,25 +76,40 @@ lablink client doctor   # on a BYO client box: registration, container, log ship
     ```bash
     aws ec2 describe-instances --instance-ids <id> \
       --query 'Reservations[0].Instances[0].State.Name'
-    tofu output allocator_public_ip
-    aws ec2 authorize-security-group-ingress \
-      --group-id <sg-id> --protocol tcp --port 22 --cidr 0.0.0.0/0
+    tofu output ec2_public_ip
     ```
 
-    Also check the VPC's network ACLs allow inbound and outbound on 22.
+    The template already allows inbound SSH on port 22; check the instance
+    state, effective security group, and VPC network ACL before changing rules.
+
+??? note "How do I get the client-VM SSH key?"
+    Client VMs use a different key from the allocator. On an AWS deployment,
+    first SSH to the allocator with its deployment key. In the production
+    allocator container, the client key is the `lablink_private_key_pem`
+    OpenTofu output. Save it to a private file on the allocator host:
+
+    ```bash
+    sudo docker ps --format '{{.ID}} {{.Image}}' # find the allocator container ID
+    sudo docker exec <allocator-container-id> sh -lc \
+      'cd /app/.venv/lib/python*/site-packages/lablink_allocator_service/terraform && tofu output -raw lablink_private_key_pem' \
+      > ~/lablink-client-key.pem
+    chmod 600 ~/lablink-client-key.pem
+    ```
+
+    The client-VM public IP comes from the allocator's client inventory or
+    the client OpenTofu outputs, not `ec2_public_ip` in the deployment state.
 
 ## Deploying (AWS provider)
 
 ??? note "OpenTofu init fails: bucket does not exist"
-    `lablink setup` creates the S3 state bucket and the DynamoDB lock table for you. If you skipped it, create the bucket by hand:
+    `lablink setup` creates the S3 state bucket and DynamoDB lock table and
+    writes the bucket name into your config. If either is missing, re-run:
 
     ```bash
-    aws s3 mb s3://tf-state-lablink-allocator-bucket --region us-west-2
-    aws s3api put-bucket-versioning \
-      --bucket tf-state-lablink-allocator-bucket \
-      --versioning-configuration Status=Enabled
-    tofu init
+    lablink setup
     ```
+
+    The CLI bucket name is `lablink-tf-state-<account-id>`.
 
 ??? note "Error acquiring the state lock"
     A previous OpenTofu run died without releasing its DynamoDB lock.
@@ -108,36 +134,30 @@ lablink client doctor   # on a BYO client box: registration, container, log ship
 
     Common lock paths:
 
-    - Infrastructure: `tf-state-lablink-allocator-bucket/<env>/terraform.tfstate`
-    - Client VMs: `tf-state-lablink-allocator-bucket/<env>/client/terraform.tfstate`
+    - Template infrastructure: `<bucket>/<env>/terraform.tfstate`
+    - CLI infrastructure: `lablink-tf-state-<account-id>/<deployment_name>/<env>/terraform.tfstate`
+    - Client VMs: `<bucket>/<deployment_name>/<env>/client/terraform.tfstate`
 
     If you get `AccessDeniedException: not authorized to perform: dynamodb:GetItem`, the allocator's IAM role is missing `dynamodb:GetItem`, `PutItem` and `DeleteItem` on `table/lock-table`. Add them and redeploy.
 
     **Prevention:** let OpenTofu runs finish. Don't terminate instances from the console mid-apply, and use the destroy workflow rather than deleting resources by hand.
 
 ??? note "Resource already exists"
-    Either import it, delete it, or deploy under a different suffix:
-
-    ```bash
-    tofu import aws_security_group.lablink sg-xxxxx
-    # or
-    aws ec2 terminate-instances --instance-ids i-xxxxx
-    # or change resource_suffix: -dev / -test / -prod
-    ```
+    Inspect the resource and state before retrying. For a separate deployment,
+    choose a different `deployment_name` or `environment` in the config and
+    workflow inputs. See [Template Deployment](deployment.md).
 
 ??? note "Resources won't destroy cleanly"
-    Usually a dependency still attached — network interfaces, an associated Elastic IP, or security groups referencing each other. Terminate instances first, wait, then remove the group:
-
-    ```bash
-    aws ec2 terminate-instances --instance-ids i-xxxxx
-    aws ec2 wait instance-terminated --instance-ids i-xxxxx
-    aws ec2 delete-security-group --group-id sg-xxxxx
-    ```
+    Inspect the failed OpenTofu destroy output and check whether client VMs
+    still exist. The template destroy workflow removes client VMs first. For
+    orphaned resources after a failed destroy, preview the
+    [template cleanup script](deployment.md#destroying-a-deployment) or run
+    `lablink cleanup --dry-run` on the CLI path before deleting anything.
 
 ??? note "GitHub Actions: could not assume role with OIDC"
     ```bash
     aws iam list-open-id-connect-providers
-    aws iam get-role --role-name github-lablink-deploy \
+    aws iam get-role --role-name github-actions-lablink \
       --query 'Role.AssumeRolePolicyDocument'
     ```
 
@@ -162,12 +182,9 @@ lablink client doctor   # on a BYO client box: registration, container, log ship
     curl localhost:5000               # does it answer locally?
     ```
 
-    If it answers locally but not from outside, it's the security group. The allocator's group should allow 22, 5000, and — when Caddy is in play — 80 and 443:
-
-    ```bash
-    aws ec2 authorize-security-group-ingress \
-      --group-id <sg-id> --protocol tcp --port 5000 --cidr 0.0.0.0/0
-    ```
+    The template's security group already allows 80, 443, 5000, and 22, but
+    HTTPS modes may bind 5000 only to loopback. Check Caddy, the public URL,
+    and the effective security group rather than opening another port.
 
 ??? note "Browser cannot reach the HTTP site (no SSL provider)"
     Symptoms: "This site can't be reached", `ERR_CONNECTION_REFUSED` on a deployment using `ssl.provider: "none"`.
@@ -219,8 +236,8 @@ lablink client doctor   # on a BYO client box: registration, container, log ship
     sudo systemctl restart caddy
     ```
 
-    !!! warning "Let's Encrypt rate limit"
-        Five duplicate certificates per domain per week. Redeploying the same test hostname repeatedly exhausts the quota and the site serves a TLS error until it resets. Use a fresh hostname for throwaway deployments, or `ssl.provider: "none"` while iterating.
+    See [Configuration](configuration.md#ssl-providers) for the Let's Encrypt
+    duplicate-certificate limit during repeated test deployments.
 
 ??? note "Domain doesn't resolve to the allocator"
     ```bash
@@ -229,7 +246,7 @@ lablink client doctor   # on a BYO client box: registration, container, log ship
       --query "ResourceRecordSets[?Name=='<your-domain>.']"
 
     # Does it match the actual IP?
-    tofu output allocator_public_ip
+    tofu output ec2_public_ip
     dig <your-domain> +short
     ```
 
@@ -273,7 +290,7 @@ lablink client doctor   # on a BYO client box: registration, container, log ship
 
 ## Client VMs (AWS provider)
 
-??? note "Clicking Create VMs does nothing"
+??? note "Clicking Create New VM Instance does nothing"
     ```bash
     sudo docker logs -f <allocator-container>
     sudo docker exec <allocator-container> aws sts get-caller-identity
@@ -301,12 +318,12 @@ lablink client doctor   # on a BYO client box: registration, container, log ship
     # What the allocator saw
     sudo docker logs <allocator-container> | grep -E "clients/register|heartbeat"
 
-    # What the client tried
-    ssh -i ~/lablink-key.pem ubuntu@<client-vm-ip>
+    # What the client tried (use the allocator-generated client key)
+    ssh -i ~/lablink-client-key.pem ubuntu@<client-vm-ip>
     sudo docker logs <client-container>
 
     # Can the client reach the allocator at all?
-    curl -i http://<allocator-ip>:5000/api/health
+    curl -i http://<allocator-ip>/api/health  # IP-only mode; use the configured HTTPS domain otherwise
     ```
 
     If `/api/health` fails from the client, stop debugging the client — it's the security group or the allocator's listening port.
@@ -317,7 +334,11 @@ lablink client doctor   # on a BYO client box: registration, container, log ship
 ??? note "Failed VMs aren't being rebooted"
     The allocator runs an `AutoRebootService` that sweeps every 60 seconds for VMs that are in `error`, `running` but GPU-`Unhealthy`, stuck `initializing` over 25 minutes, stuck `rebooting` over 10 minutes, or `running` but silent for 3 minutes with no heartbeat.
 
-    It tries an SSH hard reboot (`sudo cloud-init clean && sudo reboot`), then an EC2 stop/start if SSH is unreachable. **Max 3 attempts per VM**, 300s cooldown between them.
+    Assigned VMs get a warm `sudo reboot` that keeps their container state.
+    Unassigned VMs get a cold reboot (`docker rm -f`, `cloud-init clean`, then
+    `reboot`) that reprovisions from scratch. EC2 stop/start is used only if
+    SSH fails. There are at most 3 attempts with a 300-second cooldown; an
+    exhausted VM becomes `error` and its seat is released.
 
     ```bash
     sudo docker logs <allocator-container> | grep -i reboot
@@ -326,26 +347,24 @@ lablink client doctor   # on a BYO client box: registration, container, log ship
       "SELECT hostname, status, reboot_count, last_reboot_time FROM vms WHERE reboot_count >= 3;"
     ```
 
-    There is no reboot API endpoint. To re-arm a VM that exhausted its attempts, reset it and let the next sweep pick it up:
-
-    ```sql
-    UPDATE vms SET reboot_count = 0, status = 'error' WHERE hostname = '<hostname>';
-    ```
-
-    To reboot out of band, use the EC2 console or `aws ec2 reboot-instances`.
+    There is no admin reset endpoint for an exhausted VM. Review its logs and
+    replace it if needed; an out-of-band EC2 reboot alone does not reset the
+    allocator's attempt counter.
 
     !!! note "BYO boxes are never rebooted"
         Only providers that can recover hosts participate. The `manual` provider can't, so bring-your-own machines are left alone.
 
 ??? note "CUDA not available on a client VM"
     ```bash
-    ssh -i ~/lablink-key.pem ubuntu@<client-vm-ip>
+    ssh -i ~/lablink-client-key.pem ubuntu@<client-vm-ip>
     nvidia-smi
     docker run --rm --gpus all nvidia/cuda:12.4.0-base-ubuntu22.04 nvidia-smi
-    cat /etc/docker/daemon.json    # expects "default-runtime": "nvidia"
+    sudo docker inspect lablink-client --format '{{.HostConfig.Runtime}}'
     ```
 
-    If `nvidia-smi` itself fails, the AMI has no drivers — use a GPU-enabled AMI. Also confirm the instance type actually has a GPU; a `t3.large` never will.
+    The client container is launched with `--runtime=nvidia`; a Docker
+    `default-runtime` setting is not required. If `nvidia-smi` fails on the
+    host, use an AMI with NVIDIA drivers. Confirm the instance type has a GPU.
 
 ## Bring-your-own clients (manual provider)
 
@@ -402,7 +421,7 @@ lablink client doctor   # on a BYO client box: registration, container, log ship
     ```bash
     docker compose ps
     docker compose logs -f allocator
-    curl -i http://localhost:5000/api/health
+    curl -i http://localhost/api/health
     ```
 
     `lablink doctor` under the `manual` provider checks the Docker side for you.
@@ -414,7 +433,7 @@ see [Adapting for Your Software](adapting.md).
 
 ??? note "The client container never starts on a fresh VM"
     ```bash
-    ssh -i ~/lablink-key.pem ubuntu@<client-vm-ip>
+    ssh -i ~/lablink-client-key.pem ubuntu@<client-vm-ip>
     sudo docker ps -a                    # did it exit, or was it never created?
     sudo docker logs <client-container>
     ```
@@ -468,7 +487,7 @@ see [Adapting for Your Software](adapting.md).
     The allocator reports its own connection usage — check `/admin` (a line under the title) or hit the endpoint directly:
 
     ```bash
-    curl -u admin:<password> http://<allocator>:5000/api/health/connections
+    curl -u admin:<password> https://<allocator-domain>/api/health/connections
     ```
 
     At the critical level, new connections can be refused, which fails VM registration and admin actions. Raise Postgres `max_connections` and `LABLINK_DB_POOL_MAX_SIZE` together, and check for connections stuck idle in transaction.
@@ -476,7 +495,7 @@ see [Adapting for Your Software](adapting.md).
 ??? note "Container runs but Flask doesn't start"
     ```bash
     sudo docker logs <container>          # port in use, import error, bad config?
-    sudo docker exec <container> cat /app/config/config.yaml
+    sudo docker exec <container> cat /config/config.yaml
     sudo netstat -tulpn | grep 5000
     sudo docker restart <container>
     ```
@@ -492,7 +511,7 @@ sudo docker ps -a
 sudo docker stats
 sudo netstat -tulpn
 
-# Allocator
+# Allocator on an AWS host (manual-provider host port is 80)
 curl localhost:5000/api/health
 sudo docker logs -f <allocator-container>
 
@@ -507,8 +526,8 @@ sudo docker exec <container> aws sts get-caller-identity
 ## Before you ask for help
 
 - [ ] `lablink doctor` run, output read
-- [ ] Container running (`docker ps`) and answering on `localhost:5000`
-- [ ] Security group allows 22 and 5000, plus 80/443 if using Caddy
+- [ ] Container running (`docker ps`) and answering at the host port for your provider
+- [ ] Public URL reaches port 80 or 443 as configured; SSH reaches port 22
 - [ ] SSH key is mode 600
 - [ ] AWS credentials resolve (`aws sts get-caller-identity`)
 - [ ] OpenTofu state not locked, S3 bucket exists

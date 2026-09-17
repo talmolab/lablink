@@ -11,34 +11,21 @@ itself.
 This page walks through the whole path end to end on Run:AI, the platform it
 was validated against. The mechanics — render, submit a workload, read the
 register token from its logs — carry over to any platform that runs
-arbitrary container images.
-
-## When to use this page
-
-Use this instead of [Bring-Your-Own Clients](byo-clients.md) when the
-allocator itself has to run **inside** a managed container platform rather
-than on a machine you can `docker run` on directly. The giveaway is that
-`lablink deploy` has no Docker daemon to talk to — the platform *is* the
-container runtime. Typically that's because the only compute you have access
-to is scheduler-hosted (a Run:AI cluster, a shared Kubernetes namespace), and
-starting a container from inside a container (docker-in-docker) either isn't
-possible or isn't something the platform allows.
-
-The rendered bundle is still a plain `provider: manual` deployment under the
-hood — same allocator image, same `config.yaml`, same register-token
-handshake. `--render-only` just stops short of running it, because there is
-no local daemon to run it *with*.
+arbitrary container images. It is still a plain `provider: manual`
+deployment: same image, same `config.yaml`, same register flow as
+[Bring-Your-Own Clients](byo-clients.md).
 
 !!! info "Requirements"
     - `manual.connectivity: reverse_tunnel` — clients dial **out** to the
       allocator; the allocator never dials in.
     - `manual.participant_exposure: cloudflare_tunnel` — the allocator
       publishes itself by dialing **out** to Cloudflare's edge.
-    - A domain on Cloudflare's nameservers (see
-      [Configuration](../configuration.md#exposure-mode-cloudflare_tunnel)
-      for the one-time domain setup if you don't have one yet).
+    - A domain on Cloudflare's nameservers — see
+      [Cloudflare Tunnel](tunnels.md#cloudflare-tunnel) for the one-time
+      setup and why an institutional domain won't do.
     - The platform must allow the container to run as **root** — the
       allocator image bundles Postgres and nginx, both of which need it.
+      Clusters that force non-root UIDs can't run it yet.
 
     Every leg of this path dials out. The workload needs no inbound ports
     open and no privileges beyond running as root.
@@ -75,27 +62,12 @@ and `lablink deploy` refuses anything else for the manual provider.
 
 ## Step 2: Create the Cloudflare tunnel (one-time, dashboard)
 
-This is the same Cloudflare Tunnel every `cloudflare_tunnel` deployment uses
-(see [Configuration](../configuration.md#exposure-mode-cloudflare_tunnel) for
-the full one-time domain setup — signing up, delegating nameservers, opening
-Zero Trust). What differs here is only *where* `cloudflared` ends up
-running: normally it's a process inside a container on your own machine;
-here it's a process inside the allocator container running as a platform
-workload. Either way, `cloudflared` is baked into the allocator image and
-only starts when the config asks for it — there's no separate connector to
-install.
-
-In the Cloudflare **Zero Trust** dashboard:
-
-1. **Networks → Tunnels → Create a tunnel** → choose the remotely-managed
-   (Cloudflared) connector type, and name it.
-2. On the **Public Hostname** tab, add a hostname on your domain (e.g.
-   `lab.smithlab.org`) with service **`http://localhost:5000`** — that's the
-   allocator container's own nginx listener, whichever machine or platform
-   it ends up running on.
-3. Copy the **tunnel token** from the connector's install command
-   (`eyJhIjoiN…`). You'll pass it to the workload as an environment
-   variable, not run any `cloudflared` install command yourself.
+Follow [Cloudflare Tunnel](tunnels.md#cloudflare-tunnel) and keep the tunnel
+token. Nothing there changes for an external runtime: `cloudflared` runs
+inside the allocator container wherever that container lands, so the public
+hostname's service stays `http://localhost:5000`. The only difference is that
+the token reaches the workload as an environment variable instead of a
+`lablink deploy` flag.
 
 ## Step 3: Render the deployment bundle
 
@@ -104,10 +76,9 @@ lablink deploy --render-only --cloudflare-tunnel-token <token>
 ```
 
 No Docker is used or required on this machine — `--render-only` writes the
-same files a compose deploy would (`config.yaml`, `custom-startup.sh`, a
-canonical-URL file) into `~/.lablink/compose/<deployment_name>/`, marks the
-deployment as externally managed, and prints a launch sheet instead of
-starting containers:
+same bundle a compose deploy would into `~/.lablink/compose/<deployment_name>/`,
+marks the deployment as externally managed, and prints a launch sheet instead
+of starting containers:
 
 ```text
 Bundle rendered — launch it on your platform:
@@ -168,19 +139,25 @@ UI — skip the ConfigMap entirely and inject the config through the
 environment instead, decoding it back to a file in a command override:
 
 ```bash
+CFG_B64=$(gzip -9 < ~/.lablink/compose/<deployment>/config.yaml | base64 | tr -d '\n')
+
 runai workspace submit lablink-allocator -p <project> \
   -i ghcr.io/talmolab/lablink-allocator-image:<image_tag> \
-  -e LABLINK_CONFIG_B64=$(base64 -i ~/.lablink/compose/<deployment>/config.yaml) \
+  -e LABLINK_CONFIG_B64="$CFG_B64" \
   -e ALLOCATOR_URL=https://<public_hostname> \
   -e PARTICIPANT_EXPOSURE=cloudflare_tunnel \
   -e 'CLOUDFLARE_TUNNEL_TOKEN=<token>' \
-  --command -- bash -c 'mkdir -p /config && echo "$LABLINK_CONFIG_B64" | base64 -d > /config/config.yaml && touch /config/custom-startup.sh && printf %s "$ALLOCATOR_URL" > /config/allocator-url && exec /app/start.sh'
+  --command -- bash -c 'mkdir -p /config && echo "$LABLINK_CONFIG_B64" | base64 -d | gunzip > /config/config.yaml && touch /config/custom-startup.sh && printf %s "$ALLOCATOR_URL" > /config/allocator-url && exec /app/start.sh'
 ```
 
 This reconstructs the same `/config` layout the ConfigMap route mounts —
 `custom-startup.sh` is just touched empty (no custom startup script in this
 example) and `allocator-url` gets the public hostname directly — then hands
 off to the image's normal entrypoint.
+
+Run:AI caps every submitted value (each `-e` and the command) at 10,000
+characters, which a plain-base64 `config.yaml` can exceed — hence the `gzip`.
+If it still doesn't fit, use the ConfigMap route or a PVC.
 
 ## Step 5: Verify and get the register token
 
@@ -261,38 +238,23 @@ itself besides the workloads:
 
 | Task | Command | Notes |
 |---|---|---|
-| Check health | `lablink status` | Reads the public URL straight from the local rendered bundle; there's no local container to show `docker ps` status for, so it prints a note pointing you at the platform's own workload view for that. |
-| Read logs | `lablink logs` | No local `lablink-allocator` container to `docker logs` — this fetches a redacted tail of the allocator's own log over HTTPS from `/api/allocator-logs` (admin basic-auth) instead. |
+| Check health | `lablink status` | Checks `/api/health` at the public URL recorded in the local bundle and lists registered clients. There's no local container to `docker ps`, so it points you at the platform's workload view for that. |
+| Read logs | `lablink logs` | Same TUI as everywhere else. Client logs come from the allocator; the allocator's own entry is a redacted tail fetched over HTTPS from `/api/allocator-logs` (admin basic-auth), since there's no local container to `docker logs`. |
 | Tear down | `lablink destroy` | Only removes the local rendered bundle. It does **not** touch the platform — delete the allocator workload yourself (e.g. `runai workspace delete lablink-allocator -p <project>`), **and delete every client workload you submitted there too**. Any Postgres data lives in whatever volume you attached there, not on this machine. |
 
-`lablink client launch` stays unavailable under the manual provider exactly
-as it is for docker-compose deployments — register each client with
-`lablink client register` instead.
+`lablink client launch` and `lablink client destroy` no-op under the manual
+provider, here as for docker-compose deployments — register and unregister
+each client with `lablink client register` / `lablink client unregister`.
 
 `lablink stats` and `lablink export-metrics` work the same as for any
 manual-provider deployment: they resolve the allocator's address from the
 same recorded public URL `status`/`logs` use, so no extra configuration is
 needed.
 
-## Limitations
-
-- **No `mesh_overlay` or `tailscale_funnel`.** Both need a Tailscale sidecar
-  with a kernel TUN device and `NET_ADMIN` — access managed container
-  platforms don't grant workloads. Use `reverse_tunnel` +
-  `cloudflare_tunnel`, as this page does.
-- **Cloudflare needs a domain you control on Cloudflare's nameservers.**
-  Cloudflare's free plan requires full nameserver delegation, so an
-  institutional domain (e.g. a university's) generally can't be used this
-  way — see
-  [Configuration](../configuration.md#exposure-mode-cloudflare_tunnel) for
-  the reasoning and alternatives.
-- **The image runs as root.** Postgres and nginx inside the allocator
-  container both need it. Clusters that force workloads onto non-root UIDs
-  can't run this image yet.
-
 ## Next steps
 
-- [Configuration](../configuration.md#manual-provider-options-manual) — every `manual.*` setting, plus the full Cloudflare Tunnel one-time setup.
+- [Tailscale & Cloudflare Setup](tunnels.md#cloudflare-tunnel) — the Cloudflare Tunnel one-time setup.
+- [Configuration](../configuration.md#manual-provider-options-manual) — every `manual.*` setting.
 - [Bring-Your-Own Clients](byo-clients.md) — the docker-compose path this shares its `config.yaml`/register flow with.
 - [CLI Reference](../reference/cli.md#deployment-commands) — full flag list for `deploy`, `status`, `logs`, `destroy`.
 - [Troubleshooting](../troubleshooting.md) — general LabLink issues.

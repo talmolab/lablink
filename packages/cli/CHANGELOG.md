@@ -5,6 +5,18 @@ All notable changes to **lablink-cli** will be documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and
 this project uses [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- Corrected three `--help` strings that described behavior the CLI does not
+  have. `cleanup --dry-run` no longer claims the manual provider's cleanup
+  waits for a confirmation (it runs `docker compose down --volumes` and
+  removes the workdir immediately, so `--dry-run` is the only preview).
+  `logs` no longer says bring-your-own client logs are uncentralized; the
+  TUI shows them alongside the allocator log. `export-metrics --allocator`
+  now states that its scoping is by deployment name *and* provider.
+
 ## [0.4.0] - 2026-09-14
 
 ### Changed

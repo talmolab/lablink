@@ -163,8 +163,7 @@ deployment_name: smith-lab
 ssl:
   provider: none # Cloudflare supplies the public certificate
 manual:
-  connectivity: mesh_overlay # lan_direct is rejected with any exposure mode
-  overlay_tailnet: example.ts.net
+  connectivity: reverse_tunnel # lan_direct is rejected with any exposure mode
   participant_exposure: cloudflare_tunnel
   public_hostname: lab.smithlab.org
 ```
@@ -185,9 +184,10 @@ once. A miss is a warning, not a failure — a freshly created DNS record may
 still be propagating; retry the URL in your browser in a few minutes.
 
 !!! note "Cloudflare can read your traffic"
-    Cloudflare Tunnel terminates TLS at Cloudflare's edge — see the
-    [security note](../configuration.md#cloudflare-can-read-your-traffic) for
-    what that means and when to prefer `tailscale_funnel`.
+    Cloudflare Tunnel terminates TLS at Cloudflare's edge. Admin logins,
+    session cookies, and participant desktop streams are decrypted there.
+    Tailscale Funnel relays encrypted bytes and terminates TLS on your machine.
+    Choose Funnel if those data cannot be decrypted by a third party.
 
 ## Next steps
 

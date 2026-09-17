@@ -1,672 +1,121 @@
-# Deployment
+# Template Repository Deployment
 
-This guide covers deploying LabLink to AWS using both automated (GitHub Actions) and manual (OpenTofu CLI) methods.
+The [template repository](https://github.com/talmolab/lablink-template) holds
+the OpenTofu files and GitHub Actions workflows for an AWS deployment. Start
+with [Quickstart: Template repo](quickstart-template.md) to create a repository,
+run `scripts/setup.sh`, and prepare `lablink-infrastructure/config/config.yaml`.
+For a standard deployment from your own machine, use the
+[LabLink CLI](cli/first-deployment.md).
 
-## Deployment Overview
+## Method 1: GitHub Actions
 
-LabLink supports four deployment environments:
+**Deploy LabLink Infrastructure** runs when you push to the `test` branch, or
+when you start it from the Actions tab with a `deployment_name` and an
+`environment` (`test`, `prod`, or `ci-test`). A push to `main` does not deploy.
+For a `test` push, set the repository variable `DEPLOYMENT_NAME` to the name
+you want; otherwise the workflow uses `my-lablink`.
 
-| Environment | Purpose | Trigger | Image Tag |
-|-------------|---------|---------|-----------|
-| **dev** | Local/personal development | Manual | `*-test` |
-| **test** | Staging, pre-production testing | Push to `test` branch | `*-test` |
-| **ci-test** | CI testing with S3 backend | Manual workflow dispatch | `*-test` |
-| **prod** | Production workloads | Manual workflow dispatch | Pinned version tags |
+The workflow uses the `AWS_ROLE_ARN`, `AWS_REGION`, `ADMIN_PASSWORD`, and
+`DB_PASSWORD` repository secrets created by `scripts/setup.sh`. It pulls the
+image named by `allocator.image_tag` and validates the config. In its working
+copy, it replaces the password placeholders and sets `deployment_name` and
+`environment` to the workflow inputs, then runs OpenTofu 1.12.5 against the
+S3 backend. It verifies the deployment and uploads the allocator SSH key as
+an artifact retained for one day. If apply fails, it runs `tofu destroy`.
 
-### Choosing a Deployment Method
-
-```mermaid
-flowchart TD
-    Start{What are you deploying?}
-
-    Start -->|Quick testing<br/>or development| DevEnv[Local Dev Environment]
-    Start -->|Team staging| TestEnv[Test Environment]
-    Start -->|Production| ProdEnv[Production Environment]
-
-    DevEnv --> DevMethod{Preferred method?}
-    TestEnv --> AutoDeploy[GitHub Actions<br/>Recommended]
-    ProdEnv --> ProdMethod{Infrastructure exists?}
-
-    DevMethod -->|Quick & easy| ManualDev[Manual OpenTofu<br/>Local state]
-    DevMethod -->|CI/CD practice| GHActionsDev[GitHub Actions<br/>workflow_dispatch]
-
-    ProdMethod -->|First time| ManualProd[Manual OpenTofu<br/>Careful setup]
-    ProdMethod -->|Updates| GHActionsProd[GitHub Actions<br/>workflow_dispatch]
-
-    ManualDev --> DevNotes["✓ No S3 bucket needed<br/>✓ Fast iteration<br/>✗ State not shared"]
-    GHActionsDev --> DevGHNotes["✓ Practice CI/CD<br/>✓ Shared state<br/>⚠ Requires S3 setup"]
-
-    AutoDeploy --> TestNotes["✓ Automatic on push<br/>✓ Team accessible<br/>✓ S3 state storage"]
-
-    ManualProd --> ProdManual["✓ Full control<br/>✓ Step-by-step<br/>⚠ Manual process"]
-    GHActionsProd --> ProdGH["✓ Consistent deploys<br/>✓ Audit trail<br/>✓ Rollback support"]
-
-    style DevEnv fill:#e3f2fd
-    style TestEnv fill:#fff3e0
-    style ProdEnv fill:#ffebee
-    style AutoDeploy fill:#c8e6c9
-    style ManualProd fill:#fff9c4
-```
-
-## Prerequisites
-
-Before deploying, ensure you have:
-
-- [x] AWS account configured (see [Prerequisites](prerequisites.md#aws-account))
-- [x] OpenTofu installed (see [Prerequisites](prerequisites.md#opentofu))
-- [x] S3 bucket for OpenTofu state (see [AWS Setup](aws-setup.md#step-2-s3-bucket-for-opentofu-state))
-- [x] Elastic IP allocated for test/prod (see [AWS Setup](aws-setup.md#step-3-elastic-ip-allocation))
-- [x] IAM roles configured for GitHub Actions (see [AWS Setup](aws-setup.md#step-4-github-actions-oidc-configuration))
-
-## Method 1: GitHub Actions (Recommended)
-
-Automated deployment via CI/CD pipelines.
-
-### Initial Setup
-
-1. **Configure GitHub Secrets**
-
-    Navigate to **Settings → Secrets and variables → Actions** in your GitHub repository.
-
-    Required secrets:
-
-    - `AWS_ROLE_ARN`: IAM role ARN for GitHub Actions authentication
-     Example: `arn:aws:iam::711387140753:role/GitHubActionsLabLinkRole`
-    - `AWS_REGION`: AWS region for deployment
-     Example: `us-west-2`, `eu-west-1`, `ap-northeast-1`
-     **Note:** Must match region in `config/config.yaml`
-    - `ADMIN_PASSWORD`: Admin password for allocator web interface
-     Example: Generate a secure password using a password manager
-    - `DB_PASSWORD`: Database password for PostgreSQL
-     Example: Generate a secure password using a password manager
-
-    **Security Note**: The workflow automatically replaces `PLACEHOLDER_ADMIN_PASSWORD` and `PLACEHOLDER_DB_PASSWORD` in config files with these secret values before OpenTofu runs, preventing passwords from appearing in logs. If these secrets are not set, the workflow uses temporary `CHANGEME_*` defaults and displays a warning.
-
-2. **Verify OIDC Configuration**
-
-    Ensure AWS IAM role exists and trusts your GitHub repository:
-
-    - OIDC provider exists: `token.actions.githubusercontent.com`
-    - IAM role trust policy includes your repository: `repo:YOUR_ORG/YOUR_REPO:*`
-    - Role has PowerUserAccess or equivalent permissions
-
-    See detailed setup instructions: [AWS Setup → OIDC Configuration](aws-setup.md#step-4-github-actions-oidc-configuration)
-
-### Deploy to Test Environment
-
-**Trigger**: Push to `test` branch
-
-```bash
-git checkout -b test
-git push origin test
-```
-
-This automatically:
-
-1. Builds Docker images with `-test` tags
-2. Runs OpenTofu init with `backend-test.hcl`
-3. Deploys to test environment
-4. Outputs allocator URL and SSH key
-
-**Monitor Progress**:
-
-- Go to **Actions** tab in GitHub
-- Watch `OpenTofu Deploy` workflow
-- Check logs for any errors
-
-**Access Deployment**:
-
-- Allocator URL: Available in workflow output
-- SSH Key: Download from workflow artifacts
-
-### Deploy to Production
-
-**Trigger**: Manual workflow dispatch
-
-1. **Navigate to Actions tab** in GitHub
-
-2. **Select "OpenTofu Deploy" workflow**
-
-3. **Click "Run workflow"**
-
-4. **Fill in parameters**:
-    - **Environment**: `prod`
-    - **Image tag**: Specific version (e.g., `v1.0.0` or commit SHA)
-
-5. **Click "Run workflow"**
-
-**Why Manual?**
-Production deployments use pinned image tags for reproducibility and require explicit approval.
-
-!!! warning "Production Image Tags"
-    Never use `:latest` or `-test` tags in production. Always use specific version tags or commit SHAs.
-
-### Deployment Outputs
-
-After successful deployment, the workflow provides:
-
-- **Allocator FQDN**: DNS name for your allocator
-- **EC2 Public IP**: IP address of the allocator instance
-- **EC2 Key Name**: Name of the SSH key pair
-- **Private Key**: Downloaded as artifact (expires in 1 day)
-
-### Deployment Workflow Details
-
-The GitHub Actions workflow (`.github/workflows/lablink-allocator-terraform.yml`) performs:
-
-1. **Checkout code** from repository
-2. **Configure AWS credentials** via OIDC
-3. **Setup OpenTofu** (version 1.6.6)
-4. **Determine environment** from trigger
-5. **Inject password secrets** - Replace placeholders in config files with GitHub secrets
-6. **Initialize OpenTofu** with environment-specific backend
-7. **Validate** OpenTofu configuration
-8. **Plan** infrastructure changes
-9. **Apply** changes to AWS
-10. **Save SSH key** as artifact
-11. **Output** deployment details
-12. **Destroy on failure** (if apply fails)
-
-**Password Injection Step**: Before OpenTofu runs, the workflow finds the config file and uses `sed` to replace `PLACEHOLDER_ADMIN_PASSWORD` and `PLACEHOLDER_DB_PASSWORD` with values from GitHub secrets. This ensures passwords never appear in OpenTofu logs while maintaining secure configuration.
+See [the quickstart](quickstart-template.md#step-4-commit-and-deploy) for the
+full workflow and verification steps. The workflow does not build images;
+publish an image separately and select its tag in `config.yaml`.
 
 ## Method 2: Manual OpenTofu Deployment
 
-Deploy directly from your local machine using OpenTofu CLI.
+Use this when you need to run the template's OpenTofu files locally. It still
+uses the S3 state bucket and DynamoDB lock table created by `scripts/setup.sh`.
+You need OpenTofu 1.10.0 or newer, AWS credentials, and a configured template
+repository checkout. Run `./scripts/doctor.sh` first.
 
-### Step 1: Clone Template Repository
+The template expects real credentials in the local
+`lablink-infrastructure/config/config.yaml` for a direct apply. Replace
+`PLACEHOLDER_ADMIN_PASSWORD` and `PLACEHOLDER_DB_PASSWORD` with strong values
+in your private working copy, and restore the placeholders before committing
+the file. Set top-level `deployment_name` and `environment` in that copy to
+the same values you pass with `-var`; GitHub Actions performs those changes
+automatically on its path.
 
-```bash
-git clone https://github.com/talmolab/lablink-template.git
-cd lablink-template/lablink-infrastructure
-```
-
-All infrastructure configurations are in the `lablink-infrastructure/` directory within the template repository.
-
-### Step 2: Configure AWS Credentials
-
-**Option A: AWS CLI Profiles**
-```bash
-export AWS_PROFILE=your-profile
-aws configure --profile your-profile
-```
-
-**Option B: Environment Variables**
-```bash
-export AWS_ACCESS_KEY_ID=your-access-key
-export AWS_SECRET_ACCESS_KEY=your-secret-key
-export AWS_REGION=us-west-2
-```
-
-**Option C: AWS SSO**
-```bash
-aws sso login --profile your-sso-profile
-export AWS_PROFILE=your-sso-profile
-```
-
-### Step 3: Initialize OpenTofu
-
-**For dev environment (local state)**:
-```bash
-tofu init
-```
-
-**For test/prod (remote state)**:
-```bash
-# Test
-tofu init -backend-config=backend-test.hcl
-
-# Production
-tofu init -backend-config=backend-prod.hcl
-```
-
-### Step 4: Plan Deployment
-
-Preview infrastructure changes:
+From the repository root, initialize the backend for the environment:
 
 ```bash
-tofu plan \
-  -var="resource_suffix=dev" \
-  -var="allocator_image_tag=linux-amd64-latest-test"
+./scripts/init-terraform.sh test
+cd lablink-infrastructure
 ```
 
-Review the plan output carefully. OpenTofu will show:
-
-- Resources to be created
-- Resources to be modified
-- Resources to be destroyed
-
-### Step 5: Apply Deployment
-
-Deploy the infrastructure:
+The init script reads `bucket_name` and `app.region` from `config.yaml` and
+uses `backend-test.hcl`; use `dev`, `ci-test`, or `prod` in place of `test` when
+appropriate. Run the plan and apply with the same deployment name and
+environment:
 
 ```bash
-tofu apply \
-  -var="resource_suffix=dev" \
-  -var="allocator_image_tag=linux-amd64-latest-test"
+tofu plan -var="deployment_name=my-lablink" -var="environment=test"
+tofu apply -var="deployment_name=my-lablink" -var="environment=test"
 ```
 
-Type `yes` when prompted to confirm.
-
-**Deployment time**: ~5-10 minutes
-
-### Step 6: Get Outputs
-
-After deployment completes:
-
-```bash
-# Get allocator URL
-tofu output allocator_fqdn
-
-# Get public IP
-tofu output ec2_public_ip
-
-# Save SSH key
-tofu output -raw private_key_pem > ~/lablink-dev-key.pem
-chmod 600 ~/lablink-dev-key.pem
-```
-
-### Step 7: Verify Deployment
-
-Test the allocator:
-
-```bash
-# Get the IP
-ALLOCATOR_IP=$(tofu output -raw ec2_public_ip)
-
-# Test web interface
-curl http://$ALLOCATOR_IP:80
-
-# SSH into instance
-ssh -i ~/lablink-dev-key.pem ubuntu@$ALLOCATOR_IP
-```
-
-## OpenTofu Variables
-
-Key variables for customizing deployment:
-
-| Variable | Description | Default | Example |
-|----------|-------------|---------|---------|
-| `resource_suffix` | Environment suffix for resource names | `dev` | `prod`, `test` |
-| `allocator_image_tag` | Docker image tag for allocator | (required) | `v1.0.0`, `linux-amd64-latest-test` |
-| `instance_type` | EC2 instance type for allocator | `t2.micro` | `t2.small`, `t3.medium` |
-| `allocated_eip` | Pre-allocated Elastic IP (test/prod) | None | `eipalloc-xxxxx` |
-
-**Usage**:
-```bash
-tofu apply \
-  -var="resource_suffix=prod" \
-  -var="allocator_image_tag=v1.0.0" \
-  -var="instance_type=t2.small" \
-  -var="allocated_eip=eipalloc-xxxxx"
-```
+The template's input variables are `region`, `deployment_name`,
+`environment`, and `repository`. Image tags, client instance type, and Elastic
+IP strategy come from `config.yaml` (`allocator.image_tag`, `machine`, and
+`eip.strategy`); they are not `-var` arguments. The allocator instance type is
+`t3.large` in the template. Its root volume uses the AMI default; client root
+volumes are 80 GiB.
 
 ## Environment-Specific Configurations
 
-### Development
+`dev`, `test`, `ci-test`, and `prod` each use a separate S3 state key selected
+by `scripts/init-terraform.sh`. The same `deployment_name` can be used across
+environments, but pass the intended environment to both init and every
+`tofu plan`, `apply`, or `destroy` command. OpenTofu tags resources with the
+deployment name and environment.
 
-**Purpose**: Local testing, rapid iteration
-
-**Configuration**:
-
-- OpenTofu state: Local file
-- Image tag: `-test` versions
-- Instance type: `t2.micro` (cheapest)
-- No Elastic IP (dynamic)
-
-**Deploy**:
-```bash
-tofu init
-tofu apply \
-  -var="resource_suffix=dev" \
-  -var="allocator_image_tag=linux-amd64-latest-test"
-```
-
-### Test/Staging
-
-**Purpose**: Pre-production validation, integration testing
-
-**Configuration**:
-
-- OpenTofu state: S3 bucket (`backend-test.hcl`)
-- Image tag: `-test` versions
-- Instance type: Same as production
-- Elastic IP: Pre-allocated
-
-**Deploy**:
-```bash
-tofu init -backend-config=backend-test.hcl
-tofu apply \
-  -var="resource_suffix=test" \
-  -var="allocator_image_tag=linux-amd64-latest-test" \
-  -var="allocated_eip=eipalloc-test"
-```
-
-### Production
-
-**Purpose**: Live workloads, stable releases
-
-**Configuration**:
-
-- OpenTofu state: S3 bucket (`backend-prod.hcl`)
-- Image tag: Pinned versions (`v1.0.0`)
-- Instance type: Appropriately sized
-- Elastic IP: Pre-allocated
-- Monitoring and backups enabled
-
-**Deploy**:
-```bash
-tofu init -backend-config=backend-prod.hcl
-tofu apply \
-  -var="resource_suffix=prod" \
-  -var="allocator_image_tag=v1.0.0" \
-  -var="allocated_eip=eipalloc-prod"
-```
-
-## Post-Deployment Tasks
-
-After deploying the allocator:
-
-### 1. Configure DNS (Optional)
-
-Point a custom domain to your allocator for easier access.
-
-#### Using AWS Route 53
-
-**Quick Update**:
-```bash
-# Get IP
-ALLOCATOR_IP=$(tofu output -raw ec2_public_ip)
-
-# Update Route 53 A record
-aws route53 change-resource-record-sets \
-  --hosted-zone-id Z1234567890ABC \
-  --change-batch '{
-    "Changes": [{
-      "Action": "UPSERT",
-      "ResourceRecordSet": {
-        "Name": "lablink.yourdomain.com",
-        "Type": "A",
-        "TTL": 300,
-        "ResourceRecords": [{"Value": "'$ALLOCATOR_IP'"}]
-      }
-    }]
-  }'
-```
-
-#### Example: Talmo Lab DNS Configuration
-
-The Talmo Lab LabLink deployment uses the `sleap.ai` domain with environment-specific subdomains:
-
-| Environment | Subdomain | IP Address | Purpose |
-|-------------|-----------|------------|---------|
-| **Production** | `lablink.sleap.ai` | `44.247.165.126` | Production allocator |
-| **Test** | `test.lablink.sleap.ai` | `100.20.149.17` | Testing environment |
-| **Dev** | `dev.lablink.sleap.ai` | `34.208.206.60` | Development environment |
-
-**DNS Configuration**:
-
-- **Type**: A Records
-- **TTL**: 300 seconds
-- **Managed via**: AWS Route 53
-- **Name Servers**:
-    - `ns-158.awsdns-19.com`
-    - `ns-697.awsdns-23.net`
-    - `ns-1839.awsdns-37.co.uk`
-    - `ns-1029.awsdns-00.org`
-
-**To replicate this setup**:
-
-1. **Create hosted zone** in Route 53:
-   ```bash
-   aws route53 create-hosted-zone \
-     --name sleap.ai \
-     --caller-reference $(date +%s)
-   ```
-
-2. **Add A records** for each environment:
-   ```bash
-   # Production
-   aws route53 change-resource-record-sets \
-     --hosted-zone-id YOUR_ZONE_ID \
-     --change-batch '{
-       "Changes": [{
-         "Action": "UPSERT",
-         "ResourceRecordSet": {
-           "Name": "lablink.sleap.ai",
-           "Type": "A",
-           "TTL": 300,
-           "ResourceRecords": [{"Value": "44.247.165.126"}]
-         }
-       }]
-     }'
-
-   # Test environment
-   aws route53 change-resource-record-sets \
-     --hosted-zone-id YOUR_ZONE_ID \
-     --change-batch '{
-       "Changes": [{
-         "Action": "UPSERT",
-         "ResourceRecordSet": {
-           "Name": "test.lablink.sleap.ai",
-           "Type": "A",
-           "TTL": 300,
-           "ResourceRecords": [{"Value": "100.20.149.17"}]
-         }
-       }]
-     }'
-
-   # Dev environment
-   aws route53 change-resource-record-sets \
-     --hosted-zone-id YOUR_ZONE_ID \
-     --change-batch '{
-       "Changes": [{
-         "Action": "UPSERT",
-         "ResourceRecordSet": {
-           "Name": "dev.lablink.sleap.ai",
-           "Type": "A",
-           "TTL": 300,
-           "ResourceRecords": [{"Value": "34.208.206.60"}]
-         }
-       }]
-     }'
-   ```
-
-3. **Verify DNS propagation**:
-   ```bash
-   # Check if DNS is resolving
-   nslookup lablink.sleap.ai
-   dig lablink.sleap.ai
-
-   # Test all environments
-   curl http://lablink.sleap.ai
-   curl http://test.lablink.sleap.ai
-   curl http://dev.lablink.sleap.ai
-   ```
-
-!!! tip "DNS Best Practices"
-    - Use environment-specific subdomains (e.g., `prod.`, `test.`, `dev.`)
-    - Keep TTL low (300s) for easier updates during initial setup
-    - Increase TTL (3600s+) once stable to reduce DNS query costs
-    - Use Elastic IPs for production to avoid DNS updates on instance replacement
-
-### 2. Change Default Passwords
-
-!!! danger "Security Critical"
-    Change default passwords before creating any VMs!
-
-SSH into allocator and update configuration:
-```bash
-ssh -i ~/lablink-key.pem ubuntu@$ALLOCATOR_IP
-sudo docker exec -it <container> bash
-# Edit config and restart container
-```
-
-See [Security → Change Default Passwords](security.md#change-default-passwords).
-
-### 3. Test VM Creation
-
-Via web interface:
-
-1. Navigate to `http://<allocator-ip>:80`
-2. Login with admin credentials
-3. Go to **Admin → Create Instances**
-4. Enter number of VMs to create
-5. Submit and monitor creation
-
-Via API:
-```bash
-curl -X POST http://<allocator-ip>:80/api/request_vm \
-  -d "email=test@example.com"
-```
-
-An email address is all a participant supplies — see [API Endpoints](api-endpoints.md) for the response shape.
-
-### 4. Monitor Logs
+The allocator's public address is available from the outputs:
 
 ```bash
-# SSH into allocator
-ssh -i ~/lablink-key.pem ubuntu@$ALLOCATOR_IP
-
-# Check Docker containers
-sudo docker ps
-
-# View allocator logs
-sudo docker logs <allocator-container-id>
-
-# View PostgreSQL logs
-sudo docker exec -it <allocator-container-id> \
-  tail -f /var/log/postgresql/postgresql-13-main.log
+tofu output -raw allocator_fqdn
+tofu output -raw ec2_public_ip
 ```
+
+For DNS and TLS choices, see [DNS Configuration](dns-configuration.md) and
+[Configuration](configuration.md). The admin dashboard has a **Create New VM
+Instance** button that opens **Launch New LabLink Instances**; choose a count
+and click **Launch VMs**. Client VM provisioning runs asynchronously.
 
 ## Updating a Deployment
 
-To update an existing deployment with new configuration or image:
-
-```bash
-# Pull latest code
-git pull origin main
-
-# Re-initialize if needed
-tofu init -reconfigure
-
-# Plan changes
-tofu plan \
-  -var="resource_suffix=dev" \
-  -var="allocator_image_tag=new-version"
-
-# Apply changes
-tofu apply \
-  -var="resource_suffix=dev" \
-  -var="allocator_image_tag=new-version"
-```
-
-**Note**: Changing the image tag will replace the EC2 instance.
+Update the config or OpenTofu files in your template checkout, reinitialize
+the intended environment, and review the plan before applying it. With GitHub
+Actions, commit the config and run **Deploy LabLink Infrastructure** again.
+The workflow's `deployment_name` and `environment` must match the deployment
+you intend to update.
 
 ## Destroying a Deployment
 
-### Via GitHub Actions
+The safest template path is **Destroy LabLink Infrastructure** in the Actions
+tab. Enter the original `deployment_name` and `environment` and set
+`confirm_destroy` to `yes`. The workflow attempts to destroy client VMs from
+their S3 state before destroying the allocator infrastructure.
 
-Use the destroy workflow:
-
-1. Go to **Actions → Allocator Master Destroy**
-2. Click **Run workflow**
-3. Select environment
-4. Confirm destruction
-
-### Via OpenTofu CLI
+For a local OpenTofu teardown, destroy the client VMs through the allocator
+admin UI first. From the template repository root, initialize the same
+backend and destroy the allocator:
 
 ```bash
+./scripts/init-terraform.sh test
 cd lablink-infrastructure
-
-tofu destroy \
-  -var="resource_suffix=dev" \
-  -var="allocator_image_tag=dummy"  # Still required
-
-# Type 'yes' to confirm
+tofu destroy -var="deployment_name=my-lablink" -var="environment=test"
 ```
 
-**Warning**: This destroys:
+If a failed run leaves tagged resources behind, preview the template's
+cleanup script before using it:
 
-- EC2 instance
-- Security group
-- SSH key pair
-- All associated resources
-
-**Not destroyed**:
-
-- S3 bucket (OpenTofu state)
-- Elastic IPs (must be released manually)
-- Any client VMs created by the allocator
-
-## Troubleshooting Deployments
-
-### OpenTofu Init Fails
-
-**Error**: `Backend configuration changed`
-
-**Solution**:
 ```bash
-tofu init -reconfigure
+./scripts/cleanup-orphaned-resources.sh test --deployment-name my-lablink --dry-run
 ```
 
-### Apply Fails: Resource Already Exists
-
-**Error**: `Error creating security group: ... already exists`
-
-**Solution**: Import existing resource or destroy manually:
-```bash
-tofu import aws_security_group.lablink sg-xxxxx
-```
-
-### SSH Key Not Working
-
-**Error**: `Permission denied (publickey)`
-
-**Check**:
-```bash
-# Verify key permissions
-ls -l ~/lablink-key.pem
-# Should show: -rw------- (600)
-
-# Fix permissions
-chmod 600 ~/lablink-key.pem
-```
-
-### Instance Not Accessible
-
-**Check**:
-
-1. Security group allows port 80 from your IP
-2. Instance has public IP
-3. Instance is running (`aws ec2 describe-instances`)
-
-### OpenTofu State Locked
-
-**Error**: `Error acquiring the state lock`
-
-**Solution**:
-```bash
-# If no other OpenTofu process is running:
-tofu force-unlock <lock-id>
-```
-
-## Best Practices
-
-1. **Use version control**: Always commit OpenTofu configs before applying
-2. **Review plans**: Always run `tofu plan` before `apply`
-3. **Pin versions**: Use specific image tags in production
-4. **Separate environments**: Never share state between dev/test/prod
-5. **Backup state**: Enable S3 versioning for OpenTofu state
-6. **Monitor costs**: Set up AWS billing alerts
-7. **Document changes**: Use descriptive commit messages
-
-## Next Steps
-
-- **[Workflows](workflows.md)**: Understand the CI/CD pipeline
-- **[Security & Access](security.md#ssh-access)**: Connect to your deployed instances
-- **[Database Management](database.md)**: Manage the allocator database
-- **[Troubleshooting](troubleshooting.md)**: Fix common deployment issues
-
-## Cost Management
-
-See [Cost Estimation](cost-estimation.md) for expected AWS costs and how to monitor spending.
+For deployment failures, see [Troubleshooting](troubleshooting.md).

@@ -11,7 +11,7 @@ LabLink is designed to be **software-agnostic**. While it ships with SLEAP as th
 - [ ] Create custom Docker image with your software
 - [ ] Configure Git repository (if needed)
 - [ ] Update LabLink configuration
-- [ ] Test locally
+- [ ] Smoke-test the image locally
 - [ ] Deploy to AWS
 
 ## Step-by-Step Guide
@@ -39,7 +39,7 @@ RUN sudo apt-get update && sudo apt-get install -y \
     && sudo rm -rf /var/lib/apt/lists/*
 
 # Install your Python packages with uv (already available in the base image)
-RUN uv add your-research-package
+RUN uv pip install --system your-research-package
 
 # Copy your code
 COPY your_software/ /home/client/your_software/
@@ -75,7 +75,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 # Install your research software
 RUN uv pip install --system your-research-package
 
-# Optional: Include LabLink client service for health monitoring
+# LabLink client service is required for registration and the browser desktop
 RUN uv pip install --system lablink-client-service
 
 # Your startup script
@@ -116,13 +116,14 @@ fine without a repository.
 
 Edit the allocator configuration to use your custom image and repository.
 
-**`lablink-infrastructure/config/config.yaml`**:
+**`config.yaml`** (in `~/.lablink/` for the CLI, or
+`lablink-infrastructure/config/` in the template repository):
 
 ```yaml
 machine:
   machine_type: "g4dn.xlarge"  # Choose appropriate instance type
   image: "ghcr.io/your-org/your-research-image:latest"
-  ami_id: "ami-0601752c11b394251"  # Ubuntu 24.04 + Docker + NVIDIA (us-west-2)
+  ami_id: ""  # resolve a compatible Deep Learning Base AMI in app.region
   repository: "https://github.com/your-org/your-research-code.git"
   software: "your-software-name"
 
@@ -136,17 +137,18 @@ machine:
 - **`software`**: Identifier for your software (used by client service)
 - **`machine_type`**: EC2 instance type appropriate for your workload
 
-### Step 4: Test Locally
+### Step 4: Smoke-Test the Image Locally
 
-Before deploying to AWS, test your setup locally.
+Before deploying to AWS, confirm that the image contains your software and
+that the expected desktop base is present. A complete allocator registration
+test requires a configured allocator and client credentials; use the
+[manual-provider guide](cli/byo-clients.md) for that flow.
 
 #### Run Your Docker Image
 
 ```bash
 docker run -d \
   --name test-client \
-  -e ALLOCATOR_HOST=localhost \
-  -e ALLOCATOR_PORT=5000 \
   ghcr.io/your-org/your-research-image:latest
 ```
 
@@ -162,23 +164,12 @@ Verify:
 - Dependencies are available
 - Your code runs as expected
 
-#### Test Full Stack
-
-Run both allocator and your client locally:
+Check the image interactively:
 
 ```bash
-# Terminal 1: Start allocator
-docker run -d -p 5000:5000 --name allocator \
-  ghcr.io/talmolab/lablink-allocator-image:latest
-
-# Terminal 2: Start your client
-docker run -d --name client \
-  -e ALLOCATOR_HOST=host.docker.internal \
-  -e ALLOCATOR_PORT=5000 \
+docker run --rm -it --entrypoint bash \
   ghcr.io/your-org/your-research-image:latest
-
-# Check allocator web UI
-open http://localhost:5000
+# Check your software and dependencies from inside the container.
 ```
 
 ### Step 5: Deploy to AWS
@@ -195,8 +186,8 @@ need to build your own infrastructure repository:
 
 Then verify:
 
-1. Open the allocator admin page (the CLI prints the URL; the template flow
-   shows the allocator IP in the GitHub Actions logs)
+1. Open the allocator admin page (the CLI prints the Admin URL; the template
+   flow prints `allocator_fqdn` and `ec2_public_ip` in the workflow output)
 2. Create client VMs via the admin interface
 3. Monitor VM creation and status
 
@@ -223,7 +214,7 @@ aws ec2 create-image \
 
 # Use in config.yaml
 machine:
-  ami_id: "ami-your-custom-ami"
+  ami_id: "ami-your-custom-ami"  # must be available in app.region
 ```
 
 Benefits:
@@ -239,7 +230,7 @@ Create separate configs for different workloads:
 **`conf/config-cpu.yaml`**:
 ```yaml
 machine:
-  machine_type: "c5.2xlarge"  # CPU-optimized
+  machine_type: "t3.xlarge"  # CPU-optimized example
   image: "ghcr.io/your-org/your-research-image-cpu:latest"
   software: "your-software-cpu"
 ```
@@ -252,26 +243,15 @@ machine:
   software: "your-software-gpu"
 ```
 
-Use with:
-```bash
-python main.py --config-name=config-gpu
-```
+Save each workload as a separate config and pass it to the CLI with
+`lablink deploy --config /path/to/config.yaml` (and the matching `status` or
+`destroy` command).
 
 ### Multi-Software Support
 
-Support multiple research software packages in one deployment:
-
-```yaml
-# Use software identifier to select behavior
-machine:
-  software: "multi"  # Or pass dynamically
-
-# Client code checks software identifier:
-# if config.client.software == "sleap":
-#     run_sleap()
-# elif config.client.software == "your_tool":
-#     run_your_tool()
-```
+Use separate deployments or config files when workloads need different
+images or instance types. `machine.software` identifies the software for a
+deployment; it does not install or switch between multiple applications.
 
 ### Private Docker Registries
 
@@ -287,42 +267,11 @@ Your options:
   or a credential helper (such as the ECR credential helper) on the AMI, then
   set `machine.ami_id` to it (see [Custom AMI](#custom-ami))
 
-### Custom Health Checks
-
-Implement software-specific health monitoring:
-
-**`your_health_check.py`**:
-```python
-import requests
-
-def check_health():
-    """Check if your software is healthy."""
-    # Example: Check GPU availability
-    try:
-        import torch
-        assert torch.cuda.is_available()
-    except:
-        return False
-
-    # Example: Check disk space
-    import shutil
-    _, _, free = shutil.disk_usage("/")
-    if free < 10 * 1024**3:  # Less than 10GB
-        return False
-
-    return True
-
-def report_to_allocator(status):
-    """Report status to allocator."""
-    requests.post(
-        f"http://{ALLOCATOR_HOST}:{ALLOCATOR_PORT}/health",
-        json={"status": "healthy" if status else "unhealthy"}
-    )
-```
-
 ## Example: Adapting for PyTorch Training
 
-Complete example for a PyTorch training workflow.
+This is a workload image example. To make it a LabLink client image, extend
+the published client base image and keep its startup and client-agent flow;
+the from-scratch image below is not assignable by itself.
 
 ### Dockerfile
 
@@ -395,7 +344,7 @@ if __name__ == "__main__":
 ## Best Practices
 
 1. **Test locally first**: Always test Docker images locally before AWS deployment
-2. **Pin versions**: Use specific tags (`v1.0.0`) not `:latest` in production
+2. **Pin versions**: Use specific tags (`1.0.0`) not `:latest` in production
 3. **Minimize image size**: Remove unnecessary dependencies
 4. **Document requirements**: Clear README for your custom setup
 5. **Version your images**: Tag images with version numbers
@@ -412,5 +361,5 @@ if __name__ == "__main__":
 ## Need Help?
 
 - Check [Troubleshooting](troubleshooting.md#custom-client-images) for problems specific to custom images
-- Review [example configurations](https://github.com/talmolab/lablink/tree/main/examples) (if available)
+- Review the [template configuration examples](https://github.com/talmolab/lablink-template/tree/main/lablink-infrastructure/config)
 - Open an [issue on GitHub](https://github.com/talmolab/lablink/issues)
