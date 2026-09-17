@@ -82,7 +82,7 @@ jobs:
           - package: lablink-cli
             python-version: "3.11"
             working-directory: packages/cli
-            test-command: "uv run pytest tests --cov=src/lablink_cli --cov-report=term-missing:skip-covered --cov-report=xml --cov-report=html"
+            test-command: "uv run pytest tests --cov=src/lablink_cli --cov-report=term-missing:skip-covered --cov-report=xml --cov-report=html --cov-fail-under=90"
             needs-tofu: false
 
     steps:

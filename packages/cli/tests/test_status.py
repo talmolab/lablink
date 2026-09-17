@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import socket
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 
@@ -16,6 +17,7 @@ from lablink_cli.commands.status import (
     check_dns,
     check_health_endpoint,
     check_http,
+    check_ssl_cert,
     estimate_costs,
 )
 from lablink_cli.docker import Docker, Result
@@ -132,6 +134,52 @@ class TestCheckHealthEndpoint:
         result = check_health_endpoint("http://1.2.3.4:5000")
         assert result["status"] == "unreachable"
         assert result["healthy"] is False
+
+
+class TestCheckSslCert:
+    @patch("lablink_cli.commands.status.ssl.create_default_context")
+    def test_valid_certificate_reports_issuer_and_expiry(self, mock_context):
+        domain = "lab.example.org"
+        expiry = datetime.now(timezone.utc) + timedelta(days=30)
+        cert = {
+            "notAfter": expiry.strftime("%b %d %H:%M:%S %Y GMT"),
+            "issuer": ((('organizationName', 'Example CA'),),),
+        }
+        sock = mock_context.return_value.wrap_socket.return_value.__enter__.return_value
+        sock.getpeercert.return_value = cert
+
+        result = check_ssl_cert(domain)
+
+        assert result["status"] == "pass"
+        assert "Example CA" in result["detail"]
+        assert str(expiry.date()) in result["detail"]
+        sock.connect.assert_called_once_with((domain, 443))
+
+    @patch("lablink_cli.commands.status.ssl.create_default_context")
+    def test_expiring_certificate_warns(self, mock_context):
+        expiry = datetime.now(timezone.utc) + timedelta(days=5)
+        sock = mock_context.return_value.wrap_socket.return_value.__enter__.return_value
+        sock.getpeercert.return_value = {
+            "notAfter": expiry.strftime("%b %d %H:%M:%S %Y GMT")
+        }
+
+        result = check_ssl_cert("lab.example.org")
+
+        assert result["status"] == "warn"
+        assert "Expires" in result["detail"]
+
+    @patch("lablink_cli.commands.status.ssl.create_default_context")
+    def test_missing_certificate_fails(self, mock_context):
+        sock = mock_context.return_value.wrap_socket.return_value.__enter__.return_value
+        sock.getpeercert.return_value = None
+
+        result = check_ssl_cert("lab.example.org")
+
+        assert result == {
+            "check": "SSL Certificate",
+            "status": "fail",
+            "detail": "No certificate returned",
+        }
 
 
 # ------------------------------------------------------------------
