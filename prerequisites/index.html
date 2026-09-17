@@ -583,15 +583,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#everyone" class="md-nav__link">
+  <a href="#cli-paths" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Everyone
+        CLI paths
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Everyone">
+    <nav class="md-nav" aria-label="CLI paths">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -4649,15 +4649,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#everyone" class="md-nav__link">
+  <a href="#cli-paths" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Everyone
+        CLI paths
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Everyone">
+    <nav class="md-nav" aria-label="CLI paths">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -4878,8 +4878,10 @@
 </tr>
 </tbody>
 </table>
-<p>Every path needs <a href="#python-and-uv">Python and uv</a> to install the CLI, and <a href="#git">Git</a> if you install it from source. Install only the rest of what your row calls for.</p>
-<h2 id="everyone">Everyone<a class="headerlink" href="#everyone" title="Permanent link">&para;</a></h2>
+<p>The two CLI paths need <a href="#python-and-uv">Python and uv</a>. The template-repo path
+uses its own setup script and does not require either. <a href="#git">Git</a> is needed
+for a CLI source install or to clone the template repository.</p>
+<h2 id="cli-paths">CLI paths<a class="headerlink" href="#cli-paths" title="Permanent link">&para;</a></h2>
 <h3 id="python-and-uv">Python and uv<a class="headerlink" href="#python-and-uv" title="Permanent link">&para;</a></h3>
 <p>The CLI is a Python package. <code>uv</code> manages both it and the Python it runs on.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Install uv</span>
@@ -4889,7 +4891,8 @@
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>uv<span class="w"> </span>python<span class="w"> </span>install<span class="w"> </span><span class="m">3</span>.11
 </code></pre></div>
 <h3 id="git">Git<a class="headerlink" href="#git" title="Permanent link">&para;</a></h3>
-<p>Needed only to clone the repo for a <a href="../cli/installation/#install-from-source">source install</a> of the CLI; the PyPI install does not need it.</p>
+<p>Needed to clone the repo for a <a href="../cli/installation/#install-from-source">CLI source install</a>
+or to clone the template repository. A CLI install from PyPI does not need it.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>git<span class="w"> </span>--version
 </code></pre></div>
 <p>If not installed:</p>
@@ -4911,7 +4914,9 @@
 </div>
 <h2 id="manual-provider-only">Manual provider only<a class="headerlink" href="#manual-provider-only" title="Permanent link">&para;</a></h2>
 <h3 id="docker">Docker<a class="headerlink" href="#docker" title="Permanent link">&para;</a></h3>
-<p>The manual provider runs the allocator as a docker-compose stack, and each client box runs the client container. You need Docker <strong>and the <code>docker compose</code> v2 plugin</strong> on the allocator host and on every client machine.</p>
+<p>The manual provider runs the allocator as a docker-compose stack and each
+client box as a client container. The allocator host needs Docker <strong>and the
+<code>docker compose</code> v2 plugin</strong>; client boxes need Docker.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="2:3"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><input id="__tabbed_2_2" name="__tabbed_2" type="radio" /><input id="__tabbed_2_3" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">macOS</label><label for="__tabbed_2_2">Linux</label><label for="__tabbed_2_3">Windows</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">

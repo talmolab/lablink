@@ -829,17 +829,6 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#when-to-use-this-page" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        When to use this page
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#step-1-configure" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -938,17 +927,6 @@
     <span class="md-ellipsis">
       
         Day-2 operations
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#limitations" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Limitations
       
     </span>
   </a>
@@ -4592,17 +4570,6 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#when-to-use-this-page" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        When to use this page
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#step-1-configure" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4708,17 +4675,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#limitations" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Limitations
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#next-steps" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4760,20 +4716,9 @@ itself.</p>
 <p>This page walks through the whole path end to end on Run:AI, the platform it
 was validated against. The mechanics — render, submit a workload, read the
 register token from its logs — carry over to any platform that runs
-arbitrary container images.</p>
-<h2 id="when-to-use-this-page">When to use this page<a class="headerlink" href="#when-to-use-this-page" title="Permanent link">&para;</a></h2>
-<p>Use this instead of <a href="../byo-clients/">Bring-Your-Own Clients</a> when the
-allocator itself has to run <strong>inside</strong> a managed container platform rather
-than on a machine you can <code>docker run</code> on directly. The giveaway is that
-<code>lablink deploy</code> has no Docker daemon to talk to — the platform <em>is</em> the
-container runtime. Typically that's because the only compute you have access
-to is scheduler-hosted (a Run:AI cluster, a shared Kubernetes namespace), and
-starting a container from inside a container (docker-in-docker) either isn't
-possible or isn't something the platform allows.</p>
-<p>The rendered bundle is still a plain <code>provider: manual</code> deployment under the
-hood — same allocator image, same <code>config.yaml</code>, same register-token
-handshake. <code>--render-only</code> just stops short of running it, because there is
-no local daemon to run it <em>with</em>.</p>
+arbitrary container images. It is still a plain <code>provider: manual</code>
+deployment: same image, same <code>config.yaml</code>, same register flow as
+<a href="../byo-clients/">Bring-Your-Own Clients</a>.</p>
 <div class="admonition info">
 <p class="admonition-title">Requirements</p>
 <ul>
@@ -4781,11 +4726,12 @@ no local daemon to run it <em>with</em>.</p>
   allocator; the allocator never dials in.</li>
 <li><code>manual.participant_exposure: cloudflare_tunnel</code> — the allocator
   publishes itself by dialing <strong>out</strong> to Cloudflare's edge.</li>
-<li>A domain on Cloudflare's nameservers (see
-  <a href="../../configuration/#exposure-mode-cloudflare_tunnel">Configuration</a>
-  for the one-time domain setup if you don't have one yet).</li>
+<li>A domain on Cloudflare's nameservers — see
+  <a href="../tunnels/#cloudflare-tunnel">Cloudflare Tunnel</a> for the one-time
+  setup and why an institutional domain won't do.</li>
 <li>The platform must allow the container to run as <strong>root</strong> — the
-  allocator image bundles Postgres and nginx, both of which need it.</li>
+  allocator image bundles Postgres and nginx, both of which need it.
+  Clusters that force non-root UIDs can't run it yet.</li>
 </ul>
 <p>Every leg of this path dials out. The workload needs no inbound ports
 open and no privileges beyond running as root.</p>
@@ -4813,35 +4759,19 @@ its edge instead.</p>
 check <code>ssl.provider: "none"</code> — <code>SSLConfig</code>'s own default is <code>letsencrypt</code>,
 and <code>lablink deploy</code> refuses anything else for the manual provider.</p>
 <h2 id="step-2-create-the-cloudflare-tunnel-one-time-dashboard">Step 2: Create the Cloudflare tunnel (one-time, dashboard)<a class="headerlink" href="#step-2-create-the-cloudflare-tunnel-one-time-dashboard" title="Permanent link">&para;</a></h2>
-<p>This is the same Cloudflare Tunnel every <code>cloudflare_tunnel</code> deployment uses
-(see <a href="../../configuration/#exposure-mode-cloudflare_tunnel">Configuration</a> for
-the full one-time domain setup — signing up, delegating nameservers, opening
-Zero Trust). What differs here is only <em>where</em> <code>cloudflared</code> ends up
-running: normally it's a process inside a container on your own machine;
-here it's a process inside the allocator container running as a platform
-workload. Either way, <code>cloudflared</code> is baked into the allocator image and
-only starts when the config asks for it — there's no separate connector to
-install.</p>
-<p>In the Cloudflare <strong>Zero Trust</strong> dashboard:</p>
-<ol>
-<li><strong>Networks → Tunnels → Create a tunnel</strong> → choose the remotely-managed
-   (Cloudflared) connector type, and name it.</li>
-<li>On the <strong>Public Hostname</strong> tab, add a hostname on your domain (e.g.
-   <code>lab.smithlab.org</code>) with service <strong><code>http://localhost:5000</code></strong> — that's the
-   allocator container's own nginx listener, whichever machine or platform
-   it ends up running on.</li>
-<li>Copy the <strong>tunnel token</strong> from the connector's install command
-   (<code>eyJhIjoiN…</code>). You'll pass it to the workload as an environment
-   variable, not run any <code>cloudflared</code> install command yourself.</li>
-</ol>
+<p>Follow <a href="../tunnels/#cloudflare-tunnel">Cloudflare Tunnel</a> and keep the tunnel
+token. Nothing there changes for an external runtime: <code>cloudflared</code> runs
+inside the allocator container wherever that container lands, so the public
+hostname's service stays <code>http://localhost:5000</code>. The only difference is that
+the token reaches the workload as an environment variable instead of a
+<code>lablink deploy</code> flag.</p>
 <h2 id="step-3-render-the-deployment-bundle">Step 3: Render the deployment bundle<a class="headerlink" href="#step-3-render-the-deployment-bundle" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>lablink<span class="w"> </span>deploy<span class="w"> </span>--render-only<span class="w"> </span>--cloudflare-tunnel-token<span class="w"> </span>&lt;token&gt;
 </code></pre></div>
 <p>No Docker is used or required on this machine — <code>--render-only</code> writes the
-same files a compose deploy would (<code>config.yaml</code>, <code>custom-startup.sh</code>, a
-canonical-URL file) into <code>~/.lablink/compose/&lt;deployment_name&gt;/</code>, marks the
-deployment as externally managed, and prints a launch sheet instead of
-starting containers:</p>
+same bundle a compose deploy would into <code>~/.lablink/compose/&lt;deployment_name&gt;/</code>,
+marks the deployment as externally managed, and prints a launch sheet instead
+of starting containers:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>Bundle rendered — launch it on your platform:
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>  Image:    ghcr.io/talmolab/lablink-allocator-image:linux-amd64-latest  (default command)
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>  Env vars:
@@ -4890,18 +4820,23 @@ allocator's database is created fresh per deployment either way.</p>
 <p>If you don't have <code>kubectl</code> access to the cluster — only the <code>runai</code> CLI or
 UI — skip the ConfigMap entirely and inject the config through the
 environment instead, decoding it back to a file in a command override:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>runai<span class="w"> </span>workspace<span class="w"> </span>submit<span class="w"> </span>lablink-allocator<span class="w"> </span>-p<span class="w"> </span>&lt;project&gt;<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span>-i<span class="w"> </span>ghcr.io/talmolab/lablink-allocator-image:&lt;image_tag&gt;<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">LABLINK_CONFIG_B64</span><span class="o">=</span><span class="k">$(</span>base64<span class="w"> </span>-i<span class="w"> </span>~/.lablink/compose/&lt;deployment&gt;/config.yaml<span class="k">)</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">ALLOCATOR_URL</span><span class="o">=</span>https://&lt;public_hostname&gt;<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">PARTICIPANT_EXPOSURE</span><span class="o">=</span>cloudflare_tunnel<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">  </span>-e<span class="w"> </span><span class="s1">'CLOUDFLARE_TUNNEL_TOKEN=&lt;token&gt;'</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">  </span>--command<span class="w"> </span>--<span class="w"> </span>bash<span class="w"> </span>-c<span class="w"> </span><span class="s1">'mkdir -p /config &amp;&amp; echo "$LABLINK_CONFIG_B64" | base64 -d &gt; /config/config.yaml &amp;&amp; touch /config/custom-startup.sh &amp;&amp; printf %s "$ALLOCATOR_URL" &gt; /config/allocator-url &amp;&amp; exec /app/start.sh'</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nv">CFG_B64</span><span class="o">=</span><span class="k">$(</span>gzip<span class="w"> </span>-9<span class="w"> </span>&lt;<span class="w"> </span>~/.lablink/compose/&lt;deployment&gt;/config.yaml<span class="w"> </span><span class="p">|</span><span class="w"> </span>base64<span class="w"> </span><span class="p">|</span><span class="w"> </span>tr<span class="w"> </span>-d<span class="w"> </span><span class="s1">'\n'</span><span class="k">)</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>runai<span class="w"> </span>workspace<span class="w"> </span>submit<span class="w"> </span>lablink-allocator<span class="w"> </span>-p<span class="w"> </span>&lt;project&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span>-i<span class="w"> </span>ghcr.io/talmolab/lablink-allocator-image:&lt;image_tag&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">LABLINK_CONFIG_B64</span><span class="o">=</span><span class="s2">"</span><span class="nv">$CFG_B64</span><span class="s2">"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">ALLOCATOR_URL</span><span class="o">=</span>https://&lt;public_hostname&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">PARTICIPANT_EXPOSURE</span><span class="o">=</span>cloudflare_tunnel<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">  </span>-e<span class="w"> </span><span class="s1">'CLOUDFLARE_TUNNEL_TOKEN=&lt;token&gt;'</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">  </span>--command<span class="w"> </span>--<span class="w"> </span>bash<span class="w"> </span>-c<span class="w"> </span><span class="s1">'mkdir -p /config &amp;&amp; echo "$LABLINK_CONFIG_B64" | base64 -d | gunzip &gt; /config/config.yaml &amp;&amp; touch /config/custom-startup.sh &amp;&amp; printf %s "$ALLOCATOR_URL" &gt; /config/allocator-url &amp;&amp; exec /app/start.sh'</span>
 </code></pre></div>
 <p>This reconstructs the same <code>/config</code> layout the ConfigMap route mounts —
 <code>custom-startup.sh</code> is just touched empty (no custom startup script in this
 example) and <code>allocator-url</code> gets the public hostname directly — then hands
 off to the image's normal entrypoint.</p>
+<p>Run:AI caps every submitted value (each <code>-e</code> and the command) at 10,000
+characters, which a plain-base64 <code>config.yaml</code> can exceed — hence the <code>gzip</code>.
+If it still doesn't fit, use the ConfigMap route or a PVC.</p>
 <h2 id="step-5-verify-and-get-the-register-token">Step 5: Verify and get the register token<a class="headerlink" href="#step-5-verify-and-get-the-register-token" title="Permanent link">&para;</a></h2>
 <p>Watch the workload boot:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>runai<span class="w"> </span>workspace<span class="w"> </span>logs<span class="w"> </span>lablink-allocator<span class="w"> </span>-p<span class="w"> </span>&lt;project&gt;<span class="w"> </span>-f
@@ -4969,12 +4904,12 @@ itself besides the workloads:</p>
 <tr>
 <td>Check health</td>
 <td><code>lablink status</code></td>
-<td>Reads the public URL straight from the local rendered bundle; there's no local container to show <code>docker ps</code> status for, so it prints a note pointing you at the platform's own workload view for that.</td>
+<td>Checks <code>/api/health</code> at the public URL recorded in the local bundle and lists registered clients. There's no local container to <code>docker ps</code>, so it points you at the platform's workload view for that.</td>
 </tr>
 <tr>
 <td>Read logs</td>
 <td><code>lablink logs</code></td>
-<td>No local <code>lablink-allocator</code> container to <code>docker logs</code> — this fetches a redacted tail of the allocator's own log over HTTPS from <code>/api/allocator-logs</code> (admin basic-auth) instead.</td>
+<td>Same TUI as everywhere else. Client logs come from the allocator; the allocator's own entry is a redacted tail fetched over HTTPS from <code>/api/allocator-logs</code> (admin basic-auth), since there's no local container to <code>docker logs</code>.</td>
 </tr>
 <tr>
 <td>Tear down</td>
@@ -4983,32 +4918,17 @@ itself besides the workloads:</p>
 </tr>
 </tbody>
 </table>
-<p><code>lablink client launch</code> stays unavailable under the manual provider exactly
-as it is for docker-compose deployments — register each client with
-<code>lablink client register</code> instead.</p>
+<p><code>lablink client launch</code> and <code>lablink client destroy</code> no-op under the manual
+provider, here as for docker-compose deployments — register and unregister
+each client with <code>lablink client register</code> / <code>lablink client unregister</code>.</p>
 <p><code>lablink stats</code> and <code>lablink export-metrics</code> work the same as for any
 manual-provider deployment: they resolve the allocator's address from the
 same recorded public URL <code>status</code>/<code>logs</code> use, so no extra configuration is
 needed.</p>
-<h2 id="limitations">Limitations<a class="headerlink" href="#limitations" title="Permanent link">&para;</a></h2>
-<ul>
-<li><strong>No <code>mesh_overlay</code> or <code>tailscale_funnel</code>.</strong> Both need a Tailscale sidecar
-  with a kernel TUN device and <code>NET_ADMIN</code> — access managed container
-  platforms don't grant workloads. Use <code>reverse_tunnel</code> +
-  <code>cloudflare_tunnel</code>, as this page does.</li>
-<li><strong>Cloudflare needs a domain you control on Cloudflare's nameservers.</strong>
-  Cloudflare's free plan requires full nameserver delegation, so an
-  institutional domain (e.g. a university's) generally can't be used this
-  way — see
-  <a href="../../configuration/#exposure-mode-cloudflare_tunnel">Configuration</a> for
-  the reasoning and alternatives.</li>
-<li><strong>The image runs as root.</strong> Postgres and nginx inside the allocator
-  container both need it. Clusters that force workloads onto non-root UIDs
-  can't run this image yet.</li>
-</ul>
 <h2 id="next-steps">Next steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
 <ul>
-<li><a href="../../configuration/#manual-provider-options-manual">Configuration</a> — every <code>manual.*</code> setting, plus the full Cloudflare Tunnel one-time setup.</li>
+<li><a href="../tunnels/#cloudflare-tunnel">Tailscale &amp; Cloudflare Setup</a> — the Cloudflare Tunnel one-time setup.</li>
+<li><a href="../../configuration/#manual-provider-options-manual">Configuration</a> — every <code>manual.*</code> setting.</li>
 <li><a href="../byo-clients/">Bring-Your-Own Clients</a> — the docker-compose path this shares its <code>config.yaml</code>/register flow with.</li>
 <li><a href="../../reference/cli/#deployment-commands">CLI Reference</a> — full flag list for <code>deploy</code>, <code>status</code>, <code>logs</code>, <code>destroy</code>.</li>
 <li><a href="../../troubleshooting/">Troubleshooting</a> — general LabLink issues.</li>

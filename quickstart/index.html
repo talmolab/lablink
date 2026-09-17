@@ -600,17 +600,6 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#which-path-should-i-pick" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Which path should I pick?
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#prerequisites" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4487,17 +4476,6 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#which-path-should-i-pick" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Which path should I pick?
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#prerequisites" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4540,8 +4518,12 @@
 
 
 <h1 id="quickstart">Quickstart<a class="headerlink" href="#quickstart" title="Permanent link">&para;</a></h1>
-<p>LabLink deploys three ways. Two of them produce the same allocator infrastructure on AWS and differ only in <strong>where OpenTofu runs</strong> and <strong>where state lives</strong>. The third skips AWS entirely.</p>
-<p>Pick whichever fits your setup. You can switch between them later; all three read the same <code>config.yaml</code> schema.</p>
+<p>LabLink deploys three ways. The two AWS paths produce the same allocator
+infrastructure and store OpenTofu state in S3; they differ in where OpenTofu
+runs. The third skips AWS entirely.</p>
+<p>Start with the CLI for the shortest AWS setup. Use the template repository when
+you want to own its OpenTofu files and GitHub Actions workflows. The manual
+provider uses the same config schema without AWS.</p>
 <div class="admonition tip">
 <p class="admonition-title">No AWS account?</p>
 <p>Set <code>provider: manual</code> and the allocator runs as a local docker-compose stack, with client machines you register yourself. No AWS account, no OpenTofu, no cloud bill — see <a href="../cli/byo-clients/">Bring-Your-Own Clients</a>.</p>
@@ -4549,89 +4531,25 @@
 <div class="grid cards">
 <ul>
 <li>
-<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 14c-3.36 0-4.46 1.35-4.82 2.24C9.25 16.7 10 17.76 10 19a3 3 0 0 1-3 3 3 3 0 0 1-3-3c0-1.31.83-2.42 2-2.83V7.83A2.99 2.99 0 0 1 4 5a3 3 0 0 1 3-3 3 3 0 0 1 3 3c0 1.31-.83 2.42-2 2.83v5.29c.88-.65 2.16-1.12 4-1.12 2.67 0 3.56-1.34 3.85-2.23A3.01 3.01 0 0 1 14 7a3 3 0 0 1 3-3 3 3 0 0 1 3 3c0 1.34-.88 2.5-2.09 2.86C17.65 11.29 16.68 14 13 14m-6 4a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1M7 4a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1m10 2a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1"/></svg></span> <strong>Quickstart: Template repo</strong></p>
-<hr />
-<p>Create a repository from <a href="https://github.com/talmolab/lablink-template">lablink-template</a>. You own the full repo — Dockerfile, OpenTofu <code>.tf</code> files, GitHub Actions workflows — and deploys run through CI.</p>
-<p>Best when you need to <strong>customize</strong> the deployment: bring-your-own Docker image, custom AMI, extra AWS resources, or bespoke workflow edits.</p>
-<p><a href="../quickstart-template/"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13.22 19.03a.75.75 0 0 1 0-1.06L18.19 13H3.75a.75.75 0 0 1 0-1.5h14.44l-4.97-4.97a.749.749 0 0 1 .326-1.275.75.75 0 0 1 .734.215l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0"/></svg></span> Quickstart: Template repo</a></p>
-</li>
-<li>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 19V7H4v12zm0-16a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm-7 14v-2h5v2zm-3.42-4L5.57 9H8.4l3.3 3.3c.39.39.39 1.03 0 1.42L8.42 17H5.59z"/></svg></span> <strong>Quickstart: CLI</strong></p>
 <hr />
 <p>Install the <code>lablink</code> CLI and run <code>lablink configure &amp;&amp; lablink deploy</code> from your own machine. A single <code>config.yaml</code> drives everything; OpenTofu templates are pulled from a pinned release under the hood.</p>
 <p>Best when you want a <strong>standard deployment without maintaining a repo</strong> — one config file, no Dockerfile or <code>.tf</code> to edit.</p>
 <p><a href="../cli/first-deployment/"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13.22 19.03a.75.75 0 0 1 0-1.06L18.19 13H3.75a.75.75 0 0 1 0-1.5h14.44l-4.97-4.97a.749.749 0 0 1 .326-1.275.75.75 0 0 1 .734.215l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0"/></svg></span> Quickstart: CLI</a></p>
 </li>
+<li>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 14c-3.36 0-4.46 1.35-4.82 2.24C9.25 16.7 10 17.76 10 19a3 3 0 0 1-3 3 3 3 0 0 1-3-3c0-1.31.83-2.42 2-2.83V7.83A2.99 2.99 0 0 1 4 5a3 3 0 0 1 3-3 3 3 0 0 1 3 3c0 1.31-.83 2.42-2 2.83v5.29c.88-.65 2.16-1.12 4-1.12 2.67 0 3.56-1.34 3.85-2.23A3.01 3.01 0 0 1 14 7a3 3 0 0 1 3-3 3 3 0 0 1 3 3c0 1.34-.88 2.5-2.09 2.86C17.65 11.29 16.68 14 13 14m-6 4a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1M7 4a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1m10 2a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1"/></svg></span> <strong>Quickstart: Template repo</strong></p>
+<hr />
+<p>Create a repository from <a href="https://github.com/talmolab/lablink-template">lablink-template</a>. You own its OpenTofu <code>.tf</code> files, configuration, and GitHub Actions workflows; deploys run through CI.</p>
+<p>Best when you need to <strong>customize</strong> infrastructure resources or workflow steps. A custom Docker image and client AMI can also be selected in the CLI's config.</p>
+<p><a href="../quickstart-template/"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13.22 19.03a.75.75 0 0 1 0-1.06L18.19 13H3.75a.75.75 0 0 1 0-1.5h14.44l-4.97-4.97a.749.749 0 0 1 .326-1.275.75.75 0 0 1 .734.215l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0"/></svg></span> Quickstart: Template repo</a></p>
+</li>
 </ul>
 </div>
-<h2 id="which-path-should-i-pick">Which path should I pick?<a class="headerlink" href="#which-path-should-i-pick" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>If you want to…</th>
-<th>Use</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Use your own Docker image or custom AMI</td>
-<td>Template repo</td>
-</tr>
-<tr>
-<td>Add or modify AWS resources OpenTofu doesn't provision by default</td>
-<td>Template repo</td>
-</tr>
-<tr>
-<td>Customize the GitHub Actions workflow</td>
-<td>Template repo</td>
-</tr>
-<tr>
-<td>Hand the deployment off to a team via GitHub permissions</td>
-<td>Template repo</td>
-</tr>
-<tr>
-<td>Stand up a standard deployment without forking the template</td>
-<td>CLI</td>
-</tr>
-<tr>
-<td>Keep the configuration surface small — one <code>config.yaml</code>, no repo to own</td>
-<td>CLI</td>
-</tr>
-<tr>
-<td>Drive OpenTofu directly from your laptop and see its output inline</td>
-<td>CLI</td>
-</tr>
-<tr>
-<td>Export metrics from a deployment that's already been torn down</td>
-<td>CLI</td>
-</tr>
-</tbody>
-</table>
+<p>For a detailed path comparison, see the <a href="../cli/">CLI overview</a>.</p>
 <h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
-<p>Every path needs Python 3.10+, <code>uv</code>, and Git to install the CLI. What else you need depends on the path:</p>
-<table>
-<thead>
-<tr>
-<th>Path</th>
-<th>Also needs</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Manual provider</td>
-<td>Docker + the <code>docker compose</code> v2 plugin, on the allocator host and every client box</td>
-</tr>
-<tr>
-<td>CLI + AWS</td>
-<td>An AWS account and region with the permissions in <a href="../aws-setup/">AWS Setup</a>, the AWS CLI, and OpenTofu installed locally</td>
-</tr>
-<tr>
-<td>Template repo</td>
-<td>The same AWS account and CLI, plus the GitHub CLI (<code>gh</code>) for automated repo setup. GitHub Actions runs OpenTofu, so you don't install it</td>
-</tr>
-</tbody>
-</table>
-<p>Full install instructions per path: <a href="../prerequisites/">Prerequisites</a>.</p>
+<p>The requirements differ by path. See <a href="../prerequisites/">Prerequisites</a> before
+installing tools.</p>
 <h2 id="next-steps">Next steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
 <ul>
 <li><a href="../quickstart-template/"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 14c-3.36 0-4.46 1.35-4.82 2.24C9.25 16.7 10 17.76 10 19a3 3 0 0 1-3 3 3 3 0 0 1-3-3c0-1.31.83-2.42 2-2.83V7.83A2.99 2.99 0 0 1 4 5a3 3 0 0 1 3-3 3 3 0 0 1 3 3c0 1.31-.83 2.42-2 2.83v5.29c.88-.65 2.16-1.12 4-1.12 2.67 0 3.56-1.34 3.85-2.23A3.01 3.01 0 0 1 14 7a3 3 0 0 1 3-3 3 3 0 0 1 3 3c0 1.34-.88 2.5-2.09 2.86C17.65 11.29 16.68 14 13 14m-6 4a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1M7 4a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1m10 2a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1"/></svg></span> Quickstart: Template repo</a></li>

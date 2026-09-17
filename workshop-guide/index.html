@@ -4915,13 +4915,14 @@
 </div>
 <h2 id="before-the-workshop">Before the Workshop<a class="headerlink" href="#before-the-workshop" title="Permanent link">&para;</a></h2>
 <h3 id="1-create-vms">1. Create VMs<a class="headerlink" href="#1-create-vms" title="Permanent link">&para;</a></h3>
-<p>Spin up VMs ahead of time so they're ready when participants arrive. VMs take approximately 5 minutes to provision.</p>
+<p>Spin up VMs ahead of time so they're ready when participants arrive. VMs typically
+take 5–7 minutes to provision.</p>
 <ol>
-<li>Navigate to the admin panel at <code>http://&lt;allocator-ip&gt;/admin</code></li>
+<li>Open the allocator's <strong>Admin URL</strong> (printed by <code>lablink status</code> or shown in the deployment output) and append <code>/admin</code></li>
 <li>Log in with your admin credentials</li>
-<li>Click <strong>"Create VMs"</strong></li>
+<li>Click <strong>Create New VM Instance</strong></li>
 <li>Enter the number of VMs to launch (one per participant, plus a few extras)</li>
-<li>Click <strong>"Launch VMs"</strong></li>
+<li>Click <strong>Launch VMs</strong></li>
 </ol>
 <p><img alt="Create VMs dialog" src="../assets/images/admin-create-vms.png" /></p>
 <div class="admonition tip">
@@ -4954,7 +4955,7 @@
 </tr>
 <tr>
 <td><strong>VM Status</strong></td>
-<td>Overall VM health status (running, initializing, stopped)</td>
+<td>Overall VM status (<code>running</code>, <code>initializing</code>, <code>error</code>, or <code>rebooting</code>)</td>
 </tr>
 <tr>
 <td><strong>GPU Health Status</strong></td>
@@ -4970,13 +4971,13 @@
 </tr>
 <tr>
 <td><strong>Access</strong></td>
-<td>Per-VM actions (open the desktop, reboot, destroy)</td>
+<td>Per-VM actions such as Peek, Connect, Release, and Clear Unhealthy</td>
 </tr>
 </tbody>
 </table>
 <div class="admonition warning">
 <p class="admonition-title">What if a VM is stuck?</p>
-<p>If a VM stays in "initializing" for more than 10 minutes or shows "error" status, it will be automatically rebooted. Check the VM logs for details.</p>
+<p>The recovery service checks error and unhealthy VMs, initializing VMs stuck for more than 25 minutes, rebooting VMs stuck for more than 10 minutes, and running VMs silent for more than 3 minutes. Check the VM logs for details.</p>
 </div>
 <h3 id="3-optional-schedule-auto-destruction">3. (Optional) Schedule Auto-Destruction<a class="headerlink" href="#3-optional-schedule-auto-destruction" title="Permanent link">&para;</a></h3>
 <p>If your workshop has a fixed end time, schedule VMs to be automatically destroyed:</p>
@@ -4989,7 +4990,7 @@
 <h2 id="share-with-participants">Share with Participants<a class="headerlink" href="#share-with-participants" title="Permanent link">&para;</a></h2>
 <h3 id="what-to-share">What to Share<a class="headerlink" href="#what-to-share" title="Permanent link">&para;</a></h3>
 <p>Give participants the allocator URL:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>http://&lt;allocator-ip&gt;
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>    The allocator's **Admin URL** or public URL printed after deployment
 </code></pre></div>
 <p>Or if you configured DNS:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>https://lablink.yourdomain.com
@@ -5015,11 +5016,12 @@
 <h3 id="adding-more-vms">Adding More VMs<a class="headerlink" href="#adding-more-vms" title="Permanent link">&para;</a></h3>
 <p>If more participants arrive than expected:</p>
 <ol>
-<li>Click <strong>"Create VMs"</strong> in the admin panel</li>
+<li>Click <strong>Create New VM Instance</strong> in the admin panel</li>
 <li>Enter the additional number needed</li>
 <li>Click <strong>"Launch VMs"</strong></li>
 </ol>
-<p>New VMs are created without affecting existing running VMs. They'll be ready in about 5 minutes.</p>
+<p>New VMs are created without affecting existing running VMs. They typically take
+5–7 minutes to become ready.</p>
 <h3 id="handling-issues">Handling Issues<a class="headerlink" href="#handling-issues" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>VM shows "error"</strong>: The auto-reboot service will attempt to recover it automatically (up to 3 times). Check the logs link for details.</li>
@@ -5036,22 +5038,26 @@ destroys its disk.</p>
 </div>
 <p>Tear down all VMs:</p>
 <ol>
-<li>Click <strong>"Delete VMs"</strong> in the admin panel</li>
+<li>Click <strong>Delete VMs</strong> in the admin panel</li>
 <li>Click <strong>"Run tofu destroy"</strong> and confirm</li>
 </ol>
 <p><img alt="Destroy All VMs" src="../assets/images/admin-destroy-vms.png" /></p>
-<p>This terminates all client EC2 instances and clears VM records from the database.</p>
+<p>This starts an asynchronous operation that terminates all client EC2 instances
+and clears VM records from the database. Watch the job banner until it finishes.</p>
 <h2 id="after-the-workshop">After the Workshop<a class="headerlink" href="#after-the-workshop" title="Permanent link">&para;</a></h2>
 <h3 id="destroy-the-allocator-optional">Destroy the Allocator (Optional)<a class="headerlink" href="#destroy-the-allocator-optional" title="Permanent link">&para;</a></h3>
 <p>If you don't need LabLink running until your next workshop, destroy the allocator infrastructure to stop incurring costs:</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Via GitHub Actions</label><label for="__tabbed_1_2">Via OpenTofu</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<p>Manually run the <strong>OpenTofu Destroy</strong> workflow from the Actions tab.</p>
+<p>Run <strong>Destroy LabLink Infrastructure</strong> from the Actions tab with the
+original <code>deployment_name</code> and <code>environment</code>, and set <code>confirm_destroy</code> to
+<code>yes</code>.</p>
 </div>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nb">cd</span><span class="w"> </span>lablink-infrastructure
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>tofu<span class="w"> </span>destroy<span class="w"> </span>-var<span class="o">=</span><span class="s2">"resource_suffix=test"</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>../scripts/init-terraform.sh<span class="w"> </span><span class="nb">test</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>tofu<span class="w"> </span>destroy<span class="w"> </span>-var<span class="o">=</span><span class="s2">"deployment_name=YOUR-DEPLOYMENT"</span><span class="w"> </span>-var<span class="o">=</span><span class="s2">"environment=test"</span>
 </code></pre></div>
 </div>
 </div>

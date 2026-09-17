@@ -5149,10 +5149,11 @@
 <p>Complete reference for every <code>lablink</code> command. Grouped to match the <code>lablink --help</code> output.</p>
 <div class="admonition note">
 <p class="admonition-title">Manual reference</p>
-<p>This page is hand-written from <code>packages/cli/src/lablink_cli/app.py</code>. For the authoritative help text, run <code>lablink &lt;command&gt; --help</code>. Auto-generated reference is planned once the package is published to PyPI.</p>
+<p>This page is hand-written from <code>packages/cli/src/lablink_cli/app.py</code>. For the authoritative help text, run <code>lablink &lt;command&gt; --help</code>.</p>
 </div>
 <h2 id="global-options">Global options<a class="headerlink" href="#global-options" title="Permanent link">&para;</a></h2>
-<p><code>lablink</code> itself takes only <code>--version</code> / <code>-v</code>. Everything else, including
+<p><code>lablink</code> itself takes <code>--version</code> / <code>-v</code>, <code>--install-completion</code>, and
+<code>--show-completion</code>. Everything else, including
 <code>--config</code>, is a <strong>per-command</strong> option and goes <em>after</em> the command:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>lablink<span class="w"> </span>deploy<span class="w"> </span>--config<span class="w"> </span>/path/to/config.yaml<span class="w">   </span><span class="c1"># correct</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>lablink<span class="w"> </span>--config<span class="w"> </span>/path/to/config.yaml<span class="w"> </span>deploy<span class="w">   </span><span class="c1"># error: No such option</span>
@@ -5230,8 +5231,9 @@ passes the check and deploys without ever reading your secrets.</p>
 <p>Provision provider-specific bootstrap resources.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>lablink<span class="w"> </span>setup<span class="w"> </span><span class="o">[</span>--config<span class="w"> </span>PATH<span class="o">]</span>
 </code></pre></div>
-<p><strong>AWS provider:</strong> creates the S3 bucket (versioned + encrypted) and DynamoDB lock
-table used for OpenTofu remote state. Automatically run during
+<p><strong>AWS provider:</strong> creates the versioned S3 bucket and DynamoDB lock table used
+for OpenTofu remote state, and optionally a Route 53 zone. It writes
+<code>bucket_name</code> and any new <code>dns.zone_id</code> back to the config file. Automatically run during
 <a href="#configure"><code>configure</code></a> — use this command on its own to recreate the resources
 if they were deleted out of band.</p>
 <p><strong>Manual provider:</strong> a no-op. Prints a message explaining that the compose stack
@@ -5256,7 +5258,7 @@ needs no remote state and exits 0.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>lablink<span class="w"> </span>doctor
 </code></pre></div>
 <p>Takes no options. The checks it runs depend on the provider in your config:</p>
-<p><strong>AWS provider</strong> — six checks:</p>
+<p><strong>AWS provider</strong> — seven checks:</p>
 <table>
 <thead>
 <tr>
@@ -5267,7 +5269,7 @@ needs no remote state and exits 0.</p>
 <tbody>
 <tr>
 <td>OpenTofu installed</td>
-<td>The <code>tofu</code> binary is on <code>PATH</code></td>
+<td>The <code>tofu</code> binary is on <code>PATH</code> and reports version 1.10.0 or newer</td>
 </tr>
 <tr>
 <td>Config file</td>
@@ -5286,15 +5288,20 @@ needs no remote state and exits 0.</p>
 <td>The OpenTofu state bucket exists</td>
 </tr>
 <tr>
-<td>AMI for region</td>
-<td>The CLI has an AMI mapping for the configured region</td>
+<td>Client AMI</td>
+<td><code>machine.ami_id</code> exists in the configured region, or the default Deep Learning Base AMI resolves there</td>
+</tr>
+<tr>
+<td>Viewer streaming</td>
+<td>HTTPS is configured for H.264 browser streaming; HTTP gives a warning because sessions fall back to JPEG/WebP</td>
 </tr>
 </tbody>
 </table>
 <p><strong>Manual provider</strong> — checks that <code>docker</code> is on <code>PATH</code> and that the
 <code>docker compose</code> v2 subcommand is available.</p>
 <p>If no config is readable yet, <code>doctor</code> falls back to the AWS checks so it can still
-tell you what's missing. Exit code is non-zero if any check fails.</p>
+tell you what's missing. The command currently exits with code 0 even when a
+check fails; inspect the table before deploying.</p>
 <hr />
 <h2 id="deployment-commands">Deployment commands<a class="headerlink" href="#deployment-commands" title="Permanent link">&para;</a></h2>
 <h3 id="deploy"><code>deploy</code><a class="headerlink" href="#deploy" title="Permanent link">&para;</a></h3>
@@ -5310,9 +5317,11 @@ cached / bundled copy), renders your config into OpenTofu variables, and runs
 <code>docker compose up -d</code>. The stack is single-service (allocator + its internal
 Postgres), plus a Tailscale sidecar when the configuration needs one. Postgres data
 lives in a named volume.</p>
-<p>Either way it prompts once for an admin username (default <code>admin</code>) and an admin
-password. Neither is stored in <code>config.yaml</code> — they are passed to OpenTofu /
-the container only.</p>
+<p>On AWS, every deploy prompts for an admin username (default <code>admin</code>) and
+password, then saves them in the deployment's working copy under
+<code>~/.lablink/deploy/</code>, not in <code>~/.lablink/config.yaml</code>. On the manual provider,
+deploy uses values in the config or saved deployment copy before prompting and
+saves them in the rendered config under <code>~/.lablink/compose/</code>.</p>
 <table>
 <thead>
 <tr>
@@ -5363,8 +5372,9 @@ never to <code>config.yaml</code>.</p>
 directory. Removes the allocator EC2 instance, security groups, key pair, and any
 ALB/Route 53 records OpenTofu owns. Client VMs owned by the allocator are
 destroyed along with it.</p>
-<p>The S3 state bucket and DynamoDB lock table are <strong>not</strong> removed — reuse them on the
-next deploy, or tear them down with <a href="#cleanup"><code>cleanup</code></a>.</p>
+<p>The S3 state bucket and DynamoDB lock table are <strong>not</strong> removed — reuse them on
+the next deploy. <a href="#cleanup"><code>cleanup</code></a> removes only deployment state objects and
+lock entries, not the shared bucket or table.</p>
 <p><strong>Manual provider:</strong> brings the compose stack down. By default this also wipes the
 Postgres data volume.</p>
 <table>
@@ -5381,7 +5391,7 @@ Postgres data volume.</p>
 </tr>
 <tr>
 <td><code>-y</code>, <code>--yes</code></td>
-<td>Skip confirmation prompts. Password prompts still appear.</td>
+<td>Skip confirmation prompts. Credentials are prompted for only when neither the config nor the saved deployment copy has them.</td>
 </tr>
 <tr>
 <td><code>-v</code>, <code>--verbose</code></td>
@@ -5462,7 +5472,7 @@ is safe to re-run.</p>
 </tr>
 <tr>
 <td><code>-y</code>, <code>--yes</code></td>
-<td>Skip the confirmation prompt. Password prompts still appear.</td>
+<td>Skip the confirmation prompt. Credentials are prompted for only when they are not already available.</td>
 </tr>
 <tr>
 <td><code>-v</code>, <code>--verbose</code></td>
@@ -5657,7 +5667,7 @@ an attached volume.</p>
 <td><code>~/.lablink/client.env</code> exists and carries this box's credentials</td>
 </tr>
 <tr>
-<td>Container</td>
+<td>Client container</td>
 <td>the <code>lablink-client</code> container exists and is running</td>
 </tr>
 <tr>
@@ -5678,11 +5688,13 @@ credentials, S3 and AMI under the AWS provider).</p>
 </code></pre></div>
 <p><strong>AWS provider</strong> shows four sections:</p>
 <ol>
-<li><strong>OpenTofu State</strong> — outputs like <code>ec2_public_ip</code>, <code>ec2_public_dns</code>, DNS/ALB records.</li>
+<li><strong>OpenTofu State</strong> — outputs like <code>ec2_public_ip</code> and DNS/ALB records.</li>
 <li><strong>Health Checks</strong> — DNS resolution, allocator <code>/api/health</code>, SSL cert expiry (if HTTPS is enabled).</li>
 <li><strong>Client VMs</strong> — per-VM state and current hourly burn rate.</li>
-<li><strong>Cost Estimate</strong> — daily and monthly dollar estimates, pulled from the AWS Pricing API with a fallback table.</li>
+<li><strong>Cost Estimate (daily)</strong> — daily and monthly dollar estimates, pulled from the AWS Pricing API with a fallback table.</li>
 </ol>
+<p>It also prints an <strong>Admin URL</strong> built from the deployment's IP or domain and
+SSL settings.</p>
 <p>If your AWS credentials are missing or expired, an <strong>AWS credentials</strong> section is
 printed first with the reason and how to authenticate. The OpenTofu state and
 Client VM sections then say they're unavailable rather than showing an empty
@@ -5690,8 +5702,9 @@ result, and costs fall back to the built-in price table.</p>
 <p>If the credentials are valid but lack a required IAM permission — or any other AWS
 error occurs — the affected section reports that error in place, with guidance to
 fix the policy rather than to re-authenticate.</p>
-<p><strong>Manual provider</strong> shows the docker-compose container status and the allocator's
-HTTP health endpoint. There is no cost estimate — the hardware is yours.</p>
+<p><strong>Manual provider</strong> shows the docker-compose container status, the allocator's
+HTTP health endpoint, and registered clients. There is no cost estimate — the
+hardware is yours.</p>
 <table>
 <thead>
 <tr>
@@ -5721,9 +5734,8 @@ quit.</p>
 an error is not interrupted by a tick that found nothing new. Each tick is armed
 only after the previous fetch finishes, so a slow allocator SSH round-trip
 stretches the cadence instead of stacking up connections.</p>
-<p><strong>Manual provider:</strong> tails the local <code>lablink-allocator</code> container's logs. Per-VM
-client logs are not centralized in this mode — run <code>docker logs lablink-client</code> on
-each BYO box.</p>
+<p><strong>Manual provider:</strong> opens the same viewer. It shows the local allocator log
+and client logs forwarded by each registered BYO box.</p>
 <table>
 <thead>
 <tr>
@@ -5845,9 +5857,11 @@ validation errors inline.</p>
 <p>Remove deployment resources and local state.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>lablink<span class="w"> </span>cleanup<span class="w"> </span><span class="o">[</span>--dry-run<span class="o">]</span><span class="w"> </span><span class="o">[</span>--config<span class="w"> </span>PATH<span class="o">]</span>
 </code></pre></div>
-<p><strong>AWS provider:</strong> deletes orphaned EC2/IAM/EIP/security-group resources tagged with
-your deployment name — the kind of leftovers a failed or interrupted <code>destroy</code>
-leaves behind — plus the environment-specific OpenTofu state files.</p>
+<p><strong>AWS provider:</strong> deletes orphaned EC2/IAM/EIP/security-group resources and
+key pairs associated with your deployment — the kind of leftovers a failed or
+interrupted <code>destroy</code> leaves behind — plus environment-specific OpenTofu state
+objects and lock entries. It does not delete the shared S3 bucket or DynamoDB
+table.</p>
 <p><strong>Manual provider:</strong> runs <code>docker compose down --volumes</code> on the local stack and
 removes the compose working directory.</p>
 <table>
@@ -5860,7 +5874,7 @@ removes the compose working directory.</p>
 <tbody>
 <tr>
 <td><code>--dry-run</code></td>
-<td>Show what would be deleted without making changes. <strong>AWS provider only</strong> — the manual provider's cleanup is non-destructive until you confirm.</td>
+<td>Show what would be deleted without making changes on either provider. Without it, manual cleanup runs immediately with no confirmation prompt.</td>
 </tr>
 <tr>
 <td><code>-c</code>, <code>--config PATH</code></td>

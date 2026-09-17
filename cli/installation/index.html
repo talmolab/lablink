@@ -4810,57 +4810,16 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>lablink
 </code></pre></div>
 <p>If you installed from source rather than PyPI, use <code>uv run lablink</code> instead, or activate the venv first.</p>
-<p>On a fresh install (no config yet), you'll see a <strong>Getting started</strong> panel pointing at the next three commands:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>╭─ Getting started ──────────────────────────────────────╮
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>│ Welcome to LabLink. First-time setup:                  │
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>│                                                        │
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>│   1. lablink configure   create config + AWS state…    │
-<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>│   2. lablink doctor      verify prerequisites          │
-<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>│   3. lablink deploy      deploy the allocator          │
-<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>│                                                        │
-<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>│ For the full command list, run 'lablink --help'.       │
-<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>╰────────────────────────────────────────────────────────╯
-</code></pre></div>
+<p>On a fresh install (no config yet), you'll see a <strong>Getting started</strong> panel
+pointing you to <code>lablink configure</code>, <code>lablink doctor</code>, and <code>lablink deploy</code>.</p>
 <p>If you instead see the full command list (Setup / Deployment / Operations / Maintenance panels), it means <code>~/.lablink/config.yaml</code> already exists from a previous run — that's fine, skip ahead to <a href="../first-deployment/#step-1-configure">Step 1: Configure</a>.</p>
 <h2 id="check-your-environment">Check your environment<a class="headerlink" href="#check-your-environment" title="Permanent link">&para;</a></h2>
 <p>Run <code>lablink doctor</code> to validate prerequisites end-to-end:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>uv<span class="w"> </span>run<span class="w"> </span>lablink<span class="w"> </span>doctor
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>uv<span class="w"> </span>run<span class="w"> </span>lablink<span class="w"> </span>doctor
 </code></pre></div>
-<p>It checks:</p>
-<table>
-<thead>
-<tr>
-<th>Check</th>
-<th>What it verifies</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>OpenTofu installed</td>
-<td><code>tofu</code> is on PATH and reports a version</td>
-</tr>
-<tr>
-<td>Config file</td>
-<td><code>~/.lablink/config.yaml</code> exists</td>
-</tr>
-<tr>
-<td>Config validates</td>
-<td>The config parses and passes schema validation</td>
-</tr>
-<tr>
-<td>AWS credentials</td>
-<td><code>sts:GetCallerIdentity</code> succeeds for the configured region</td>
-</tr>
-<tr>
-<td>S3 state bucket</td>
-<td>The <code>bucket_name</code> in your config actually exists</td>
-</tr>
-<tr>
-<td>AMI for region</td>
-<td>The CLI knows an AMI for <code>cfg.app.region</code></td>
-</tr>
-</tbody>
-</table>
+<p>The checks depend on the provider in your config. See the
+<a href="../../reference/cli/#doctor"><code>doctor</code> reference</a> for the current checks and
+their meanings.</p>
 <p>A fresh install (before <code>lablink configure</code>) will fail on "Config file" and anything that depends on it. That's expected — move on to <a href="../first-deployment/">First Deployment</a>.</p>
 <h2 id="where-things-live">Where things live<a class="headerlink" href="#where-things-live" title="Permanent link">&para;</a></h2>
 <p>The CLI stores state under <code>~/.lablink/</code>:</p>
@@ -4893,12 +4852,12 @@
 <p>Pass <code>--config /path/to/config.yaml</code> to any command to use a different config file.</p>
 <h2 id="upgrading">Upgrading<a class="headerlink" href="#upgrading" title="Permanent link">&para;</a></h2>
 <p>If you installed from PyPI:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>uv<span class="w"> </span>tool<span class="w"> </span>upgrade<span class="w"> </span>lablink-cli<span class="w">   </span><span class="c1"># or: pip install --upgrade lablink-cli</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>uv<span class="w"> </span>tool<span class="w"> </span>upgrade<span class="w"> </span>lablink-cli<span class="w">   </span><span class="c1"># or: pip install --upgrade lablink-cli</span>
 </code></pre></div>
 <p>If you installed from source, pull and re-sync:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nb">cd</span><span class="w"> </span>lablink
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>git<span class="w"> </span>pull
-<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>uv<span class="w"> </span>sync<span class="w"> </span>--all-packages
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nb">cd</span><span class="w"> </span>lablink
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>git<span class="w"> </span>pull
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>uv<span class="w"> </span>sync<span class="w"> </span>--all-packages
 </code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">Template version</p>
@@ -4910,28 +4869,28 @@
 <p>Uninstalling the CLI does <strong>not</strong> stop AWS charges. Everything <code>lablink
 deploy</code> created keeps running and billing, and the CLI is the only thing
 that knows how to tear it down. Run this <em>before</em> removing anything:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>lablink<span class="w"> </span>destroy
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>lablink<span class="w"> </span>destroy
 </code></pre></div>
 </div>
 <h3 id="1-clear-out-aws">1. Clear out AWS<a class="headerlink" href="#1-clear-out-aws" title="Permanent link">&para;</a></h3>
 <p><code>lablink destroy</code> removes what OpenTofu owns. Two things deliberately outlive it:</p>
 <ul>
 <li><strong>Orphaned resources</strong> left by an interrupted deploy. <code>lablink cleanup --dry-run</code> lists them; <code>lablink cleanup</code> deletes them.</li>
-<li><strong>The S3 state bucket and DynamoDB lock table</strong>, kept so the next deploy can reuse them (~$0.05/month). To remove those too, see <a href="../managing-deployments/#cleanup-orphaned-resources">Cleanup orphaned resources</a>.</li>
+<li><strong>The S3 state bucket and DynamoDB lock table</strong>, kept so the next deploy can reuse them. <code>lablink cleanup</code> removes deployment state objects and lock entries, but does not delete the bucket or table. Remove those AWS resources separately if you no longer need them.</li>
 </ul>
 <p>Confirm nothing is left before moving on:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>lablink<span class="w"> </span>status
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>lablink<span class="w"> </span>status
 </code></pre></div>
 <h3 id="2-remove-the-cli">2. Remove the CLI<a class="headerlink" href="#2-remove-the-cli" title="Permanent link">&para;</a></h3>
 <p>If you installed from PyPI:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>uv<span class="w"> </span>tool<span class="w"> </span>uninstall<span class="w"> </span>lablink-cli<span class="w">   </span><span class="c1"># or: pip uninstall lablink-cli</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>uv<span class="w"> </span>tool<span class="w"> </span>uninstall<span class="w"> </span>lablink-cli<span class="w">   </span><span class="c1"># or: pip uninstall lablink-cli</span>
 </code></pre></div>
 <p>If you installed from source, delete the checkout (the venv lives inside it):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>rm<span class="w"> </span>-rf<span class="w"> </span>/path/to/lablink
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>rm<span class="w"> </span>-rf<span class="w"> </span>/path/to/lablink
 </code></pre></div>
 <h3 id="3-remove-local-state">3. Remove local state<a class="headerlink" href="#3-remove-local-state" title="Permanent link">&para;</a></h3>
 <p>The CLI never cleans up <code>~/.lablink/</code> on its own:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>rm<span class="w"> </span>-rf<span class="w"> </span>~/.lablink
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>rm<span class="w"> </span>-rf<span class="w"> </span>~/.lablink
 </code></pre></div>
 <p>This is local-only — it touches nothing in AWS. What you lose:</p>
 <table>
@@ -4956,7 +4915,7 @@ that knows how to tear it down. Run this <em>before</em> removing anything:</p>
 </tr>
 <tr>
 <td><code>deploy/</code></td>
-<td>OpenTofu working directories. <strong>Delete these only after <code>lablink destroy</code> succeeds</strong> — losing them while resources still exist orphans them from local state</td>
+<td>OpenTofu working directories and saved deployment credentials. The state is remote in S3, so a new working directory can reconnect to it; deleting this copy may make a later <code>destroy</code> prompt for credentials.</td>
 </tr>
 </tbody>
 </table>

@@ -4641,7 +4641,7 @@ Elastic IP over HTTP, and none of this page applies.</p>
 config, <code>lablink setup</code> does the Route53 work for you:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>lablink<span class="w"> </span>setup
 </code></pre></div>
-<p>It finds or creates a hosted zone for the registrable part of <code>dns.domain</code>
+<p>It finds or creates a hosted zone using the last two labels of <code>dns.domain</code>
 (<code>example.com</code> for <code>test.example.com</code>), writes the resulting <code>dns.zone_id</code> back
 into your config file, and — if it created the zone — prints the four AWS
 nameservers to hand to your registrar.</p>
@@ -4650,11 +4650,11 @@ nameservers to hand to your registrar.</p>
 <a href="https://github.com/talmolab/lablink-template">lablink-template</a> checkout.</p>
 <div class="admonition warning">
 <p class="admonition-title">Not for delegated subdomains</p>
-<p><code>lablink setup</code> always targets the registrable domain, so for
-<code>test.lablink.example.com</code> it creates a zone for <code>example.com</code> — not
-<code>lablink.example.com</code>. If the parent domain is managed somewhere else and
-you only control a subdomain, use the delegated setup below and set
-<code>zone_id</code> yourself.</p>
+<p><code>lablink setup</code> uses the last two labels, which is not always the
+registrable domain (for example, <code>lab.example.ac.uk</code> becomes <code>ac.uk</code>).
+For <code>test.lablink.example.com</code> it targets <code>example.com</code>, not
+<code>lablink.example.com</code>. If you only control a delegated subdomain, use the
+setup below and set <code>zone_id</code> yourself.</p>
 </div>
 <h2 id="delegated-subdomain-parent-domain-managed-elsewhere">Delegated subdomain (parent domain managed elsewhere)<a class="headerlink" href="#delegated-subdomain-parent-domain-managed-elsewhere" title="Permanent link">&para;</a></h2>
 <p>The usual situation for a lab: <code>example.com</code> lives in Cloudflare or with
@@ -4747,23 +4747,18 @@ one record in <code>zone_id</code>, named <code>dns.domain</code>:</p>
 to point the hostname at the allocator yourself, in whatever DNS you use. This
 is required for <code>ssl.provider: "cloudflare"</code>.</p>
 <h2 id="ssl">SSL<a class="headerlink" href="#ssl" title="Permanent link">&para;</a></h2>
-<p><code>ssl.provider: "letsencrypt"</code> installs Caddy on the allocator, which requests a
-certificate on first boot and renews it automatically. It needs the DNS record
-already resolving publicly, and ports 80 and 443 open.</p>
-<div class="admonition warning">
-<p class="admonition-title">Redeploying the same domain hits the Let's Encrypt rate limit</p>
-<p>Every deploy requests a fresh certificate, and Let's Encrypt allows only
-<strong>5 duplicate certificates per week</strong> per hostname. Past that, the site
-fails in the browser with <code>ERR_SSL_PROTOCOL_ERROR</code> and nothing else says
-why. For repeated test deploys use a fresh subdomain each cycle, or
-<code>ssl.provider: "none"</code>.</p>
-</div>
+<p>The host installs Caddy for <code>none</code>, <code>letsencrypt</code>, and <code>cloudflare</code>; only
+<code>acm</code> omits it. With <code>ssl.provider: "letsencrypt"</code>, Caddy requests a
+certificate on first boot and renews it automatically. It needs the DNS
+record resolving publicly and ports 80 and 443 open.</p>
+<p>For Let's Encrypt certificate limits during repeated deployments, see
+<a href="../configuration/#ssl-providers">Configuration</a>.</p>
 <p>Certificate problems show up in Caddy's log on the allocator:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;allocator-ip&gt;
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>sudo<span class="w"> </span>journalctl<span class="w"> </span>-u<span class="w"> </span>caddy<span class="w"> </span>-f
 </code></pre></div>
-<p>The full provider comparison — <code>none</code>, <code>letsencrypt</code>, <code>cloudflare</code>, <code>acm</code> —
-is in <a href="../configuration/#ssl-providers">Configuration</a>.</p>
+<p>The provider comparison — <code>none</code>, <code>letsencrypt</code>, <code>cloudflare</code>, <code>acm</code> — is in
+<a href="../configuration/#ssl-providers">Configuration</a>.</p>
 <h2 id="verifying-a-deployment">Verifying a deployment<a class="headerlink" href="#verifying-a-deployment" title="Permanent link">&para;</a></h2>
 <p>The template repo ships a script that checks DNS, HTTP, and SSL together:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>./scripts/verify-deployment.sh<span class="w"> </span>prod<span class="w">            </span><span class="c1"># reads config.yaml + tofu outputs</span>

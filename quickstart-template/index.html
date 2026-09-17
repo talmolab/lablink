@@ -1045,17 +1045,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#ssh-check" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        SSH Check
-      
-    </span>
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -4691,17 +4680,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#ssh-check" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        SSH Check
-      
-    </span>
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -4750,10 +4728,16 @@
 
 
 <h1 id="quickstart-template-repo">Quickstart: Template repo<a class="headerlink" href="#quickstart-template-repo" title="Permanent link">&para;</a></h1>
-<p>Deploy LabLink to AWS by creating a repository from <a href="https://github.com/talmolab/lablink-template">lablink-template</a> and pushing commits to <code>main</code>. GitHub Actions runs OpenTofu against shared S3-backed state. Best for workshops, shared environments, and production.</p>
+<p>Deploy LabLink to AWS by creating a repository from
+<a href="https://github.com/talmolab/lablink-template">lablink-template</a>. Its GitHub
+Actions workflow runs OpenTofu against S3-backed state when you push to <code>test</code>
+or start <strong>Deploy LabLink Infrastructure</strong> manually. Pushing to <code>main</code> alone
+does not deploy.</p>
 <div class="admonition tip">
 <p class="admonition-title">Prefer a local flow?</p>
-<p>The <a href="../cli/first-deployment/">CLI quickstart</a> deploys the same infrastructure from your own machine with <code>lablink configure &amp;&amp; lablink deploy</code>. Both paths are equivalent — pick whichever fits your setup.</p>
+<p>The <a href="../cli/first-deployment/">CLI quickstart</a> is the recommended route for
+a standard deployment. Use this template when you want to maintain its
+OpenTofu resources or GitHub Actions workflow.</p>
 </div>
 <h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
 <p>Before starting, ensure you have completed:</p>
@@ -4795,20 +4779,22 @@
 <ul>
 <li>Creates an OIDC identity provider for GitHub Actions</li>
 <li>Creates an IAM role with required permissions</li>
-<li>Creates an S3 bucket for OpenTofu state (with versioning and encryption)</li>
+<li>Creates an S3 bucket for OpenTofu state with versioning</li>
 <li>Creates a DynamoDB table for state locking</li>
 <li>Optionally creates a Route 53 hosted zone</li>
 <li>Sets four GitHub repository secrets: <code>AWS_ROLE_ARN</code>, <code>AWS_REGION</code>, <code>ADMIN_PASSWORD</code>, <code>DB_PASSWORD</code></li>
 <li>Generates secure passwords for admin and database access</li>
 </ul>
-<div class="admonition tip">
-<p class="admonition-title">Manual Setup</p>
-<p>If you prefer to create AWS resources individually, see the <a href="../aws-setup/">AWS Setup (Manual)</a> guide.</p>
-</div>
+<p>For the resources and IAM permissions the script creates, see
+<a href="../aws-setup/">AWS Setup</a>.</p>
 <h2 id="step-3-configure">Step 3: Configure<a class="headerlink" href="#step-3-configure" title="Permanent link">&para;</a></h2>
 <p>After setup completes, the script automatically runs <code>./scripts/configure.sh</code> to generate your deployment configuration.</p>
-<p>Either tool below writes the same <code>lablink-infrastructure/config/config.yaml</code>, with the same prompts — instance type and AMI settings, DNS and SSL configuration. Pick whichever you prefer.</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Shell script (no install)</label><label for="__tabbed_1_2">TUI wizard (recommended)</label></div>
+<p>Either tool below writes <code>lablink-infrastructure/config/config.yaml</code>. The
+shell script retains its example-file comments and all fields. The CLI wizard
+rewrites the file without comments and does not expose every template field,
+including <code>allocator.image_tag</code> and <code>machine.image</code>; use the shell script or
+edit those fields in the file when needed.</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Shell script (no install)</label><label for="__tabbed_1_2">Optional CLI wizard</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>./scripts/configure.sh
@@ -4824,7 +4810,10 @@
 </div>
 </div>
 </div>
-<p>Both tools leave the passwords as <code>PLACEHOLDER_ADMIN_PASSWORD</code> and <code>PLACEHOLDER_DB_PASSWORD</code>. The OpenTofu Deploy workflow replaces them with the <code>ADMIN_PASSWORD</code> and <code>DB_PASSWORD</code> secrets that Step 2 created, so the config file is safe to commit — and you should leave those two values alone.</p>
+<p>Both tools leave the passwords as <code>PLACEHOLDER_ADMIN_PASSWORD</code> and
+<code>PLACEHOLDER_DB_PASSWORD</code>. <strong>Deploy LabLink Infrastructure</strong> replaces them
+with the <code>ADMIN_PASSWORD</code> and <code>DB_PASSWORD</code> secrets from Step 2, so leave
+those placeholders unchanged in the committed config.</p>
 <div class="admonition note">
 <p class="admonition-title">Re-running Configuration</p>
 <p>You can re-run either tool at any time to update settings; both load your existing values as the defaults.</p>
@@ -4837,17 +4826,22 @@
   </video>
 </div>
 
-<p>Commit your configuration and push to the <code>main</code> branch:</p>
+<p>Run <code>./scripts/doctor.sh</code> for a local preflight check. Commit your
+configuration, then push to the branch you want to use:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>git<span class="w"> </span>add<span class="w"> </span>lablink-infrastructure/config/config.yaml
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">"Add deployment configuration"</span>
 <a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>git<span class="w"> </span>push
 </code></pre></div>
-<p>Monitor the deployment:</p>
-<ol>
-<li>Go to the <strong>Actions</strong> tab in your GitHub repository</li>
-<li>Run the <strong>OpenTofu Deploy</strong> workflow manually</li>
-<li>Wait for the workflow to complete (~2-5 minutes)</li>
-</ol>
+<p>Start the deployment in one of two ways:</p>
+<ul>
+<li>Push the commit to <code>test</code>. That branch triggers the <strong>Deploy LabLink
+  Infrastructure</strong> workflow for the <code>test</code> environment. Set the repository
+  variable <code>DEPLOYMENT_NAME</code> to your config's deployment name first; otherwise
+  the workflow uses <code>my-lablink</code>.</li>
+<li>In the <strong>Actions</strong> tab, select <strong>Deploy LabLink Infrastructure</strong> and click
+  <strong>Run workflow</strong>. Enter <code>deployment_name</code> and choose <code>test</code>, <code>prod</code>, or
+  <code>ci-test</code> for <code>environment</code>.</li>
+</ul>
 <div class="video-container">
   <video controls width="100%">
     <source src="../assets/videos/step4-deploy.mp4" type="video/mp4">
@@ -4855,11 +4849,15 @@
   </video>
 </div>
 
-<p>The workflow will:</p>
+<p>Monitor the run in the <strong>Actions</strong> tab. It will:</p>
 <ul>
 <li>Authenticate to AWS via OIDC</li>
+<li>Pull the configured allocator image and validate <code>config.yaml</code></li>
+<li>Replace password placeholders and pin <code>deployment_name</code> / <code>environment</code> in the working copy</li>
 <li>Initialize OpenTofu with the S3 backend</li>
 <li>Deploy the allocator EC2 instance, security groups, and SSH key pair</li>
+<li>Upload the allocator SSH key as an artifact retained for one day, then verify the deployment</li>
+<li>Run <code>tofu destroy</code> if the apply step fails</li>
 </ul>
 <h2 id="step-5-verify">Step 5: Verify<a class="headerlink" href="#step-5-verify" title="Permanent link">&para;</a></h2>
 <div class="video-container">
@@ -4872,30 +4870,23 @@
 <p>Once the deployment completes:</p>
 <h3 id="access-the-web-ui">Access the Web UI<a class="headerlink" href="#access-the-web-ui" title="Permanent link">&para;</a></h3>
 <ol>
-<li>Find the allocator's public IP from the OpenTofu output in the GitHub Actions logs</li>
-<li>Navigate to <code>http://&lt;ec2_public_ip&gt;</code> in your browser</li>
-<li>Log in with username <code>admin</code> and the <code>ADMIN_PASSWORD</code> that was auto-generated during setup</li>
+<li>Find <code>allocator_fqdn</code> in the workflow's OpenTofu output. It contains the
+   full URL, including <code>http://</code> or <code>https://</code> for your selected SSL mode.</li>
+<li>Open that URL in your browser.</li>
+<li>Log in with the configured <code>app.admin_user</code> and the <code>ADMIN_PASSWORD</code> saved
+   during setup.</li>
 </ol>
 <h3 id="create-test-vms">Create Test VMs<a class="headerlink" href="#create-test-vms" title="Permanent link">&para;</a></h3>
 <ol>
-<li>Go to <code>http://&lt;ec2_public_ip&gt;/admin</code></li>
-<li>Click <strong>"Create VMs"</strong></li>
+<li>Open <code>/admin</code> on the allocator URL.</li>
+<li>Click <strong>Create New VM Instance</strong>, which opens the <strong>Launch New LabLink Instances</strong> page</li>
 <li>Enter number of VMs (try 1-2 for testing)</li>
-<li>Click <strong>"Launch VMs"</strong> and wait ~5 minutes</li>
+<li>Click <strong>Launch VMs</strong> and allow about 5–7 minutes for startup; check the
+   instance status before inviting participants.</li>
 </ol>
 <h3 id="verify-deployment-script-optional">Verify Deployment Script (Optional)<a class="headerlink" href="#verify-deployment-script-optional" title="Permanent link">&para;</a></h3>
 <p>The template includes a verification script:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>./scripts/verify-deployment.sh
-</code></pre></div>
-<h3 id="ssh-check">SSH Check<a class="headerlink" href="#ssh-check" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Download the SSH key from OpenTofu output (via GitHub Actions artifacts or manually)</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;ec2_public_ip&gt;
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># Verify allocator is running</span>
-<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>sudo<span class="w"> </span>docker<span class="w"> </span>ps
-<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>
-<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="c1"># Check VMs registered in database</span>
-<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span><span class="k">$(</span>sudo<span class="w"> </span>docker<span class="w"> </span>ps<span class="w"> </span>-q<span class="k">)</span><span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="s2">"SELECT hostname FROM vms;"</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>./scripts/verify-deployment.sh<span class="w"> </span><span class="nb">test</span>
 </code></pre></div>
 <h2 id="step-6-cleanup">Step 6: Cleanup<a class="headerlink" href="#step-6-cleanup" title="Permanent link">&para;</a></h2>
 <div class="video-container">
@@ -4909,17 +4900,22 @@
 <div class="tabbed-set tabbed-alternate" data-tabs="2:3"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><input id="__tabbed_2_2" name="__tabbed_2" type="radio" /><input id="__tabbed_2_3" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">Via GitHub Actions</label><label for="__tabbed_2_2">Via OpenTofu</label><label for="__tabbed_2_3">Cleanup Orphaned Resources</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<p>Manually run the <strong>OpenTofu Destroy</strong> workflow from the Actions tab.</p>
+<p>Run <strong>Destroy LabLink Infrastructure</strong> from the Actions tab with the same
+<code>deployment_name</code> and <code>environment</code>, and enter <code>yes</code> for <code>confirm_destroy</code>.
+It attempts to destroy client VMs before the allocator infrastructure.</p>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nb">cd</span><span class="w"> </span>lablink-infrastructure
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>scripts/init-terraform.sh<span class="w"> </span><span class="nb">test</span>
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>tofu<span class="w"> </span>destroy<span class="w"> </span>-var<span class="o">=</span><span class="s2">"resource_suffix=test"</span>
+<p>Destroy client VMs from the allocator admin UI first. From the repository
+root, initialize the same environment and destroy the allocator:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>./scripts/init-terraform.sh<span class="w"> </span><span class="nb">test</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="nb">cd</span><span class="w"> </span>lablink-infrastructure
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>tofu<span class="w"> </span>destroy<span class="w"> </span>-var<span class="o">=</span><span class="s2">"deployment_name=my-lablink"</span><span class="w"> </span>-var<span class="o">=</span><span class="s2">"environment=test"</span>
 </code></pre></div>
 </div>
 <div class="tabbed-block">
 <p>If resources were left behind (e.g., from a failed destroy), use the cleanup script:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>scripts/cleanup-orphaned-resources.sh<span class="w"> </span><span class="nb">test</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>./scripts/cleanup-orphaned-resources.sh<span class="w"> </span><span class="nb">test</span><span class="w"> </span>--dry-run
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>./scripts/cleanup-orphaned-resources.sh<span class="w"> </span><span class="nb">test</span>
 </code></pre></div>
 </div>
 </div>

@@ -711,17 +711,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#when-to-pick-which" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        When to pick which
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#next-steps" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4520,17 +4509,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#when-to-pick-which" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        When to pick which
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#next-steps" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4612,13 +4590,13 @@ server, a scheduler-hosted workload — see
 <tbody>
 <tr>
 <td>What you maintain</td>
-<td>A full repo forked from <code>lablink-template</code> (Dockerfile, OpenTofu <code>.tf</code> files, GitHub Actions workflows, configs)</td>
+<td>A full repo forked from <code>lablink-template</code> (OpenTofu <code>.tf</code> files, GitHub Actions workflows, configs)</td>
 <td>A single <code>config.yaml</code></td>
 </tr>
 <tr>
 <td>Customization surface</td>
-<td>Every file in the repo — tweak AMIs, Docker images, OpenTofu resources, CI workflow, secrets</td>
-<td>Whatever the <code>config.yaml</code> schema exposes (instance type, region, DNS, SSL)</td>
+<td>OpenTofu resources, CI workflow, and config values</td>
+<td>Whatever the <code>config.yaml</code> schema exposes, including instance type, images, region, DNS, and SSL</td>
 </tr>
 <tr>
 <td>Where OpenTofu runs</td>
@@ -4627,12 +4605,12 @@ server, a scheduler-hosted workload — see
 </tr>
 <tr>
 <td>Where state lives</td>
-<td>Shared S3 (per-repo)</td>
-<td>Local S3 bucket you own</td>
+<td>S3 backend in your AWS account</td>
+<td>S3 backend in your AWS account</td>
 </tr>
 <tr>
 <td>How you trigger a deploy</td>
-<td>Push to <code>main</code> / run workflow</td>
+<td>Push to <code>test</code> or run the deployment workflow</td>
 <td><code>lablink deploy</code></td>
 </tr>
 <tr>
@@ -4647,27 +4625,14 @@ server, a scheduler-hosted workload — see
 </tr>
 <tr>
 <td>Best for</td>
-<td>Deployments you need to customize — bring-your-own Docker image, extra AWS resources, custom CI, bespoke workflow edits</td>
-<td>Standard deployments where you just want it up — no repo to own, no workflow to maintain</td>
+<td>Custom AWS resources or CI workflows</td>
+<td>Standard deployments without a repository to maintain</td>
 </tr>
 </tbody>
 </table>
-<h2 id="when-to-pick-which">When to pick which<a class="headerlink" href="#when-to-pick-which" title="Permanent link">&para;</a></h2>
-<p>Pick the <strong>CLI</strong> when you want to:</p>
-<ul>
-<li>Stand up a standard deployment without maintaining a fork of the template</li>
-<li>Keep the surface small — one config file, no Dockerfile or <code>.tf</code> edits</li>
-<li>Skip hopping between a GitHub repo, Actions logs, and local tooling</li>
-<li>Drive OpenTofu directly from your laptop and see its output inline</li>
-</ul>
-<p>Pick the <strong>template repo</strong> when you want to:</p>
-<ul>
-<li>Bring your own Docker image, custom AMI baking, or your own entrypoint</li>
-<li>Add or modify AWS resources OpenTofu doesn't provision by default</li>
-<li>Customize the GitHub Actions workflow (extra steps, different triggers, etc.)</li>
-<li>Hand the deployment off to a team via GitHub permissions instead of sharing AWS credentials</li>
-</ul>
-<p>You can switch between them later — both read the same <code>config.yaml</code> schema for the settings the CLI exposes.</p>
+<p>Both paths let you select a custom client Docker image or AMI through
+<code>config.yaml</code>. You can switch paths later because they use the same config
+schema for those settings.</p>
 <h2 id="next-steps">Next steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
 <ol>
 <li><a href="installation/">Install the CLI</a></li>

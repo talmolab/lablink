@@ -4903,10 +4903,9 @@ though the plan is free.</p>
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="nt">ssl</span><span class="p">:</span>
 <a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="nt">provider</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">none</span><span class="w"> </span><span class="c1"># Cloudflare supplies the public certificate</span>
 <a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="nt">manual</span><span class="p">:</span>
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">  </span><span class="nt">connectivity</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mesh_overlay</span><span class="w"> </span><span class="c1"># lan_direct is rejected with any exposure mode</span>
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">  </span><span class="nt">overlay_tailnet</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">example.ts.net</span>
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">  </span><span class="nt">participant_exposure</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cloudflare_tunnel</span>
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">  </span><span class="nt">public_hostname</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lab.smithlab.org</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">  </span><span class="nt">connectivity</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">reverse_tunnel</span><span class="w"> </span><span class="c1"># lan_direct is rejected with any exposure mode</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">  </span><span class="nt">participant_exposure</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cloudflare_tunnel</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">  </span><span class="nt">public_hostname</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lab.smithlab.org</span>
 </code></pre></div>
 <p><code>public_hostname</code> is the subdomain + domain from step 8, as a bare FQDN — no
 <code>https://</code>, port or path.</p>
@@ -4920,9 +4919,10 @@ once. A miss is a warning, not a failure — a freshly created DNS record may
 still be propagating; retry the URL in your browser in a few minutes.</p>
 <div class="admonition note">
 <p class="admonition-title">Cloudflare can read your traffic</p>
-<p>Cloudflare Tunnel terminates TLS at Cloudflare's edge — see the
-<a href="../../configuration/#cloudflare-can-read-your-traffic">security note</a> for
-what that means and when to prefer <code>tailscale_funnel</code>.</p>
+<p>Cloudflare Tunnel terminates TLS at Cloudflare's edge. Admin logins,
+session cookies, and participant desktop streams are decrypted there.
+Tailscale Funnel relays encrypted bytes and terminates TLS on your machine.
+Choose Funnel if those data cannot be decrypted by a third party.</p>
 </div>
 <h2 id="next-steps">Next steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
 <ul>

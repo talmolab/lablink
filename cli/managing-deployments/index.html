@@ -4717,7 +4717,11 @@
 
 <h1 id="managing-deployments">Managing Deployments<a class="headerlink" href="#managing-deployments" title="Permanent link">&para;</a></h1>
 <p>Day-to-day operations once an allocator is running: add client machines, follow logs, export metrics, and clean up.</p>
-<p>Every command on this page reads <code>~/.lablink/config.yaml</code> by default. Pass <code>--config /path/to/other.yaml</code> to target a different deployment.</p>
+<p>Deployment commands read <code>~/.lablink/config.yaml</code> by default. Pass
+<code>--config /path/to/other.yaml</code> on a command that accepts it to target another
+deployment. <code>cache-clear</code> uses local cache paths and needs no deployment
+config; <code>export-metrics --allocator</code> can run without one when exporting the
+whole cache.</p>
 <div class="admonition note">
 <p class="admonition-title">This page describes the AWS provider</p>
 <p>Most of these commands branch on your config's <code>provider</code>. Under
@@ -4729,74 +4733,29 @@ the manual workflow end to end.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>lablink<span class="w"> </span>client<span class="w"> </span>launch<span class="w"> </span>--num-vms<span class="w"> </span><span class="m">5</span>
 </code></pre></div>
 <p>The allocator runs its own OpenTofu workspace inside the EC2 instance — the CLI only hits its HTTP API, so you don't need OpenTofu locally for this step.</p>
-<table>
-<thead>
-<tr>
-<th>Flag</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>-n</code>, <code>--num-vms</code></td>
-<td>Number of client VMs to launch. Required.</td>
-</tr>
-<tr>
-<td><code>-c</code>, <code>--config</code></td>
-<td>Override the default config path.</td>
-</tr>
-<tr>
-<td><code>-v</code>, <code>--verbose</code></td>
-<td>Show the full OpenTofu output instead of a summary.</td>
-</tr>
-</tbody>
-</table>
-<p>Watch <code>lablink status</code> to see the VMs transition from pending → running.</p>
+<p>Watch <code>lablink status</code> to see the EC2 instances transition to running.
+See the <a href="../../reference/cli/#client-launch">client launch reference</a> for flags.</p>
 <p>Under the manual provider this no-ops; you add boxes with
 <a href="../byo-clients/#step-4-register-each-box"><code>lablink client register</code></a> instead.</p>
 <h2 id="check-status">Check status<a class="headerlink" href="#check-status" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>lablink<span class="w"> </span>status
 </code></pre></div>
-<p>Shows OpenTofu outputs, health checks, per-VM state, and a cost estimate. This is the command to run when you want to know "is the allocator up and how much is this costing me?"</p>
-<p>See <a href="../first-deployment/#step-4-verify">First Deployment</a> for what each section means.</p>
+<p>Shows the allocator URL, OpenTofu outputs, health checks, client inventory,
+and daily cost estimate. See the <a href="../../reference/cli/#status">status reference</a>
+for each section.</p>
 <h2 id="follow-logs">Follow logs<a class="headerlink" href="#follow-logs" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>lablink<span class="w"> </span>logs
 </code></pre></div>
 <p>Opens an interactive TUI that streams logs from the allocator and any running client VMs. Select a VM in the left pane to follow its <code>cloud-init</code> and container logs in the right pane.</p>
-<div class="admonition tip">
-<p class="admonition-title">Quit and search</p>
-<p>Use <code>q</code> to exit. The viewer supports <code>/</code> to search, <code>n</code> / <code>N</code> for next/previous match, and arrow keys for navigation.</p>
-</div>
+<p>Use <code>q</code> to exit, <code>r</code> to refresh, <code>a</code> to toggle automatic fetching, and <code>1</code> /
+<code>2</code> to select cloud-init or client-container logs.</p>
 <h2 id="export-metrics">Export metrics<a class="headerlink" href="#export-metrics" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>lablink<span class="w"> </span>export-metrics<span class="w"> </span>--format<span class="w"> </span>csv<span class="w"> </span>--output<span class="w"> </span>metrics.csv
 </code></pre></div>
-<p>Writes deployment metrics to disk for offline analysis. Two sources:</p>
-<table>
-<thead>
-<tr>
-<th>Flag</th>
-<th>Data</th>
-<th>Requires allocator running?</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>--client</code></td>
-<td>Per-VM metrics pulled from the allocator's API (boot time, health status, logs)</td>
-<td>Yes</td>
-</tr>
-<tr>
-<td><code>--allocator</code></td>
-<td>Per-deploy metrics from the local cache at <code>~/.lablink/deployments/</code> (deploy duration, plus OpenTofu phase timings on AWS or <code>docker compose up</code> timing on the manual provider)</td>
-<td><strong>No</strong> — works after <code>lablink destroy</code></td>
-</tr>
-<tr>
-<td><em>(no flag)</em></td>
-<td>Both</td>
-<td>Yes</td>
-</tr>
-</tbody>
-</table>
+<p>Writes deployment metrics to disk for offline analysis. <code>--client</code> fetches
+per-VM metrics from a running allocator; <code>--allocator</code> reads deploy timing
+metrics from the local cache at <code>~/.lablink/deployments/</code> and works after
+<code>lablink destroy</code>. With neither flag, it exports both.</p>
 <p>Allocator metrics are <strong>scoped to the deployment and provider in your config</strong>.
 The cache is shared by every deployment you have ever run, so an unscoped export
 would put other deployments' rows in a file named after this one. Point
@@ -4807,32 +4766,11 @@ deployments it spans.</p>
 scope: a name deployed first on AWS and later with <code>provider: manual</code> has records
 of both shapes in the cache, and the OpenTofu phase columns say nothing about a
 compose stack.</p>
-<p>Other flags:</p>
-<table>
-<thead>
-<tr>
-<th>Flag</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>-f</code>, <code>--format</code></td>
-<td><code>csv</code> (default) or <code>json</code>.</td>
-</tr>
-<tr>
-<td><code>-o</code>, <code>--output</code></td>
-<td>Output path. With both data sources selected, this is treated as a base name and <code>_client</code> / <code>_allocator</code> suffixes are added before the extension.</td>
-</tr>
-<tr>
-<td><code>--include-logs</code></td>
-<td>Include <code>cloud_init_logs</code> and <code>docker_logs</code> columns. Large — opt-in only.</td>
-</tr>
-</tbody>
-</table>
 <p>Example — only allocator metrics after tear-down:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>lablink<span class="w"> </span>export-metrics<span class="w"> </span>--allocator<span class="w"> </span>--format<span class="w"> </span>json<span class="w"> </span>-o<span class="w"> </span>post-mortem.json
 </code></pre></div>
+<p>See the <a href="../../reference/cli/#export-metrics">export-metrics reference</a> for
+formats, output names, and log inclusion.</p>
 <h2 id="session-metrics-summary">Session metrics summary<a class="headerlink" href="#session-metrics-summary" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>lablink<span class="w"> </span>stats
 </code></pre></div>
@@ -4846,35 +4784,21 @@ for deployments running with <code>monitoring.enabled: true</code>. See
 <h2 id="destroy-the-deployment">Destroy the deployment<a class="headerlink" href="#destroy-the-deployment" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>lablink<span class="w"> </span>destroy
 </code></pre></div>
-<p>Runs <code>tofu destroy</code> against the deployment's working directory (<code>~/.lablink/deploys/&lt;name&gt;/</code>). Tears down the allocator EC2 instance, security groups, key pair, and any ALB/Route 53 records. Client VMs owned by the allocator are destroyed along with it.</p>
-<table>
-<thead>
-<tr>
-<th>Flag</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>-y</code>, <code>--yes</code></td>
-<td>Skip the confirmation prompt. Password prompts still appear.</td>
-</tr>
-<tr>
-<td><code>-v</code>, <code>--verbose</code></td>
-<td>Show the full OpenTofu output instead of a summary.</td>
-</tr>
-<tr>
-<td><code>--keep-data</code></td>
-<td><strong>Manual provider only</strong> — preserve the Postgres data volume instead of the default full wipe. Ignored for AWS.</td>
-</tr>
-</tbody>
-</table>
+<p>Runs <code>tofu destroy</code> against the deployment's working directory
+(<code>~/.lablink/deploy/&lt;name&gt;/&lt;environment&gt;/</code>). Tears down the allocator EC2
+instance, security groups, key pair, and any ALB/Route 53 records. Client VMs
+owned by the allocator are destroyed along with it.</p>
+<p>See the <a href="../../reference/cli/#destroy">destroy reference</a> for confirmation,
+verbosity, and the manual provider's <code>--keep-data</code> option.</p>
 <h2 id="cleanup-orphaned-resources">Cleanup orphaned resources<a class="headerlink" href="#cleanup-orphaned-resources" title="Permanent link">&para;</a></h2>
 <p>If a destroy was interrupted — Ctrl-C, an AWS outage, a deleted workspace — leftover resources may stay behind. The cleanup command finds and removes them:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>lablink<span class="w"> </span>cleanup<span class="w"> </span>--dry-run<span class="w">   </span><span class="c1"># preview</span>
 <a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>lablink<span class="w"> </span>cleanup<span class="w">             </span><span class="c1"># actually delete</span>
 </code></pre></div>
-<p>It targets EC2/IAM/EIP/security-group resources tagged with your deployment name, plus the environment-specific OpenTofu state files. <code>--dry-run</code> prints what would be deleted without touching AWS.</p>
+<p>It targets tagged EC2/IAM/EIP/security-group resources, key pairs, and the
+environment-specific OpenTofu state objects and lock entries. It leaves the
+shared S3 bucket and DynamoDB table in place. <code>--dry-run</code> prints what would be
+deleted without touching AWS.</p>
 <h2 id="clear-local-caches">Clear local caches<a class="headerlink" href="#clear-local-caches" title="Permanent link">&para;</a></h2>
 <p>The CLI stores two caches you may want to clear occasionally:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1"># Clear the OpenTofu template cache (~/.lablink/cache/terraform/)</span>
@@ -4889,14 +4813,19 @@ for deployments running with <code>monitoring.enabled: true</code>. See
 <a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="c1"># Only prune in-progress records (leftovers from plan-cancel or Ctrl-C)</span>
 <a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>lablink<span class="w"> </span>cache-clear<span class="w"> </span>--deployments<span class="w"> </span>--stale
 </code></pre></div>
-<p>Clearing the OpenTofu template cache forces the next deploy to re-download templates. Clearing the deployments cache removes the per-deploy records that back <code>lablink export-metrics --allocator</code>.</p>
+<p>Clearing the OpenTofu template cache forces the next deploy to re-download
+templates. Clearing the deployments cache removes the per-deploy records
+that back <code>lablink export-metrics --allocator</code>. See the
+<a href="../../reference/cli/#cache-clear">cache-clear reference</a> for all options.</p>
 <h2 id="switching-between-deployments">Switching between deployments<a class="headerlink" href="#switching-between-deployments" title="Permanent link">&para;</a></h2>
 <p>Keep multiple config files if you manage more than one deployment:</p>
 <p><code>--config</code> is a per-command option, not a root one — it goes <em>after</em> the command:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>lablink<span class="w"> </span>deploy<span class="w"> </span>--config<span class="w"> </span>~/configs/workshop.yaml
 <a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>lablink<span class="w"> </span>status<span class="w"> </span>--config<span class="w"> </span>~/configs/dev.yaml
 </code></pre></div>
-<p>Each deployment gets its own working directory under <code>~/.lablink/deploys/&lt;name&gt;/</code> keyed by the <code>deployment_name</code> field in its config.</p>
+<p>Each deployment gets a working directory under
+<code>~/.lablink/deploy/&lt;name&gt;/&lt;environment&gt;/</code>, keyed by the <code>deployment_name</code> and
+<code>environment</code> fields in its config.</p>
 <h2 id="next-steps">Next steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
 <ul>
 <li><a href="../../reference/cli/">CLI Reference</a> — every command and flag in one page.</li>

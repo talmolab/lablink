@@ -4650,7 +4650,9 @@
 
 
 <h1 id="first-deployment">First Deployment<a class="headerlink" href="#first-deployment" title="Permanent link">&para;</a></h1>
-<p>This walkthrough takes you from a clean install through a live allocator and back to an empty AWS account. Budget about 15 minutes end to end.</p>
+<p>This walkthrough takes you from a clean install through a live allocator and
+then tears down the deployment. The shared state bucket and lock table remain
+for reuse. Budget about 15 minutes end to end.</p>
 <div class="admonition note">
 <p class="admonition-title">This is the AWS path</p>
 <p>Everything below assumes the default <code>provider: aws</code> — the allocator on EC2,
@@ -4673,16 +4675,19 @@ OpenTofu.</p>
 
 <p>This launches an interactive TUI wizard that walks you through:</p>
 <ul>
-<li><strong>Deployment name</strong> — a short label (e.g. <code>sleap-workshop</code>, <code>dev</code>). Used to tag AWS resources and as the folder name under <code>~/.lablink/deploys/</code>.</li>
-<li><strong>AWS region</strong> — e.g. <code>us-west-2</code>. Must be a region the CLI has an AMI mapping for (run <code>lablink doctor</code> to see the list).</li>
-<li><strong>Machine settings</strong> — client VM instance type and AMI. Defaults come from the bundled <code>lablink-template</code> config.</li>
-<li><strong>DNS / SSL</strong> — optional Route 53 domain and ACM certificate configuration.</li>
+<li><strong>Deployment name and provider</strong> — the label used for AWS resources and the working directory under <code>~/.lablink/deploy/</code>; choose AWS for this guide.</li>
+<li><strong>Region and machine</strong> — choose an AWS region, client instance type, software, and optional repository. The client AMI can resolve automatically in-region or be set in <code>machine.ami_id</code>; <code>lablink doctor</code> verifies it.</li>
+<li><strong>DNS and SSL</strong> — choose IP-only, Let's Encrypt, Cloudflare, ACM, or self-signed TLS.</li>
+<li><strong>Startup, monitoring, and review</strong> — set optional startup and session-metrics options, then review the config.</li>
 </ul>
-<p>The wizard writes <code>~/.lablink/config.yaml</code> and then <strong>automatically runs <code>lablink setup</code></strong> to create the two AWS resources OpenTofu needs before it can run:</p>
+<p>The wizard writes <code>~/.lablink/config.yaml</code> and then <strong>automatically runs <code>lablink setup</code></strong> to create the AWS resources OpenTofu needs before it can run:</p>
 <ol>
-<li>An <strong>S3 bucket</strong> for OpenTofu state (versioned + encrypted).</li>
+<li>An <strong>S3 bucket</strong> for OpenTofu state (versioning enabled).</li>
 <li>A <strong>DynamoDB table</strong> for state locking.</li>
 </ol>
+<p>If you enabled a Terraform-managed DNS zone, setup also creates the Route 53
+zone. It writes <code>bucket_name</code> and, when applicable, <code>dns.zone_id</code> back to the
+config file.</p>
 <p>(Manual-provider configs skip that step — there's no remote state to bootstrap.)</p>
 <div class="admonition tip">
 <p class="admonition-title">Re-running the wizard</p>
@@ -4691,6 +4696,10 @@ OpenTofu.</p>
 <p>You can inspect what was written with:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>lablink<span class="w"> </span>show-config
 </code></pre></div>
+<p>Before deploying, edit <code>db.password</code> in <code>~/.lablink/config.yaml</code> to a strong
+unique value. The wizard and AWS deploy prompt do not collect the database
+password; the schema default is <code>lablink</code>. The admin password is prompted for
+in Step 3 and stays in the deployment working copy.</p>
 <h2 id="step-2-sanity-check">Step 2: Sanity check<a class="headerlink" href="#step-2-sanity-check" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>lablink<span class="w"> </span>doctor
 </code></pre></div>
@@ -4702,21 +4711,14 @@ OpenTofu.</p>
 </div>
 
 <p><em>The clip starts with <code>lablink show-config</code> from Step 1, then runs <code>doctor</code>.</em></p>
-<p>All six AWS checks should now pass:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>┌─────────────────────────┬────────┬─────────────────────────────────────┐
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>│ Check                   │ Status │ Detail                              │
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>├─────────────────────────┼────────┼─────────────────────────────────────┤
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>│ OpenTofu installed     │ PASS   │ v1.6.6 (/usr/local/bin/tofu)   │
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>│ Config file             │ PASS   │ ~/.lablink/config.yaml              │
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>│ Config validates        │ PASS   │ No errors                           │
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>│ AWS credentials         │ PASS   │ Account: 123…, Identity: arn:…      │
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>│ S3 state bucket         │ PASS   │ tf-state-lablink-…                  │
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>│ AMI for region          │ PASS   │ us-west-2 → ami-0bd08c9d…           │
-<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>└─────────────────────────┴────────┴─────────────────────────────────────┘
-</code></pre></div>
-<p>If any row is <code>FAIL</code>, the detail column tells you which command to run next (usually <code>lablink configure</code> or <code>aws configure</code>).</p>
+<p>The AWS path runs seven checks, including an OpenTofu version check (minimum
+1.10.0), a <code>Client AMI</code> check against EC2 in your chosen region, and a <code>Viewer
+streaming</code> check. The latter warns if HTTP would disable H.264 in the browser.
+See <a href="../../reference/cli/#doctor"><code>doctor</code></a> for the full list. If a row is
+<code>FAIL</code>, follow the action in its detail column before deploying. <code>doctor</code>
+currently exits with code 0 even when a check fails, so inspect the table.</p>
 <h2 id="step-3-deploy">Step 3: Deploy<a class="headerlink" href="#step-3-deploy" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>lablink<span class="w"> </span>deploy
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>lablink<span class="w"> </span>deploy
 </code></pre></div>
 <div class="video-container">
   <video controls width="100%">
@@ -4729,8 +4731,8 @@ OpenTofu.</p>
 <p>This will:</p>
 <ol>
 <li>Download the pinned <code>lablink-template</code> OpenTofu files into <code>~/.lablink/cache/terraform/&lt;version&gt;/</code> (first run only).</li>
-<li>Copy them into a working directory at <code>~/.lablink/deploys/&lt;deployment-name&gt;/</code>.</li>
-<li>Prompt you once for an <strong>admin username</strong> (default <code>admin</code>) and <strong>admin password</strong>. These are injected into the OpenTofu variables — they are not stored in <code>config.yaml</code>.</li>
+<li>Copy them into a working directory at <code>~/.lablink/deploy/&lt;deployment-name&gt;/&lt;environment&gt;/</code>.</li>
+<li>Prompt you for an <strong>admin username</strong> (default <code>admin</code>) and <strong>admin password</strong> on each AWS deploy. These are written into the working copy of <code>config.yaml</code>, not <code>~/.lablink/config.yaml</code>.</li>
 <li>Run <code>tofu init</code> + <code>tofu apply</code>, showing the plan and asking for confirmation.</li>
 <li>Wait for the allocator EC2 instance to come up and its <code>/api/health</code> endpoint to report <code>healthy</code>.</li>
 </ol>
@@ -4739,20 +4741,18 @@ OpenTofu.</p>
 <p class="admonition-title">Skip interactive confirmations</p>
 <p>Pass <code>-y</code> / <code>--yes</code> to skip OpenTofu plan confirmation. The admin credentials are still prompted for.</p>
 </div>
-<p>When deploy completes, note the <code>ec2_public_ip</code> in the OpenTofu output — that's your allocator URL.</p>
+<p>When deploy completes, use the <code>Admin URL</code> printed by <code>lablink status</code>. It
+accounts for the chosen DNS and SSL settings.</p>
 <h2 id="step-4-verify">Step 4: Verify<a class="headerlink" href="#step-4-verify" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>lablink<span class="w"> </span>status
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>lablink<span class="w"> </span>status
 </code></pre></div>
-<p>This shows four sections:</p>
-<ul>
-<li><strong>OpenTofu State</strong> — outputs like <code>ec2_public_ip</code>, <code>ec2_public_dns</code>, and any DNS/ALB records.</li>
-<li><strong>Health Checks</strong> — DNS resolution (if you configured a domain), <code>/api/health</code> response, and SSL certificate expiry (if HTTPS is enabled).</li>
-<li><strong>Client VMs</strong> — per-VM state reported by the allocator (empty until you run <code>lablink client launch</code>).</li>
-<li><strong>Cost Estimate</strong> — daily and monthly dollar estimates for the allocator, EBS, optional ALB/Route 53, and running client VMs.</li>
-</ul>
-<p>Open the allocator in a browser using <code>http://&lt;ec2_public_ip&gt;</code> (or your configured domain) and log in with the admin username and password you entered during deploy.</p>
+<p>The output includes OpenTofu state, health checks, client inventory, and a
+daily cost estimate. See the <a href="../../reference/cli/#status">status reference</a>
+for each section.</p>
+<p>Open the printed <code>Admin URL</code> in a browser and log in with the credentials you
+entered during deploy.</p>
 <h2 id="step-5-launch-a-client-vm">Step 5: Launch a client VM<a class="headerlink" href="#step-5-launch-a-client-vm" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>lablink<span class="w"> </span>client<span class="w"> </span>launch<span class="w"> </span>--num-vms<span class="w"> </span><span class="m">1</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>lablink<span class="w"> </span>client<span class="w"> </span>launch<span class="w"> </span>--num-vms<span class="w"> </span><span class="m">1</span>
 </code></pre></div>
 <div class="video-container">
   <video controls width="100%">
@@ -4765,14 +4765,16 @@ OpenTofu.</p>
 <p>The CLI calls the allocator's create-VM endpoint, which provisions the instance via the allocator's own OpenTofu workspace (not the CLI's). Run <code>lablink status</code> again to see the new VM appear.</p>
 <h2 id="step-6-tear-down">Step 6: Tear down<a class="headerlink" href="#step-6-tear-down" title="Permanent link">&para;</a></h2>
 <p>When you're done, destroy everything the CLI created:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>lablink<span class="w"> </span>destroy
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>lablink<span class="w"> </span>destroy
 </code></pre></div>
 <p>This runs <code>tofu destroy</code> on the deployment workspace and removes the EC2 instance, security groups, key pair, and any ALB/Route 53 records OpenTofu owns. Client VMs launched through the allocator are destroyed along with the allocator.</p>
 <div class="admonition warning">
 <p class="admonition-title">Costs don't stop until destroy finishes</p>
 <p>The allocator EC2 instance, EBS volume, and (if configured) ALB accrue charges while running. See <a href="../../cost-estimation/">Cost Estimation</a>.</p>
 </div>
-<p>After destroy, the S3 state bucket and DynamoDB lock table still exist — they're cheap (~$0.05/month) and reused on the next deploy. If you want to remove them too, see <a href="../managing-deployments/#cleanup-orphaned-resources">cleanup</a>.</p>
+<p>After destroy, the S3 state bucket and DynamoDB lock table still exist for a
+future deploy. <code>lablink cleanup</code> clears per-deployment state objects and lock
+entries, but does not delete the bucket or table.</p>
 <h2 id="next-steps">Next steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
 <ul>
 <li><a href="../managing-deployments/">Managing Deployments</a> — day-to-day operations, logs, metrics export.</li>

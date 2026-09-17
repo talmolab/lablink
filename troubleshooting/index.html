@@ -4716,15 +4716,23 @@
 
 
 <h1 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h1>
-<p><strong>First step:</strong> run the built-in checks and read the output before anything else.</p>
+<p><strong>First step:</strong> open the admin <strong>Allocator Logs</strong> page or run <code>lablink logs</code>,
+then run the built-in checks and read their output:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>lablink<span class="w"> </span>doctor<span class="w">          </span><span class="c1"># operator-side prerequisites, for the provider you configured</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>lablink<span class="w"> </span>status<span class="w">          </span><span class="c1"># is the allocator up, and what does it think its VMs are doing</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>lablink<span class="w"> </span>status<span class="w">          </span><span class="c1"># allocator health and client inventory</span>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>lablink<span class="w"> </span>client<span class="w"> </span>doctor<span class="w">   </span><span class="c1"># on a BYO client box: registration, container, log shipper</span>
 </code></pre></div>
 <p><code>lablink doctor</code> branches on your provider — Docker checks under <code>manual</code>, and OpenTofu, AWS credentials, S3 and AMI checks under <code>aws</code>. Most problems below are named in its output.</p>
+<p>Run <code>tofu output</code> commands below from the initialized infrastructure
+directory: <code>lablink-infrastructure/</code> in a template checkout, or
+<code>~/.lablink/deploy/&lt;deployment_name&gt;/&lt;environment&gt;/</code> for the CLI.</p>
 <div class="admonition info">
 <p class="admonition-title">Which port?</p>
-<p>The allocator container listens on <strong>5000</strong>. Ports 80 and 443 only answer when Caddy is running, which happens for <code>ssl.provider: letsencrypt</code> and <code>cloudflare</code> only. With <code>none</code> or <code>acm</code>, <code>curl localhost:80</code> on the instance will fail even though the allocator is perfectly healthy — use <code>curl localhost:5000</code>.</p>
+<p>Inside the AWS host, the allocator container listens on <strong>5000</strong>. Caddy
+proxies host port 80 to it for <code>none</code>, <code>letsencrypt</code>, and <code>cloudflare</code>;
+<code>acm</code> uses an ALB. With domain-based HTTPS, port 5000 may be bound to
+loopback, so test through the configured public URL from outside. A
+manual-provider compose stack exposes host port 80.</p>
 </div>
 <h2 id="docker">Docker<a class="headerlink" href="#docker" title="Permanent link">&para;</a></h2>
 <details class="note">
@@ -4756,7 +4764,9 @@
    <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>~/lablink-key.pem
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>ls<span class="w"> </span>-l<span class="w"> </span>~/lablink-key.pem<span class="w">      </span><span class="c1"># -rw-------</span>
 </code></pre></div></li>
-<li><strong>Wrong key</strong> — re-extract it from OpenTofu state.
+<li><strong>Wrong key</strong> — the deployment key opens the allocator, while client
+   VMs use the allocator-generated keypair. For the allocator, re-extract
+   it from OpenTofu state:
    <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>tofu<span class="w"> </span>output<span class="w"> </span>-raw<span class="w"> </span>private_key_pem<span class="w"> </span>&gt;<span class="w"> </span>~/lablink-key.pem
 <a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>~/lablink-key.pem
 </code></pre></div></li>
@@ -4768,89 +4778,98 @@
 <p>Timeout means the packets aren't arriving at all — a closed port or a stopped instance, not an auth problem.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>aws<span class="w"> </span>ec2<span class="w"> </span>describe-instances<span class="w"> </span>--instance-ids<span class="w"> </span>&lt;id&gt;<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span>--query<span class="w"> </span><span class="s1">'Reservations[0].Instances[0].State.Name'</span>
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>tofu<span class="w"> </span>output<span class="w"> </span>allocator_public_ip
-<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>aws<span class="w"> </span>ec2<span class="w"> </span>authorize-security-group-ingress<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">  </span>--group-id<span class="w"> </span>&lt;sg-id&gt;<span class="w"> </span>--protocol<span class="w"> </span>tcp<span class="w"> </span>--port<span class="w"> </span><span class="m">22</span><span class="w"> </span>--cidr<span class="w"> </span><span class="m">0</span>.0.0.0/0
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>tofu<span class="w"> </span>output<span class="w"> </span>ec2_public_ip
 </code></pre></div>
-<p>Also check the VPC's network ACLs allow inbound and outbound on 22.</p>
+<p>The template already allows inbound SSH on port 22; check the instance
+state, effective security group, and VPC network ACL before changing rules.</p>
+</details>
+<details class="note">
+<summary>How do I get the client-VM SSH key?</summary>
+<p>Client VMs use a different key from the allocator. On an AWS deployment,
+first SSH to the allocator with its deployment key. In the production
+allocator container, the client key is the <code>lablink_private_key_pem</code>
+OpenTofu output. Save it to a private file on the allocator host:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span>ps<span class="w"> </span>--format<span class="w"> </span><span class="s1">'{{.ID}} {{.Image}}'</span><span class="w"> </span><span class="c1"># find the allocator container ID</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;allocator-container-id&gt;<span class="w"> </span>sh<span class="w"> </span>-lc<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">  </span><span class="s1">'cd /app/.venv/lib/python*/site-packages/lablink_allocator_service/terraform &amp;&amp; tofu output -raw lablink_private_key_pem'</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">  </span>&gt;<span class="w"> </span>~/lablink-client-key.pem
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>~/lablink-client-key.pem
+</code></pre></div>
+<p>The client-VM public IP comes from the allocator's client inventory or
+the client OpenTofu outputs, not <code>ec2_public_ip</code> in the deployment state.</p>
 </details>
 <h2 id="deploying-aws-provider">Deploying (AWS provider)<a class="headerlink" href="#deploying-aws-provider" title="Permanent link">&para;</a></h2>
 <details class="note">
 <summary>OpenTofu init fails: bucket does not exist</summary>
-<p><code>lablink setup</code> creates the S3 state bucket and the DynamoDB lock table for you. If you skipped it, create the bucket by hand:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>aws<span class="w"> </span>s3<span class="w"> </span>mb<span class="w"> </span>s3://tf-state-lablink-allocator-bucket<span class="w"> </span>--region<span class="w"> </span>us-west-2
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>aws<span class="w"> </span>s3api<span class="w"> </span>put-bucket-versioning<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">  </span>--bucket<span class="w"> </span>tf-state-lablink-allocator-bucket<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">  </span>--versioning-configuration<span class="w"> </span><span class="nv">Status</span><span class="o">=</span>Enabled
-<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>tofu<span class="w"> </span>init
+<p><code>lablink setup</code> creates the S3 state bucket and DynamoDB lock table and
+writes the bucket name into your config. If either is missing, re-run:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>lablink<span class="w"> </span>setup
 </code></pre></div>
+<p>The CLI bucket name is <code>lablink-tf-state-&lt;account-id&gt;</code>.</p>
 </details>
 <details class="note">
 <summary>Error acquiring the state lock</summary>
 <p>A previous OpenTofu run died without releasing its DynamoDB lock.</p>
 <p>First make sure nothing is actually still running:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>aws<span class="w"> </span>dynamodb<span class="w"> </span>scan<span class="w"> </span>--table-name<span class="w"> </span>lock-table<span class="w"> </span>--region<span class="w"> </span>us-west-2
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>ps<span class="w"> </span>aux<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>tofu
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>aws<span class="w"> </span>dynamodb<span class="w"> </span>scan<span class="w"> </span>--table-name<span class="w"> </span>lock-table<span class="w"> </span>--region<span class="w"> </span>us-west-2
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>ps<span class="w"> </span>aux<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>tofu
 </code></pre></div>
 <p>Entries with an <code>Info</code> field are real locks; the rest are digests. Copy the exact <code>LockID</code> — it does <strong>not</strong> always carry an <code>-md5</code> suffix — and delete it:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>aws<span class="w"> </span>dynamodb<span class="w"> </span>delete-item<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">    </span>--table-name<span class="w"> </span>lock-table<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">    </span>--key<span class="w"> </span><span class="s1">'{"LockID":{"S":"&lt;exact-lock-id-from-scan&gt;"}}'</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">    </span>--region<span class="w"> </span>us-west-2
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>aws<span class="w"> </span>dynamodb<span class="w"> </span>delete-item<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">    </span>--table-name<span class="w"> </span>lock-table<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">    </span>--key<span class="w"> </span><span class="s1">'{"LockID":{"S":"&lt;exact-lock-id-from-scan&gt;"}}'</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">    </span>--region<span class="w"> </span>us-west-2
 </code></pre></div>
 <p>On Windows PowerShell, put the key in a <code>key.json</code> file and pass <code>--key file://key.json</code>.</p>
 <p>Common lock paths:</p>
 <ul>
-<li>Infrastructure: <code>tf-state-lablink-allocator-bucket/&lt;env&gt;/terraform.tfstate</code></li>
-<li>Client VMs: <code>tf-state-lablink-allocator-bucket/&lt;env&gt;/client/terraform.tfstate</code></li>
+<li>Template infrastructure: <code>&lt;bucket&gt;/&lt;env&gt;/terraform.tfstate</code></li>
+<li>CLI infrastructure: <code>lablink-tf-state-&lt;account-id&gt;/&lt;deployment_name&gt;/&lt;env&gt;/terraform.tfstate</code></li>
+<li>Client VMs: <code>&lt;bucket&gt;/&lt;deployment_name&gt;/&lt;env&gt;/client/terraform.tfstate</code></li>
 </ul>
 <p>If you get <code>AccessDeniedException: not authorized to perform: dynamodb:GetItem</code>, the allocator's IAM role is missing <code>dynamodb:GetItem</code>, <code>PutItem</code> and <code>DeleteItem</code> on <code>table/lock-table</code>. Add them and redeploy.</p>
 <p><strong>Prevention:</strong> let OpenTofu runs finish. Don't terminate instances from the console mid-apply, and use the destroy workflow rather than deleting resources by hand.</p>
 </details>
 <details class="note">
 <summary>Resource already exists</summary>
-<p>Either import it, delete it, or deploy under a different suffix:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>tofu<span class="w"> </span>import<span class="w"> </span>aws_security_group.lablink<span class="w"> </span>sg-xxxxx
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="c1"># or</span>
-<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>aws<span class="w"> </span>ec2<span class="w"> </span>terminate-instances<span class="w"> </span>--instance-ids<span class="w"> </span>i-xxxxx
-<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="c1"># or change resource_suffix: -dev / -test / -prod</span>
-</code></pre></div>
+<p>Inspect the resource and state before retrying. For a separate deployment,
+choose a different <code>deployment_name</code> or <code>environment</code> in the config and
+workflow inputs. See <a href="../deployment/">Template Deployment</a>.</p>
 </details>
 <details class="note">
 <summary>Resources won't destroy cleanly</summary>
-<p>Usually a dependency still attached — network interfaces, an associated Elastic IP, or security groups referencing each other. Terminate instances first, wait, then remove the group:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>aws<span class="w"> </span>ec2<span class="w"> </span>terminate-instances<span class="w"> </span>--instance-ids<span class="w"> </span>i-xxxxx
-<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>aws<span class="w"> </span>ec2<span class="w"> </span><span class="nb">wait</span><span class="w"> </span>instance-terminated<span class="w"> </span>--instance-ids<span class="w"> </span>i-xxxxx
-<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>aws<span class="w"> </span>ec2<span class="w"> </span>delete-security-group<span class="w"> </span>--group-id<span class="w"> </span>sg-xxxxx
-</code></pre></div>
+<p>Inspect the failed OpenTofu destroy output and check whether client VMs
+still exist. The template destroy workflow removes client VMs first. For
+orphaned resources after a failed destroy, preview the
+<a href="../deployment/#destroying-a-deployment">template cleanup script</a> or run
+<code>lablink cleanup --dry-run</code> on the CLI path before deleting anything.</p>
 </details>
 <details class="note">
 <summary>GitHub Actions: could not assume role with OIDC</summary>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>aws<span class="w"> </span>iam<span class="w"> </span>list-open-id-connect-providers
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>aws<span class="w"> </span>iam<span class="w"> </span>get-role<span class="w"> </span>--role-name<span class="w"> </span>github-lablink-deploy<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">  </span>--query<span class="w"> </span><span class="s1">'Role.AssumeRolePolicyDocument'</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>aws<span class="w"> </span>iam<span class="w"> </span>list-open-id-connect-providers
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>aws<span class="w"> </span>iam<span class="w"> </span>get-role<span class="w"> </span>--role-name<span class="w"> </span>github-actions-lablink<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">  </span>--query<span class="w"> </span><span class="s1">'Role.AssumeRolePolicyDocument'</span>
 </code></pre></div>
 <p>The trust policy must name your repository (<code>repo:&lt;owner&gt;/&lt;repo&gt;:*</code>), and the role ARN in the workflow must match your account ID.</p>
 </details>
 <details class="note">
 <summary>GitHub Actions: workflow won't trigger</summary>
 <p>Check the branch name and path filters against the workflow's <code>on:</code> block, confirm Actions are enabled for the repository, and validate the YAML:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>yamllint<span class="w"> </span>.github/workflows/*.yml
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>yamllint<span class="w"> </span>.github/workflows/*.yml
 </code></pre></div>
 </details>
 <h2 id="reaching-the-allocator">Reaching the allocator<a class="headerlink" href="#reaching-the-allocator" title="Permanent link">&para;</a></h2>
 <details class="note">
 <summary>Browser shows connection refused</summary>
 <p>Work outward from the container:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;ip&gt;
-<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span>ps<span class="w">                    </span><span class="c1"># is it running?</span>
-<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>-f<span class="w"> </span>&lt;container&gt;<span class="w">   </span><span class="c1"># did it crash on startup?</span>
-<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>curl<span class="w"> </span>localhost:5000<span class="w">               </span><span class="c1"># does it answer locally?</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;ip&gt;
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span>ps<span class="w">                    </span><span class="c1"># is it running?</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>-f<span class="w"> </span>&lt;container&gt;<span class="w">   </span><span class="c1"># did it crash on startup?</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>curl<span class="w"> </span>localhost:5000<span class="w">               </span><span class="c1"># does it answer locally?</span>
 </code></pre></div>
-<p>If it answers locally but not from outside, it's the security group. The allocator's group should allow 22, 5000, and — when Caddy is in play — 80 and 443:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>aws<span class="w"> </span>ec2<span class="w"> </span>authorize-security-group-ingress<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="w">  </span>--group-id<span class="w"> </span>&lt;sg-id&gt;<span class="w"> </span>--protocol<span class="w"> </span>tcp<span class="w"> </span>--port<span class="w"> </span><span class="m">5000</span><span class="w"> </span>--cidr<span class="w"> </span><span class="m">0</span>.0.0.0/0
-</code></pre></div>
+<p>The template's security group already allows 80, 443, 5000, and 22, but
+HTTPS modes may bind 5000 only to loopback. Check Caddy, the public URL,
+and the effective security group rather than opening another port.</p>
 </details>
 <details class="note">
 <summary>Browser cannot reach the HTTP site (no SSL provider)</summary>
@@ -4891,94 +4910,92 @@
 <details class="note">
 <summary>HTTP works but HTTPS doesn't</summary>
 <p>Caddy cannot get a certificate until DNS resolves to the allocator, so check that first:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>nslookup<span class="w"> </span>&lt;your-domain&gt;<span class="w"> </span><span class="m">8</span>.8.8.8
-<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>sudo<span class="w"> </span>systemctl<span class="w"> </span>status<span class="w"> </span>caddy
-<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>sudo<span class="w"> </span>journalctl<span class="w"> </span>-u<span class="w"> </span>caddy<span class="w"> </span>-f
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>nslookup<span class="w"> </span>&lt;your-domain&gt;<span class="w"> </span><span class="m">8</span>.8.8.8
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>sudo<span class="w"> </span>systemctl<span class="w"> </span>status<span class="w"> </span>caddy
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>sudo<span class="w"> </span>journalctl<span class="w"> </span>-u<span class="w"> </span>caddy<span class="w"> </span>-f
 </code></pre></div>
 <p>In the Caddy log, <code>certificate obtained successfully</code> means it worked; <code>challenge failed</code> means DNS isn't ready; <code>timeout</code> means ports 80/443 aren't reachable. Caddy retries every 2 minutes on its own, so a few minutes of patience often fixes it.</p>
 <p>Verify the Caddyfile proxies to the container's real port:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>cat<span class="w"> </span>/etc/caddy/Caddyfile
-<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="c1"># &lt;your-domain&gt; {</span>
-<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="c1">#     reverse_proxy localhost:5000</span>
-<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="c1"># }</span>
-<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>sudo<span class="w"> </span>systemctl<span class="w"> </span>restart<span class="w"> </span>caddy
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>cat<span class="w"> </span>/etc/caddy/Caddyfile
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="c1"># &lt;your-domain&gt; {</span>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="c1">#     reverse_proxy localhost:5000</span>
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="c1"># }</span>
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>sudo<span class="w"> </span>systemctl<span class="w"> </span>restart<span class="w"> </span>caddy
 </code></pre></div>
-<div class="admonition warning">
-<p class="admonition-title">Let's Encrypt rate limit</p>
-<p>Five duplicate certificates per domain per week. Redeploying the same test hostname repeatedly exhausts the quota and the site serves a TLS error until it resets. Use a fresh hostname for throwaway deployments, or <code>ssl.provider: "none"</code> while iterating.</p>
-</div>
+<p>See <a href="../configuration/#ssl-providers">Configuration</a> for the Let's Encrypt
+duplicate-certificate limit during repeated test deployments.</p>
 </details>
 <details class="note">
 <summary>Domain doesn't resolve to the allocator</summary>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="c1"># Does the record exist?</span>
-<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>aws<span class="w"> </span>route53<span class="w"> </span>list-resource-record-sets<span class="w"> </span>--hosted-zone-id<span class="w"> </span>&lt;zone-id&gt;<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">  </span>--query<span class="w"> </span><span class="s2">"ResourceRecordSets[?Name=='&lt;your-domain&gt;.']"</span>
-<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a>
-<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="c1"># Does it match the actual IP?</span>
-<a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a>tofu<span class="w"> </span>output<span class="w"> </span>allocator_public_ip
-<a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a>dig<span class="w"> </span>&lt;your-domain&gt;<span class="w"> </span>+short
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="c1"># Does the record exist?</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>aws<span class="w"> </span>route53<span class="w"> </span>list-resource-record-sets<span class="w"> </span>--hosted-zone-id<span class="w"> </span>&lt;zone-id&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="w">  </span>--query<span class="w"> </span><span class="s2">"ResourceRecordSets[?Name=='&lt;your-domain&gt;.']"</span>
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>
+<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="c1"># Does it match the actual IP?</span>
+<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>tofu<span class="w"> </span>output<span class="w"> </span>ec2_public_ip
+<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a>dig<span class="w"> </span>&lt;your-domain&gt;<span class="w"> </span>+short
 </code></pre></div>
 <p>If the record is missing, re-run <code>tofu apply</code>. If it exists but isn't propagating, give it 5–15 minutes and flush your local cache (<code>sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder</code> on macOS, <code>sudo systemd-resolve --flush-caches</code> on Linux, <code>ipconfig /flushdns</code> on Windows).</p>
 </details>
 <details class="note">
 <summary>DNS record landed in the wrong hosted zone</summary>
 <p>OpenTofu's zone lookup matched the parent zone (e.g. <code>example.com</code> instead of <code>lablink.example.com</code>). Pin it explicitly:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="nt">dns</span><span class="p">:</span>
-<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="w">  </span><span class="nt">terraform_managed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="w">  </span><span class="nt">domain</span><span class="p">:</span><span class="w"> </span><span class="s">"test.lablink.example.com"</span>
-<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="w">  </span><span class="nt">zone_id</span><span class="p">:</span><span class="w"> </span><span class="s">"Z0123456789ABCDEFGHIJ"</span><span class="w">   </span><span class="c1"># force the correct zone</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="nt">dns</span><span class="p">:</span>
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="w">  </span><span class="nt">terraform_managed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="w">  </span><span class="nt">domain</span><span class="p">:</span><span class="w"> </span><span class="s">"test.lablink.example.com"</span>
+<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="w">  </span><span class="nt">zone_id</span><span class="p">:</span><span class="w"> </span><span class="s">"Z0123456789ABCDEFGHIJ"</span><span class="w">   </span><span class="c1"># force the correct zone</span>
 </code></pre></div>
 <p>Delete the stray record from the wrong zone, then re-apply.</p>
 </details>
 <details class="note">
 <summary>Verifying a deployment end to end</summary>
 <p>The template repo ships a script that checks DNS, HTTP, and SSL together. It lives in <code>scripts/</code>, not <code>lablink-infrastructure/</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>./scripts/verify-deployment.sh<span class="w"> </span>prod<span class="w">          </span><span class="c1"># reads config.yaml + tofu outputs</span>
-<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>./scripts/verify-deployment.sh<span class="w"> </span>&lt;domain&gt;<span class="w"> </span>&lt;ip&gt;<span class="w"> </span><span class="c1"># or pass them explicitly</span>
-<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>./scripts/verify-deployment.sh<span class="w"> </span>--ci<span class="w"> </span>prod<span class="w">     </span><span class="c1"># no ANSI colors, for CI logs</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>./scripts/verify-deployment.sh<span class="w"> </span>prod<span class="w">          </span><span class="c1"># reads config.yaml + tofu outputs</span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>./scripts/verify-deployment.sh<span class="w"> </span>&lt;domain&gt;<span class="w"> </span>&lt;ip&gt;<span class="w"> </span><span class="c1"># or pass them explicitly</span>
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>./scripts/verify-deployment.sh<span class="w"> </span>--ci<span class="w"> </span>prod<span class="w">     </span><span class="c1"># no ANSI colors, for CI logs</span>
 </code></pre></div>
 <p>Green checks are pass, yellow warnings usually mean "not ready yet — wait and retry", red is a real failure. The three common ones are a DNS timeout (wait longer), HTTP not responding (check the allocator container logs), and SSL not ready (check the Caddy logs).</p>
 </details>
 <details class="note">
 <summary>NS delegation not working</summary>
 <p><code>nslookup</code> returns your registrar's nameservers instead of AWS, so records in Route53 are never consulted.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>dig<span class="w"> </span>NS<span class="w"> </span>lablink.example.com<span class="w">          </span><span class="c1"># should list four awsdns nameservers</span>
-<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>aws<span class="w"> </span>route53<span class="w"> </span>get-hosted-zone<span class="w"> </span>--id<span class="w"> </span>&lt;zone-id&gt;<span class="w"> </span>--query<span class="w"> </span><span class="s1">'DelegationSet.NameServers'</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>dig<span class="w"> </span>NS<span class="w"> </span>lablink.example.com<span class="w">          </span><span class="c1"># should list four awsdns nameservers</span>
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>aws<span class="w"> </span>route53<span class="w"> </span>get-hosted-zone<span class="w"> </span>--id<span class="w"> </span>&lt;zone-id&gt;<span class="w"> </span>--query<span class="w"> </span><span class="s1">'DelegationSet.NameServers'</span>
 </code></pre></div>
 <p>Add those four as NS records for the <code>lablink</code> subdomain at whoever hosts the parent domain, TTL 300, then re-check after 5–15 minutes.</p>
 <p>If you have both a parent and child zone in Route53 fighting each other, keep the one LabLink manages and delete the duplicate — <code>aws route53 list-hosted-zones --query 'HostedZones[*].[Name,Id]' --output table</code> shows them all.</p>
 </details>
 <h2 id="client-vms-aws-provider">Client VMs (AWS provider)<a class="headerlink" href="#client-vms-aws-provider" title="Permanent link">&para;</a></h2>
 <details class="note">
-<summary>Clicking Create VMs does nothing</summary>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>-f<span class="w"> </span>&lt;allocator-container&gt;
-<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;allocator-container&gt;<span class="w"> </span>aws<span class="w"> </span>sts<span class="w"> </span>get-caller-identity
-<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;allocator-container&gt;<span class="w"> </span>tofu<span class="w"> </span>version
+<summary>Clicking Create New VM Instance does nothing</summary>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>-f<span class="w"> </span>&lt;allocator-container&gt;
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;allocator-container&gt;<span class="w"> </span>aws<span class="w"> </span>sts<span class="w"> </span>get-caller-identity
+<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;allocator-container&gt;<span class="w"> </span>tofu<span class="w"> </span>version
 </code></pre></div>
 <p>If <code>get-caller-identity</code> fails, the allocator's IAM instance profile isn't attached or lacks EC2 permissions (<code>RunInstances</code>, <code>DescribeInstances</code>) and VPC permissions (<code>CreateSecurityGroup</code>).</p>
 <p>To run OpenTofu by hand inside the container:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>&lt;allocator-container&gt;<span class="w"> </span>bash
-<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a><span class="nb">cd</span><span class="w"> </span>/app/.venv/lib/python*/site-packages/lablink_allocator_service/terraform
-<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a>tofu<span class="w"> </span>init<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>tofu<span class="w"> </span>plan
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>&lt;allocator-container&gt;<span class="w"> </span>bash
+<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="nb">cd</span><span class="w"> </span>/app/.venv/lib/python*/site-packages/lablink_allocator_service/terraform
+<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a>tofu<span class="w"> </span>init<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>tofu<span class="w"> </span>plan
 </code></pre></div>
 </details>
 <details class="note">
 <summary>VM created but never appears in the allocator</summary>
 <p>Clients <strong>register themselves</strong> — the allocator does not insert rows when OpenTofu finishes. Each client posts to <code>/api/v1/clients/register</code>, and the allocator stores its hostname alongside an argon2 hash of a freshly minted <code>client_secret</code>. A VM that never registers is a VM that never reached that endpoint.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="c1"># What the allocator has</span>
-<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;allocator-container&gt;<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a><span class="w">  </span>-c<span class="w"> </span><span class="s2">"SELECT hostname, status, inuse FROM vms;"</span>
-<a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a>
-<a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a><span class="c1"># What the allocator saw</span>
-<a id="__codelineno-25-6" name="__codelineno-25-6" href="#__codelineno-25-6"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>&lt;allocator-container&gt;<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s2">"clients/register|heartbeat"</span>
-<a id="__codelineno-25-7" name="__codelineno-25-7" href="#__codelineno-25-7"></a>
-<a id="__codelineno-25-8" name="__codelineno-25-8" href="#__codelineno-25-8"></a><span class="c1"># What the client tried</span>
-<a id="__codelineno-25-9" name="__codelineno-25-9" href="#__codelineno-25-9"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;client-vm-ip&gt;
-<a id="__codelineno-25-10" name="__codelineno-25-10" href="#__codelineno-25-10"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>&lt;client-container&gt;
-<a id="__codelineno-25-11" name="__codelineno-25-11" href="#__codelineno-25-11"></a>
-<a id="__codelineno-25-12" name="__codelineno-25-12" href="#__codelineno-25-12"></a><span class="c1"># Can the client reach the allocator at all?</span>
-<a id="__codelineno-25-13" name="__codelineno-25-13" href="#__codelineno-25-13"></a>curl<span class="w"> </span>-i<span class="w"> </span>http://&lt;allocator-ip&gt;:5000/api/health
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="c1"># What the allocator has</span>
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;allocator-container&gt;<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="w">  </span>-c<span class="w"> </span><span class="s2">"SELECT hostname, status, inuse FROM vms;"</span>
+<a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a>
+<a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a><span class="c1"># What the allocator saw</span>
+<a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>&lt;allocator-container&gt;<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s2">"clients/register|heartbeat"</span>
+<a id="__codelineno-23-7" name="__codelineno-23-7" href="#__codelineno-23-7"></a>
+<a id="__codelineno-23-8" name="__codelineno-23-8" href="#__codelineno-23-8"></a><span class="c1"># What the client tried (use the allocator-generated client key)</span>
+<a id="__codelineno-23-9" name="__codelineno-23-9" href="#__codelineno-23-9"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-client-key.pem<span class="w"> </span>ubuntu@&lt;client-vm-ip&gt;
+<a id="__codelineno-23-10" name="__codelineno-23-10" href="#__codelineno-23-10"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>&lt;client-container&gt;
+<a id="__codelineno-23-11" name="__codelineno-23-11" href="#__codelineno-23-11"></a>
+<a id="__codelineno-23-12" name="__codelineno-23-12" href="#__codelineno-23-12"></a><span class="c1"># Can the client reach the allocator at all?</span>
+<a id="__codelineno-23-13" name="__codelineno-23-13" href="#__codelineno-23-13"></a>curl<span class="w"> </span>-i<span class="w"> </span>http://&lt;allocator-ip&gt;/api/health<span class="w">  </span><span class="c1"># IP-only mode; use the configured HTTPS domain otherwise</span>
 </code></pre></div>
 <p>If <code>/api/health</code> fails from the client, stop debugging the client — it's the security group or the allocator's listening port.</p>
 <div class="admonition danger">
@@ -4989,16 +5006,19 @@
 <details class="note">
 <summary>Failed VMs aren't being rebooted</summary>
 <p>The allocator runs an <code>AutoRebootService</code> that sweeps every 60 seconds for VMs that are in <code>error</code>, <code>running</code> but GPU-<code>Unhealthy</code>, stuck <code>initializing</code> over 25 minutes, stuck <code>rebooting</code> over 10 minutes, or <code>running</code> but silent for 3 minutes with no heartbeat.</p>
-<p>It tries an SSH hard reboot (<code>sudo cloud-init clean &amp;&amp; sudo reboot</code>), then an EC2 stop/start if SSH is unreachable. <strong>Max 3 attempts per VM</strong>, 300s cooldown between them.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>&lt;allocator-container&gt;<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span>reboot
-<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a>
-<a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;allocator-container&gt;<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a><span class="w">  </span><span class="s2">"SELECT hostname, status, reboot_count, last_reboot_time FROM vms WHERE reboot_count &gt;= 3;"</span>
+<p>Assigned VMs get a warm <code>sudo reboot</code> that keeps their container state.
+Unassigned VMs get a cold reboot (<code>docker rm -f</code>, <code>cloud-init clean</code>, then
+<code>reboot</code>) that reprovisions from scratch. EC2 stop/start is used only if
+SSH fails. There are at most 3 attempts with a 300-second cooldown; an
+exhausted VM becomes <code>error</code> and its seat is released.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>&lt;allocator-container&gt;<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span>reboot
+<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a>
+<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;allocator-container&gt;<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a><span class="w">  </span><span class="s2">"SELECT hostname, status, reboot_count, last_reboot_time FROM vms WHERE reboot_count &gt;= 3;"</span>
 </code></pre></div>
-<p>There is no reboot API endpoint. To re-arm a VM that exhausted its attempts, reset it and let the next sweep pick it up:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="k">UPDATE</span><span class="w"> </span><span class="n">vms</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">reboot_count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'error'</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">hostname</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'&lt;hostname&gt;'</span><span class="p">;</span>
-</code></pre></div>
-<p>To reboot out of band, use the EC2 console or <code>aws ec2 reboot-instances</code>.</p>
+<p>There is no admin reset endpoint for an exhausted VM. Review its logs and
+replace it if needed; an out-of-band EC2 reboot alone does not reset the
+allocator's attempt counter.</p>
 <div class="admonition note">
 <p class="admonition-title">BYO boxes are never rebooted</p>
 <p>Only providers that can recover hosts participate. The <code>manual</code> provider can't, so bring-your-own machines are left alone.</p>
@@ -5006,12 +5026,14 @@
 </details>
 <details class="note">
 <summary>CUDA not available on a client VM</summary>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;client-vm-ip&gt;
-<a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a>nvidia-smi
-<a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--gpus<span class="w"> </span>all<span class="w"> </span>nvidia/cuda:12.4.0-base-ubuntu22.04<span class="w"> </span>nvidia-smi
-<a id="__codelineno-28-4" name="__codelineno-28-4" href="#__codelineno-28-4"></a>cat<span class="w"> </span>/etc/docker/daemon.json<span class="w">    </span><span class="c1"># expects "default-runtime": "nvidia"</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-client-key.pem<span class="w"> </span>ubuntu@&lt;client-vm-ip&gt;
+<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a>nvidia-smi
+<a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--gpus<span class="w"> </span>all<span class="w"> </span>nvidia/cuda:12.4.0-base-ubuntu22.04<span class="w"> </span>nvidia-smi
+<a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a>sudo<span class="w"> </span>docker<span class="w"> </span>inspect<span class="w"> </span>lablink-client<span class="w"> </span>--format<span class="w"> </span><span class="s1">'{{.HostConfig.Runtime}}'</span>
 </code></pre></div>
-<p>If <code>nvidia-smi</code> itself fails, the AMI has no drivers — use a GPU-enabled AMI. Also confirm the instance type actually has a GPU; a <code>t3.large</code> never will.</p>
+<p>The client container is launched with <code>--runtime=nvidia</code>; a Docker
+<code>default-runtime</code> setting is not required. If <code>nvidia-smi</code> fails on the
+host, use an AMI with NVIDIA drivers. Confirm the instance type has a GPU.</p>
 </details>
 <h2 id="bring-your-own-clients-manual-provider">Bring-your-own clients (manual provider)<a class="headerlink" href="#bring-your-own-clients-manual-provider" title="Permanent link">&para;</a></h2>
 <details class="note">
@@ -5066,9 +5088,9 @@ comes back, but anything running in the session meanwhile was frozen.</p>
 </details>
 <details class="note">
 <summary>Allocator compose stack won't come up</summary>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a>docker<span class="w"> </span>compose<span class="w"> </span>ps
-<a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a>docker<span class="w"> </span>compose<span class="w"> </span>logs<span class="w"> </span>-f<span class="w"> </span>allocator
-<a id="__codelineno-29-3" name="__codelineno-29-3" href="#__codelineno-29-3"></a>curl<span class="w"> </span>-i<span class="w"> </span>http://localhost:5000/api/health
+<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a>docker<span class="w"> </span>compose<span class="w"> </span>ps
+<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a>docker<span class="w"> </span>compose<span class="w"> </span>logs<span class="w"> </span>-f<span class="w"> </span>allocator
+<a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a>curl<span class="w"> </span>-i<span class="w"> </span>http://localhost/api/health
 </code></pre></div>
 <p><code>lablink doctor</code> under the <code>manual</code> provider checks the Docker side for you.</p>
 </details>
@@ -5077,14 +5099,14 @@ comes back, but anything running in the session meanwhile was frozen.</p>
 see <a href="../adapting/">Adapting for Your Software</a>.</p>
 <details class="note">
 <summary>The client container never starts on a fresh VM</summary>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;client-vm-ip&gt;
-<a id="__codelineno-30-2" name="__codelineno-30-2" href="#__codelineno-30-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span>ps<span class="w"> </span>-a<span class="w">                    </span><span class="c1"># did it exit, or was it never created?</span>
-<a id="__codelineno-30-3" name="__codelineno-30-3" href="#__codelineno-30-3"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>&lt;client-container&gt;
+<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-client-key.pem<span class="w"> </span>ubuntu@&lt;client-vm-ip&gt;
+<a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span>ps<span class="w"> </span>-a<span class="w">                    </span><span class="c1"># did it exit, or was it never created?</span>
+<a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>&lt;client-container&gt;
 </code></pre></div>
 <p>An image that exits immediately is almost always a missing dependency or a
 broken entrypoint — reproduce it locally with the same command before
 blaming the deployment:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>-it<span class="w"> </span>your-image:tag<span class="w"> </span>bash
+<div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>-it<span class="w"> </span>your-image:tag<span class="w"> </span>bash
 </code></pre></div>
 <p>If the container was never created, the failure is earlier than your image:
 read <code>sudo cat /var/log/cloud-init-output.log</code> for the pull, and confirm the
@@ -5103,60 +5125,60 @@ at startup, so its output is in the client container logs.</p>
 <code>PATH</code> (and any activation, e.g. a virtualenv) via <code>ENV</code> in the image rather
 than in <code>~/.bashrc</code> or a <code>RUN</code> line, then verify from inside the running
 container:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;client-container&gt;<span class="w"> </span>which<span class="w"> </span>your-software
+<div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;client-container&gt;<span class="w"> </span>which<span class="w"> </span>your-software
 </code></pre></div>
 </details>
 <h2 id="inside-the-allocator">Inside the allocator<a class="headerlink" href="#inside-the-allocator" title="Permanent link">&para;</a></h2>
 <details class="note">
 <summary>Cannot connect to PostgreSQL</summary>
 <p><code>psycopg2.OperationalError: could not connect to server</code>. The container's <code>start.sh</code> starts Postgres and blocks on <code>pg_isready</code> before Flask boots, so a refused connection normally means the cluster died rather than that it was never started.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-33-1" name="__codelineno-33-1" href="#__codelineno-33-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container&gt;<span class="w"> </span>pg_isready<span class="w"> </span>-U<span class="w"> </span>lablink
-<a id="__codelineno-33-2" name="__codelineno-33-2" href="#__codelineno-33-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container&gt;<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="s2">"SELECT 1;"</span>
-<a id="__codelineno-33-3" name="__codelineno-33-3" href="#__codelineno-33-3"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container&gt;<span class="w"> </span>tail<span class="w"> </span>-f<span class="w"> </span>/var/log/postgresql/postgresql-*-main.log
+<div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container&gt;<span class="w"> </span>pg_isready<span class="w"> </span>-U<span class="w"> </span>lablink
+<a id="__codelineno-30-2" name="__codelineno-30-2" href="#__codelineno-30-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container&gt;<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="s2">"SELECT 1;"</span>
+<a id="__codelineno-30-3" name="__codelineno-30-3" href="#__codelineno-30-3"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container&gt;<span class="w"> </span>tail<span class="w"> </span>-f<span class="w"> </span>/var/log/postgresql/postgresql-*-main.log
 </code></pre></div>
 <p>To restart the cluster in place:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-34-1" name="__codelineno-34-1" href="#__codelineno-34-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>&lt;container&gt;<span class="w"> </span>pg_ctlcluster<span class="w"> </span><span class="m">17</span><span class="w"> </span>main<span class="w"> </span>restart
+<div class="highlight"><pre><span></span><code><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>&lt;container&gt;<span class="w"> </span>pg_ctlcluster<span class="w"> </span><span class="m">17</span><span class="w"> </span>main<span class="w"> </span>restart
 </code></pre></div>
 </details>
 <details class="note">
 <summary>Running out of database connections</summary>
 <p>The allocator reports its own connection usage — check <code>/admin</code> (a line under the title) or hit the endpoint directly:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-35-1" name="__codelineno-35-1" href="#__codelineno-35-1"></a>curl<span class="w"> </span>-u<span class="w"> </span>admin:&lt;password&gt;<span class="w"> </span>http://&lt;allocator&gt;:5000/api/health/connections
+<div class="highlight"><pre><span></span><code><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a>curl<span class="w"> </span>-u<span class="w"> </span>admin:&lt;password&gt;<span class="w"> </span>https://&lt;allocator-domain&gt;/api/health/connections
 </code></pre></div>
 <p>At the critical level, new connections can be refused, which fails VM registration and admin actions. Raise Postgres <code>max_connections</code> and <code>LABLINK_DB_POOL_MAX_SIZE</code> together, and check for connections stuck idle in transaction.</p>
 </details>
 <details class="note">
 <summary>Container runs but Flask doesn't start</summary>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-36-1" name="__codelineno-36-1" href="#__codelineno-36-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>&lt;container&gt;<span class="w">          </span><span class="c1"># port in use, import error, bad config?</span>
-<a id="__codelineno-36-2" name="__codelineno-36-2" href="#__codelineno-36-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container&gt;<span class="w"> </span>cat<span class="w"> </span>/app/config/config.yaml
-<a id="__codelineno-36-3" name="__codelineno-36-3" href="#__codelineno-36-3"></a>sudo<span class="w"> </span>netstat<span class="w"> </span>-tulpn<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="m">5000</span>
-<a id="__codelineno-36-4" name="__codelineno-36-4" href="#__codelineno-36-4"></a>sudo<span class="w"> </span>docker<span class="w"> </span>restart<span class="w"> </span>&lt;container&gt;
+<div class="highlight"><pre><span></span><code><a id="__codelineno-33-1" name="__codelineno-33-1" href="#__codelineno-33-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>&lt;container&gt;<span class="w">          </span><span class="c1"># port in use, import error, bad config?</span>
+<a id="__codelineno-33-2" name="__codelineno-33-2" href="#__codelineno-33-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container&gt;<span class="w"> </span>cat<span class="w"> </span>/config/config.yaml
+<a id="__codelineno-33-3" name="__codelineno-33-3" href="#__codelineno-33-3"></a>sudo<span class="w"> </span>netstat<span class="w"> </span>-tulpn<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="m">5000</span>
+<a id="__codelineno-33-4" name="__codelineno-33-4" href="#__codelineno-33-4"></a>sudo<span class="w"> </span>docker<span class="w"> </span>restart<span class="w"> </span>&lt;container&gt;
 </code></pre></div>
 <p>A config that fails schema validation stops the app before it serves anything — the log names the offending key.</p>
 </details>
 <h2 id="diagnostic-commands">Diagnostic commands<a class="headerlink" href="#diagnostic-commands" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-37-1" name="__codelineno-37-1" href="#__codelineno-37-1"></a><span class="c1"># Host health</span>
-<a id="__codelineno-37-2" name="__codelineno-37-2" href="#__codelineno-37-2"></a>df<span class="w"> </span>-h<span class="p">;</span><span class="w"> </span>free<span class="w"> </span>-h<span class="p">;</span><span class="w"> </span>top
-<a id="__codelineno-37-3" name="__codelineno-37-3" href="#__codelineno-37-3"></a>sudo<span class="w"> </span>docker<span class="w"> </span>ps<span class="w"> </span>-a
-<a id="__codelineno-37-4" name="__codelineno-37-4" href="#__codelineno-37-4"></a>sudo<span class="w"> </span>docker<span class="w"> </span>stats
-<a id="__codelineno-37-5" name="__codelineno-37-5" href="#__codelineno-37-5"></a>sudo<span class="w"> </span>netstat<span class="w"> </span>-tulpn
-<a id="__codelineno-37-6" name="__codelineno-37-6" href="#__codelineno-37-6"></a>
-<a id="__codelineno-37-7" name="__codelineno-37-7" href="#__codelineno-37-7"></a><span class="c1"># Allocator</span>
-<a id="__codelineno-37-8" name="__codelineno-37-8" href="#__codelineno-37-8"></a>curl<span class="w"> </span>localhost:5000/api/health
-<a id="__codelineno-37-9" name="__codelineno-37-9" href="#__codelineno-37-9"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>-f<span class="w"> </span>&lt;allocator-container&gt;
-<a id="__codelineno-37-10" name="__codelineno-37-10" href="#__codelineno-37-10"></a>
-<a id="__codelineno-37-11" name="__codelineno-37-11" href="#__codelineno-37-11"></a><span class="c1"># Database</span>
-<a id="__codelineno-37-12" name="__codelineno-37-12" href="#__codelineno-37-12"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container&gt;<span class="w"> </span>pg_isready<span class="w"> </span>-U<span class="w"> </span>lablink
-<a id="__codelineno-37-13" name="__codelineno-37-13" href="#__codelineno-37-13"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container&gt;<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="s2">"SELECT hostname, status, inuse FROM vms;"</span>
-<a id="__codelineno-37-14" name="__codelineno-37-14" href="#__codelineno-37-14"></a>
-<a id="__codelineno-37-15" name="__codelineno-37-15" href="#__codelineno-37-15"></a><span class="c1"># AWS reachability from inside the container</span>
-<a id="__codelineno-37-16" name="__codelineno-37-16" href="#__codelineno-37-16"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container&gt;<span class="w"> </span>aws<span class="w"> </span>sts<span class="w"> </span>get-caller-identity
+<div class="highlight"><pre><span></span><code><a id="__codelineno-34-1" name="__codelineno-34-1" href="#__codelineno-34-1"></a><span class="c1"># Host health</span>
+<a id="__codelineno-34-2" name="__codelineno-34-2" href="#__codelineno-34-2"></a>df<span class="w"> </span>-h<span class="p">;</span><span class="w"> </span>free<span class="w"> </span>-h<span class="p">;</span><span class="w"> </span>top
+<a id="__codelineno-34-3" name="__codelineno-34-3" href="#__codelineno-34-3"></a>sudo<span class="w"> </span>docker<span class="w"> </span>ps<span class="w"> </span>-a
+<a id="__codelineno-34-4" name="__codelineno-34-4" href="#__codelineno-34-4"></a>sudo<span class="w"> </span>docker<span class="w"> </span>stats
+<a id="__codelineno-34-5" name="__codelineno-34-5" href="#__codelineno-34-5"></a>sudo<span class="w"> </span>netstat<span class="w"> </span>-tulpn
+<a id="__codelineno-34-6" name="__codelineno-34-6" href="#__codelineno-34-6"></a>
+<a id="__codelineno-34-7" name="__codelineno-34-7" href="#__codelineno-34-7"></a><span class="c1"># Allocator on an AWS host (manual-provider host port is 80)</span>
+<a id="__codelineno-34-8" name="__codelineno-34-8" href="#__codelineno-34-8"></a>curl<span class="w"> </span>localhost:5000/api/health
+<a id="__codelineno-34-9" name="__codelineno-34-9" href="#__codelineno-34-9"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>-f<span class="w"> </span>&lt;allocator-container&gt;
+<a id="__codelineno-34-10" name="__codelineno-34-10" href="#__codelineno-34-10"></a>
+<a id="__codelineno-34-11" name="__codelineno-34-11" href="#__codelineno-34-11"></a><span class="c1"># Database</span>
+<a id="__codelineno-34-12" name="__codelineno-34-12" href="#__codelineno-34-12"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container&gt;<span class="w"> </span>pg_isready<span class="w"> </span>-U<span class="w"> </span>lablink
+<a id="__codelineno-34-13" name="__codelineno-34-13" href="#__codelineno-34-13"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container&gt;<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="s2">"SELECT hostname, status, inuse FROM vms;"</span>
+<a id="__codelineno-34-14" name="__codelineno-34-14" href="#__codelineno-34-14"></a>
+<a id="__codelineno-34-15" name="__codelineno-34-15" href="#__codelineno-34-15"></a><span class="c1"># AWS reachability from inside the container</span>
+<a id="__codelineno-34-16" name="__codelineno-34-16" href="#__codelineno-34-16"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container&gt;<span class="w"> </span>aws<span class="w"> </span>sts<span class="w"> </span>get-caller-identity
 </code></pre></div>
 <h2 id="before-you-ask-for-help">Before you ask for help<a class="headerlink" href="#before-you-ask-for-help" title="Permanent link">&para;</a></h2>
 <ul class="task-list">
 <li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> <code>lablink doctor</code> run, output read</li>
-<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Container running (<code>docker ps</code>) and answering on <code>localhost:5000</code></li>
-<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Security group allows 22 and 5000, plus 80/443 if using Caddy</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Container running (<code>docker ps</code>) and answering at the host port for your provider</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Public URL reaches port 80 or 443 as configured; SSH reaches port 22</li>
 <li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> SSH key is mode 600</li>
 <li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> AWS credentials resolve (<code>aws sts get-caller-identity</code>)</li>
 <li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> OpenTofu state not locked, S3 bucket exists</li>

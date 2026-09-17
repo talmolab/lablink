@@ -1537,17 +1537,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#from-python-inside-container" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        From Python (Inside Container)
-      
-    </span>
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -1675,17 +1664,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#clear-all-vms" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Clear All VMs
-      
-    </span>
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -1757,17 +1735,6 @@
     <span class="md-ellipsis">
       
         Next Steps
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#quick-reference" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Quick Reference
       
     </span>
   </a>
@@ -4958,17 +4925,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#from-python-inside-container" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        From Python (Inside Container)
-      
-    </span>
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -5096,17 +5052,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#clear-all-vms" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Clear All VMs
-      
-    </span>
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -5184,17 +5129,6 @@
   
 </li>
       
-        <li class="md-nav__item">
-  <a href="#quick-reference" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Quick Reference
-      
-    </span>
-  </a>
-  
-</li>
-      
     </ul>
   
 </nav>
@@ -5227,14 +5161,14 @@ your research software, the only database setting you touch is
 <h2 id="database-overview">Database Overview<a class="headerlink" href="#database-overview" title="Permanent link">&para;</a></h2>
 <p>LabLink uses <strong>PostgreSQL</strong> for:</p>
 <ul>
-<li>Tracking VM states (<code>initializing</code>, <code>running</code>, <code>error</code>, <code>rebooting</code>)</li>
+<li>Tracking VM states (<code>initializing</code>, <code>running</code>, <code>error</code>, <code>rebooting</code>; the status endpoint also accepts <code>unknown</code>, but nothing writes it)</li>
 <li>Storing seat assignments, and claiming them atomically so concurrent requesters can't collide</li>
 <li>Holding per-session browser state (session IDs, rotated VNC credentials)</li>
 <li>Registration records and hashed secrets for BYO clients</li>
 <li>Async operation and scheduled-destruction bookkeeping</li>
 <li>Session metrics, when <code>monitoring.enabled</code> is set</li>
 </ul>
-<p><strong>Version</strong>: PostgreSQL 13+
+<p><strong>Version</strong>: PostgreSQL 17
 <strong>Location</strong>: Runs in allocator Docker container
 <strong>Access</strong>: Port 5432 (internal)</p>
 <h2 id="database-schema">Database Schema<a class="headerlink" href="#database-schema" title="Permanent link">&para;</a></h2>
@@ -5278,12 +5212,12 @@ or registered itself as a BYO box. The table name is fixed: <code>vms</code>.</p
 <tr>
 <td><code>Healthy</code></td>
 <td>VARCHAR(1024)</td>
-<td>Health status</td>
+<td><code>Healthy</code>, <code>Unhealthy</code>, <code>N/A</code>, or <code>NULL</code></td>
 </tr>
 <tr>
 <td><code>Status</code></td>
 <td>VARCHAR(1024)</td>
-<td><code>initializing</code>, <code>running</code>, <code>error</code>, <code>rebooting</code></td>
+<td><code>initializing</code>, <code>running</code>, <code>error</code>, <code>rebooting</code>; <code>unknown</code> is accepted by the API but never written</td>
 </tr>
 <tr>
 <td><code>CreatedAt</code></td>
@@ -5293,7 +5227,7 @@ or registered itself as a BYO box. The table name is fixed: <code>vms</code>.</p
 <tr>
 <td><code>last_release_time</code></td>
 <td>TIMESTAMP</td>
-<td>When the seat was last released</td>
+<td>Indexed for assignment ordering, but currently never written</td>
 </tr>
 </tbody>
 </table>
@@ -5436,7 +5370,7 @@ or registered itself as a BYO box. The table name is fixed: <code>vms</code>.</p
 <p>The last two are added by <code>ensure_reboot_columns()</code> at reboot-service startup, not
 by <code>init.sql</code> — the one exception to the note above.</p>
 <p><strong>Startup timings and logs</strong></p>
-<p><code>CloudInitLogs</code>, <code>DockerLogs</code>, and the <code>TerraformApply*</code>, <code>CloudInit*</code>, <code>Container*</code>
+<p><code>CloudInitLogs</code>, <code>DockerLogs</code>, and the <code>TofuApply*</code>, <code>CloudInit*</code>, <code>Container*</code>
 and <code>TotalStartupDurationSeconds</code> timing columns, which break VM startup into its
 OpenTofu / cloud-init / container-start phases for bottleneck analysis.</p>
 <p><strong>Session metrics</strong> — populated only when <code>monitoring.enabled</code> is true</p>
@@ -5478,12 +5412,12 @@ instead of blocking on a long OpenTofu run.</p>
 <tr>
 <td><code>op_type</code></td>
 <td>VARCHAR(16) NOT NULL</td>
-<td>What kind of operation</td>
+<td><code>launch</code> or <code>destroy</code></td>
 </tr>
 <tr>
 <td><code>status</code></td>
 <td>VARCHAR(16) NOT NULL</td>
-<td>Current state</td>
+<td><code>queued</code>, <code>running</code>, <code>succeeded</code>, <code>failed</code>, or <code>interrupted</code></td>
 </tr>
 <tr>
 <td><code>params</code></td>
@@ -5517,7 +5451,10 @@ instead of blocking on a long OpenTofu run.</p>
 </tr>
 </tbody>
 </table>
-<p>Exposed via <a href="../api-endpoints/#provisioning-and-operations"><code>/api/operations</code></a>.</p>
+<p>Exposed via <a href="../api-endpoints/#provisioning-and-operations"><code>/api/operations</code></a>.
+<code>idx_operations_created_at</code> supports recent-job listings. The partial unique
+index <code>operations_single_flight</code> permits only one <code>queued</code> or <code>running</code> row, so
+a second launch or destroy request cannot start concurrently.</p>
 <h3 id="scheduled_destructions-table"><code>scheduled_destructions</code> Table<a class="headerlink" href="#scheduled_destructions-table" title="Permanent link">&para;</a></h3>
 <p>Backs scheduled tear-down, so a workshop deployment can be capped ahead of time.</p>
 <table>
@@ -5600,18 +5537,8 @@ client registration can be verified without keeping the token in memory alone.</
 <h3 id="triggers">Triggers<a class="headerlink" href="#triggers" title="Permanent link">&para;</a></h3>
 <p>One, <code>scheduled_destructions_updated_at</code>, which maintains <code>updated_at</code> on that
 table.</p>
-<div class="admonition note">
-<p class="admonition-title">LISTEN/NOTIFY has been removed</p>
-<p>LabLink used to drive client assignment through a <code>notify_vm_changes</code> trigger
-firing <code>pg_notify</code> on a <code>vm_updates</code> channel, with each client holding a
-<code>LISTEN</code> connection open and blocking on <code>POST /vm_startup</code> for a CRD command
-and PIN. All of it — the trigger, the channel, the <code>db.message_channel</code> config
-key, the endpoint, and the client-side <code>subscribe</code> service — is gone.</p>
-<p>Assignment now runs the other direction: <code>/api/request_vm</code> claims a seat with
-<code>FOR UPDATE SKIP LOCKED</code> and the allocator calls the assigned client's local
-agent to rotate its VNC password. No pub/sub, and no long-lived database
-connection per client.</p>
-</div>
+<p>Seat assignment uses <code>FOR UPDATE SKIP LOCKED</code> in <code>/api/request_vm</code>; the
+allocator then calls the assigned client's agent to rotate its VNC password.</p>
 <h2 id="accessing-the-database">Accessing the Database<a class="headerlink" href="#accessing-the-database" title="Permanent link">&para;</a></h2>
 <h3 id="via-ssh-and-psql">Via SSH and psql<a class="headerlink" href="#via-ssh-and-psql" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># SSH into allocator</span>
@@ -5626,183 +5553,126 @@ connection per client.</p>
 <h3 id="connection-parameters">Connection Parameters<a class="headerlink" href="#connection-parameters" title="Permanent link">&para;</a></h3>
 <p>The database identity is fixed — <code>lablink_db</code>, user <code>lablink</code>, on
 <code>localhost:5432</code> inside the allocator container. Only the password comes
-from config (<code>lablink-infrastructure/config/config.yaml</code>):</p>
+from <a href="../configuration/#database-options-db">configuration</a>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">db</span><span class="p">:</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="nt">password</span><span class="p">:</span><span class="w"> </span><span class="s">"lablink"</span><span class="w"> </span><span class="c1"># Change in production!</span>
-</code></pre></div>
-<h3 id="from-python-inside-container">From Python (Inside Container)<a class="headerlink" href="#from-python-inside-container" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">psycopg2</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">conn</span> <span class="o">=</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    <span class="n">dbname</span><span class="o">=</span><span class="s2">"lablink_db"</span><span class="p">,</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="n">user</span><span class="o">=</span><span class="s2">"lablink"</span><span class="p">,</span>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    <span class="n">password</span><span class="o">=</span><span class="s2">"lablink"</span><span class="p">,</span>
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>    <span class="n">host</span><span class="o">=</span><span class="s2">"localhost"</span><span class="p">,</span>
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>    <span class="n">port</span><span class="o">=</span><span class="mi">5432</span>
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="p">)</span>
-<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>
-<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="n">cursor</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
-<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">"SELECT * FROM vms;"</span><span class="p">)</span>
-<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="n">rows</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
-<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>
-<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">:</span>
-<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
-<a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a>
-<a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="n">conn</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="nt">password</span><span class="p">:</span><span class="w"> </span><span class="s">"&lt;strong-private-password&gt;"</span>
 </code></pre></div>
 <h2 id="common-database-operations">Common Database Operations<a class="headerlink" href="#common-database-operations" title="Permanent link">&para;</a></h2>
 <h3 id="view-all-vms">View All VMs<a class="headerlink" href="#view-all-vms" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">vms</span><span class="p">;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">vms</span><span class="p">;</span>
 </code></pre></div>
 <h3 id="view-available-vms">View Available VMs<a class="headerlink" href="#view-available-vms" title="Permanent link">&para;</a></h3>
 <p>A seat is claimable when it is <code>running</code>, unassigned, and not reserved by an admin —
 the same predicate <code>vms_assignable_idx</code> covers.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">SELECT</span><span class="w"> </span><span class="n">hostname</span><span class="p">,</span><span class="w"> </span><span class="n">status</span><span class="p">,</span><span class="w"> </span><span class="n">gpu_model</span><span class="p">,</span><span class="w"> </span><span class="n">createdat</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="k">FROM</span><span class="w"> </span><span class="n">vms</span>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="k">WHERE</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'running'</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">useremail</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">adminreservedat</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="k">NULL</span>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">createdat</span><span class="p">;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">SELECT</span><span class="w"> </span><span class="n">hostname</span><span class="p">,</span><span class="w"> </span><span class="n">status</span><span class="p">,</span><span class="w"> </span><span class="n">gpu_model</span><span class="p">,</span><span class="w"> </span><span class="n">createdat</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="k">FROM</span><span class="w"> </span><span class="n">vms</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="k">WHERE</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'running'</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">useremail</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">adminreservedat</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="k">NULL</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">createdat</span><span class="p">;</span>
 </code></pre></div>
 <h3 id="view-assigned-vms">View Assigned VMs<a class="headerlink" href="#view-assigned-vms" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">SELECT</span><span class="w"> </span><span class="n">hostname</span><span class="p">,</span><span class="w"> </span><span class="n">useremail</span><span class="p">,</span><span class="w"> </span><span class="n">status</span><span class="p">,</span><span class="w"> </span><span class="n">inuse</span><span class="p">,</span><span class="w"> </span><span class="n">sessionstartedat</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="k">FROM</span><span class="w"> </span><span class="n">vms</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="k">WHERE</span><span class="w"> </span><span class="n">useremail</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span>
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">sessionstartedat</span><span class="w"> </span><span class="k">DESC</span><span class="p">;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">SELECT</span><span class="w"> </span><span class="n">hostname</span><span class="p">,</span><span class="w"> </span><span class="n">useremail</span><span class="p">,</span><span class="w"> </span><span class="n">status</span><span class="p">,</span><span class="w"> </span><span class="n">inuse</span><span class="p">,</span><span class="w"> </span><span class="n">sessionstartedat</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="k">FROM</span><span class="w"> </span><span class="n">vms</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="k">WHERE</span><span class="w"> </span><span class="n">useremail</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">sessionstartedat</span><span class="w"> </span><span class="k">DESC</span><span class="p">;</span>
 </code></pre></div>
 <p><code>inuse</code> tells you whether the configured software is actually running, which is not
 the same as a seat being assigned.</p>
 <h3 id="count-vms-by-status">Count VMs by Status<a class="headerlink" href="#count-vms-by-status" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">SELECT</span><span class="w"> </span><span class="n">status</span><span class="p">,</span><span class="w"> </span><span class="k">COUNT</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">count</span>
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="k">FROM</span><span class="w"> </span><span class="n">vms</span>
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="k">GROUP</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">status</span><span class="p">;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">SELECT</span><span class="w"> </span><span class="n">status</span><span class="p">,</span><span class="w"> </span><span class="k">COUNT</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">count</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="k">FROM</span><span class="w"> </span><span class="n">vms</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="k">GROUP</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">status</span><span class="p">;</span>
 </code></pre></div>
 <p>Expected output:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a> status       | count
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>--------------+-------
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a> running      |     8
-<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a> initializing |     1
-<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a> error        |     1
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a> status       | count
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>--------------+-------
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a> running      |     8
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a> initializing |     1
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a> error        |     1
 </code></pre></div>
 <h3 id="find-a-vm-by-email">Find a VM by Email<a class="headerlink" href="#find-a-vm-by-email" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">SELECT</span><span class="w"> </span><span class="n">hostname</span><span class="p">,</span><span class="w"> </span><span class="n">status</span><span class="p">,</span><span class="w"> </span><span class="n">healthy</span><span class="p">,</span><span class="w"> </span><span class="n">sessionstartedat</span>
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="k">FROM</span><span class="w"> </span><span class="n">vms</span>
-<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="k">WHERE</span><span class="w"> </span><span class="n">useremail</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'user@example.com'</span><span class="p">;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">SELECT</span><span class="w"> </span><span class="n">hostname</span><span class="p">,</span><span class="w"> </span><span class="n">status</span><span class="p">,</span><span class="w"> </span><span class="n">healthy</span><span class="p">,</span><span class="w"> </span><span class="n">sessionstartedat</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="k">FROM</span><span class="w"> </span><span class="n">vms</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="k">WHERE</span><span class="w"> </span><span class="n">useremail</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'user@example.com'</span><span class="p">;</span>
 </code></pre></div>
 <h3 id="release-a-seat">Release a Seat<a class="headerlink" href="#release-a-seat" title="Permanent link">&para;</a></h3>
-<p>Clearing the assignment and the per-session state returns a VM to the pool:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">UPDATE</span><span class="w"> </span><span class="n">vms</span>
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="k">SET</span><span class="w"> </span><span class="n">useremail</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span><span class="w"> </span><span class="n">sessionid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span><span class="w"> </span><span class="n">browsertoken</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
-<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">    </span><span class="n">sessionstartedat</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span><span class="w"> </span><span class="n">last_release_time</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">NOW</span><span class="p">()</span>
-<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="k">WHERE</span><span class="w"> </span><span class="n">hostname</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'i-0abc123def456'</span><span class="p">;</span>
+<p>Clearing the assignment and the per-session state returns a VM to the pool.
+The allocator's <code>release_seat</code> does not update <code>last_release_time</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">UPDATE</span><span class="w"> </span><span class="n">vms</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="k">SET</span><span class="w"> </span><span class="n">useremail</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span><span class="w"> </span><span class="n">sessionid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span><span class="w"> </span><span class="n">browsertoken</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">    </span><span class="n">vncpassword</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span><span class="w"> </span><span class="n">upstream</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span><span class="w"> </span><span class="n">browser_ws_url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">    </span><span class="n">browser_credential</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span><span class="w"> </span><span class="n">sessionstartedat</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">    </span><span class="n">adminreservedat</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">NULL</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="k">WHERE</span><span class="w"> </span><span class="n">hostname</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'i-0abc123def456'</span><span class="p">;</span>
 </code></pre></div>
 <h3 id="clear-a-stuck-unhealthy-flag">Clear a Stuck Unhealthy Flag<a class="headerlink" href="#clear-a-stuck-unhealthy-flag" title="Permanent link">&para;</a></h3>
 <p>A single transient rotation failure can leave a client marked <code>Unhealthy</code>. The admin
 UI exposes this as <strong>clear-unhealthy</strong>; the equivalent query is:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="k">UPDATE</span><span class="w"> </span><span class="n">vms</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">healthy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">hostname</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'i-0abc123def456'</span><span class="p">;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">UPDATE</span><span class="w"> </span><span class="n">vms</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">healthy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">hostname</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'i-0abc123def456'</span><span class="p">;</span>
 </code></pre></div>
 <h3 id="view-byo-client-registrations">View BYO Client Registrations<a class="headerlink" href="#view-byo-client-registrations" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="k">SELECT</span><span class="w"> </span><span class="n">hostname</span><span class="p">,</span><span class="w"> </span><span class="n">machine_identity</span><span class="p">,</span><span class="w"> </span><span class="n">provider</span><span class="p">,</span><span class="w"> </span><span class="n">gpu_model</span><span class="p">,</span>
-<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="w">       </span><span class="n">provider_metadata</span><span class="p">,</span><span class="w"> </span><span class="n">last_seen_at</span>
-<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="k">FROM</span><span class="w"> </span><span class="n">vms</span>
-<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="k">WHERE</span><span class="w"> </span><span class="n">provider</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'manual'</span>
-<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">last_seen_at</span><span class="w"> </span><span class="k">DESC</span><span class="w"> </span><span class="n">NULLS</span><span class="w"> </span><span class="k">LAST</span><span class="p">;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="k">SELECT</span><span class="w"> </span><span class="n">hostname</span><span class="p">,</span><span class="w"> </span><span class="n">machine_identity</span><span class="p">,</span><span class="w"> </span><span class="n">provider</span><span class="p">,</span><span class="w"> </span><span class="n">gpu_model</span><span class="p">,</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">       </span><span class="n">provider_metadata</span><span class="p">,</span><span class="w"> </span><span class="n">last_seen_at</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="k">FROM</span><span class="w"> </span><span class="n">vms</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="k">WHERE</span><span class="w"> </span><span class="n">provider</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'manual'</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">last_seen_at</span><span class="w"> </span><span class="k">DESC</span><span class="w"> </span><span class="n">NULLS</span><span class="w"> </span><span class="k">LAST</span><span class="p">;</span>
 </code></pre></div>
 <h3 id="find-silent-clients">Find Silent Clients<a class="headerlink" href="#find-silent-clients" title="Permanent link">&para;</a></h3>
 <p>Clients that stopped heartbeating — the signal the recovery loop acts on:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="k">SELECT</span><span class="w"> </span><span class="n">hostname</span><span class="p">,</span><span class="w"> </span><span class="n">status</span><span class="p">,</span><span class="w"> </span><span class="n">last_seen_at</span><span class="p">,</span><span class="w"> </span><span class="n">reboot_count</span>
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="k">FROM</span><span class="w"> </span><span class="n">vms</span>
-<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="k">WHERE</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'running'</span>
-<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="p">(</span><span class="n">last_seen_at</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">OR</span><span class="w"> </span><span class="n">last_seen_at</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">NOW</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nb">INTERVAL</span><span class="w"> </span><span class="s1">'3 minutes'</span><span class="p">);</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="k">SELECT</span><span class="w"> </span><span class="n">hostname</span><span class="p">,</span><span class="w"> </span><span class="n">status</span><span class="p">,</span><span class="w"> </span><span class="n">last_seen_at</span><span class="p">,</span><span class="w"> </span><span class="n">reboot_count</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="k">FROM</span><span class="w"> </span><span class="n">vms</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="k">WHERE</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'running'</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="p">(</span><span class="n">last_seen_at</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">OR</span><span class="w"> </span><span class="n">last_seen_at</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">NOW</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nb">INTERVAL</span><span class="w"> </span><span class="s1">'3 minutes'</span><span class="p">);</span>
 </code></pre></div>
 <h3 id="delete-vm-record">Delete VM Record<a class="headerlink" href="#delete-vm-record" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="k">DELETE</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">vms</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">hostname</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'i-0abc123def456'</span><span class="p">;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="k">DELETE</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">vms</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">hostname</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'i-0abc123def456'</span><span class="p">;</span>
 </code></pre></div>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
+<p>Only delete after the VM instance is terminated in AWS.</p>
 </div>
-<p>Only delete after VM instance is terminated in AWS.</p>
-<h3 id="clear-all-vms">Clear All VMs<a class="headerlink" href="#clear-all-vms" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="c1">-- Use with caution!</span>
-<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="k">TRUNCATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">vms</span><span class="p">;</span>
-</code></pre></div>
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
 <h3 id="postgresql-wont-start">PostgreSQL Won't Start<a class="headerlink" href="#postgresql-wont-start" title="Permanent link">&para;</a></h3>
 <p><strong>Check logs</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>tail<span class="w"> </span>-f<span class="w"> </span>/var/log/postgresql/postgresql-13-main.log
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>lablink-allocator
 </code></pre></div>
-<p><strong>Common issues</strong>:</p>
-<ol>
-<li><strong>Port already in use</strong>:</li>
-</ol>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>sudo<span class="w"> </span>netstat<span class="w"> </span>-tulpn<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="m">5432</span>
-<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="c1"># Kill process using port</span>
-</code></pre></div>
-<ol>
-<li><strong>Disk full</strong>:</li>
-</ol>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>df<span class="w"> </span>-h
-<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="c1"># Clean up space</span>
-</code></pre></div>
-<ol>
-<li><strong>Corrupt data files</strong>:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="c1"># Stop container, remove volume, restart</span>
-<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span>stop<span class="w"> </span>&lt;container-id&gt;
-<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>sudo<span class="w"> </span>docker<span class="w"> </span>rm<span class="w"> </span>&lt;container-id&gt;
-<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="c1"># Redeploy with fresh database</span>
-</code></pre></div></li>
-</ol>
+<p>If the log reports a full disk, check free space on the allocator host with
+<code>df -h</code>. Keep the container and its data in place while investigating startup
+errors; removing its volume deletes assignments and operation history.</p>
 <h3 id="cannot-connect-to-database">Cannot Connect to Database<a class="headerlink" href="#cannot-connect-to-database" title="Permanent link">&para;</a></h3>
 <p><strong>Check connection from allocator</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>pg_isready<span class="w"> </span>-U<span class="w"> </span>lablink
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>pg_isready<span class="w"> </span>-U<span class="w"> </span>lablink
 </code></pre></div>
 <p><strong>Test connection</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="s2">"SELECT 1;"</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="s2">"SELECT 1;"</span>
 </code></pre></div>
-<p><strong>Check pg_hba.conf</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>cat<span class="w"> </span>/etc/postgresql/13/main/pg_hba.conf
-</code></pre></div>
-<p>Should include:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>host    all             all             0.0.0.0/0            md5
-</code></pre></div>
+<p>The production image currently copies its <code>pg_hba.conf</code> override to a
+PostgreSQL 15 path, while the running cluster is PostgreSQL 17. Inspect the
+active configuration inside the container rather than assuming the copied
+file is in use.</p>
 <h3 id="restart-postgresql">Restart PostgreSQL<a class="headerlink" href="#restart-postgresql" title="Permanent link">&para;</a></h3>
-<p>Known issue requiring manual restart after first boot:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="c1"># SSH into allocator</span>
-<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;allocator-ip&gt;
-<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a>
-<a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a><span class="c1"># Access container</span>
-<a id="__codelineno-24-5" name="__codelineno-24-5" href="#__codelineno-24-5"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>bash
-<a id="__codelineno-24-6" name="__codelineno-24-6" href="#__codelineno-24-6"></a>
-<a id="__codelineno-24-7" name="__codelineno-24-7" href="#__codelineno-24-7"></a><span class="c1"># Inside container</span>
-<a id="__codelineno-24-8" name="__codelineno-24-8" href="#__codelineno-24-8"></a>/etc/init.d/postgresql<span class="w"> </span>restart
-<a id="__codelineno-24-9" name="__codelineno-24-9" href="#__codelineno-24-9"></a>
-<a id="__codelineno-24-10" name="__codelineno-24-10" href="#__codelineno-24-10"></a><span class="c1"># Verify</span>
-<a id="__codelineno-24-11" name="__codelineno-24-11" href="#__codelineno-24-11"></a>pg_isready<span class="w"> </span>-U<span class="w"> </span>lablink
+<p>If PostgreSQL needs a manual restart inside the allocator container:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="c1"># SSH into allocator</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;allocator-ip&gt;
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="c1"># Access container</span>
+<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>bash
+<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>
+<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="c1"># Inside container</span>
+<a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a>pg_ctlcluster<span class="w"> </span><span class="m">17</span><span class="w"> </span>main<span class="w"> </span>restart
+<a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a>
+<a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a><span class="c1"># Verify</span>
+<a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a>pg_isready<span class="w"> </span>-U<span class="w"> </span>lablink
 </code></pre></div>
 <h2 id="security">Security<a class="headerlink" href="#security" title="Permanent link">&para;</a></h2>
 <p>The database is reachable only from inside the allocator container
-(<code>localhost:5432</code>), so the one thing to do is <strong>change the default
-password</strong> — see <a href="../security/#database-password">Security</a>.</p>
+(<code>localhost:5432</code>). Set a strong password through the deployment path as
+described in <a href="../security/#database-password">Security</a>.</p>
 <h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong><a href="../security/#ssh-access">Security &amp; Access</a></strong>: Connect to database via SSH</li>
-<li><strong><a href="../troubleshooting/">Troubleshooting</a></strong>: Fix database issues</li>
+<li><strong><a href="../troubleshooting/">Troubleshooting</a></strong>: Investigate deployment failures</li>
 <li><strong><a href="../security/">Security</a></strong>: Secure database access</li>
 <li><strong><a href="../architecture/">Architecture</a></strong>: Understand database role</li>
 </ul>
-<h2 id="quick-reference">Quick Reference<a class="headerlink" href="#quick-reference" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="c1">-- View all VMs</span>
-<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">vms</span><span class="p">;</span>
-<a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a>
-<a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a><span class="c1">-- Count by status</span>
-<a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a><span class="k">SELECT</span><span class="w"> </span><span class="n">status</span><span class="p">,</span><span class="w"> </span><span class="k">COUNT</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">vms</span><span class="w"> </span><span class="k">GROUP</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">status</span><span class="p">;</span>
-<a id="__codelineno-25-6" name="__codelineno-25-6" href="#__codelineno-25-6"></a>
-<a id="__codelineno-25-7" name="__codelineno-25-7" href="#__codelineno-25-7"></a><span class="c1">-- Find claimable seats</span>
-<a id="__codelineno-25-8" name="__codelineno-25-8" href="#__codelineno-25-8"></a><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">vms</span>
-<a id="__codelineno-25-9" name="__codelineno-25-9" href="#__codelineno-25-9"></a><span class="k">WHERE</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'running'</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">useremail</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">adminreservedat</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="k">NULL</span><span class="p">;</span>
-<a id="__codelineno-25-10" name="__codelineno-25-10" href="#__codelineno-25-10"></a>
-<a id="__codelineno-25-11" name="__codelineno-25-11" href="#__codelineno-25-11"></a><span class="c1">-- Release a seat back to the pool</span>
-<a id="__codelineno-25-12" name="__codelineno-25-12" href="#__codelineno-25-12"></a><span class="k">UPDATE</span><span class="w"> </span><span class="n">vms</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">useremail</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span><span class="w"> </span><span class="n">sessionid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span><span class="w"> </span><span class="n">browsertoken</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">NULL</span>
-<a id="__codelineno-25-13" name="__codelineno-25-13" href="#__codelineno-25-13"></a><span class="k">WHERE</span><span class="w"> </span><span class="n">hostname</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'i-xxxxx'</span><span class="p">;</span>
-</code></pre></div>
 
 
 

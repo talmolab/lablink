@@ -4579,7 +4579,7 @@
 
 
 <h1 id="lablink">LabLink<a class="headerlink" href="#lablink" title="Permanent link">&para;</a></h1>
-<p><strong>Cloud-based virtual teaching lab accessible through Chrome browser.</strong></p>
+<p><strong>On-demand GPU teaching labs accessible through the browser.</strong></p>
 <p>Run a hands-on software workshop -- students get a full desktop with your software pre-installed, you just share a link.</p>
 <hr />
 <h2 id="see-it-in-action">See It in Action<a class="headerlink" href="#see-it-in-action" title="Permanent link">&para;</a></h2>
@@ -4598,7 +4598,10 @@
 <li><strong>Share a link</strong> -- students visit the URL, get assigned a VM, and start working</li>
 </ol>
 <p>LabLink is <strong>software-agnostic</strong>. You can <a href="adapting/">adapt it for any software</a> that runs in Docker.</p>
-<p>Prefer a local workflow over the template repository? The <a href="cli/">LabLink CLI</a> deploys the same infrastructure from your own machine with <code>lablink configure &amp;&amp; lablink deploy</code>.</p>
+<p>The <a href="cli/">LabLink CLI</a> is the recommended deployment path: run
+<code>lablink configure &amp;&amp; lablink deploy</code> from your own machine. The template
+repository is available when you want to manage the OpenTofu and workflows
+yourself.</p>
 <div class="admonition note">
 <p class="admonition-title">Cloud-agnostic via Bring-Your-Own clients</p>
 <p>LabLink is not tied to AWS. With the CLI's <a href="cli/byo-clients/">Bring-Your-Own clients</a> mode, any machine with Docker and an internet connection (to pull LabLink's published packages from PyPI and container images) can serve as a client — lab workstations, on-prem servers, or VMs from any cloud. BYO clients are only available through the CLI; the template-repo path does not support them.</p>
@@ -4608,7 +4611,7 @@
 <div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Prerequisites</label><label for="__tabbed_1_2">Quickstart</label><label for="__tabbed_1_3">Guides</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1s-2.4.84-2.82 2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2m-7 0a1 1 0 0 1 1 1 1 1 0 0 1-1 1 1 1 0 0 1-1-1 1 1 0 0 1 1-1M7 7h10V5h2v14H5V5h2zm.5 6.5L9 12l2 2 4.5-4.5L17 11l-6 6z"/></svg></span> Install the required tools: AWS CLI, GitHub CLI, and Git.</p>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1s-2.4.84-2.82 2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2m-7 0a1 1 0 0 1 1 1 1 1 0 0 1-1 1 1 1 0 0 1-1-1 1 1 0 0 1 1-1M7 7h10V5h2v14H5V5h2zm.5 6.5L9 12l2 2 4.5-4.5L17 11l-6 6z"/></svg></span> Choose a deployment path, then install its required tools.</p>
 <p><a href="prerequisites/"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13.22 19.03a.75.75 0 0 1 0-1.06L18.19 13H3.75a.75.75 0 0 1 0-1.5h14.44l-4.97-4.97a.749.749 0 0 1 .326-1.275.75.75 0 0 1 .734.215l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0"/></svg></span> View requirements</a></p>
 </div>
 <div class="tabbed-block">
@@ -4645,8 +4648,8 @@
 <li>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m13.13 22.19-1.63-3.83c1.57-.58 3.04-1.36 4.4-2.27zM5.64 12.5l-3.83-1.63 6.1-2.77C7 9.46 6.22 10.93 5.64 12.5M21.61 2.39S16.66.269 11 5.93c-2.19 2.19-3.5 4.6-4.35 6.71-.28.75-.09 1.57.46 2.13l2.13 2.12c.55.56 1.37.74 2.12.46A19.1 19.1 0 0 0 18.07 13c5.66-5.66 3.54-10.61 3.54-10.61m-7.07 7.07c-.78-.78-.78-2.05 0-2.83s2.05-.78 2.83 0c.77.78.78 2.05 0 2.83s-2.05.78-2.83 0m-5.66 7.07-1.41-1.41zM6.24 22l3.64-3.64c-.34-.09-.67-.24-.97-.45L4.83 22zM2 22h1.41l4.77-4.76-1.42-1.41L2 20.59zm0-2.83 4.09-4.08c-.21-.3-.36-.62-.45-.97L2 17.76z"/></svg></span> <strong>Deployment</strong></p>
 <hr />
-<p>CI/CD workflows, production deployment, and environment management.</p>
-<p><a href="deployment/"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13.22 19.03a.75.75 0 0 1 0-1.06L18.19 13H3.75a.75.75 0 0 1 0-1.5h14.44l-4.97-4.97a.749.749 0 0 1 .326-1.275.75.75 0 0 1 .734.215l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0"/></svg></span> Deployment</a></p>
+<p>Deploy through the template repository's GitHub Actions workflows.</p>
+<p><a href="quickstart-template/"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13.22 19.03a.75.75 0 0 1 0-1.06L18.19 13H3.75a.75.75 0 0 1 0-1.5h14.44l-4.97-4.97a.749.749 0 0 1 .326-1.275.75.75 0 0 1 .734.215l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0"/></svg></span> Template deployment</a></p>
 </li>
 </ul>
 </div>
