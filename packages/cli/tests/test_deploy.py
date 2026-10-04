@@ -19,8 +19,10 @@ from lablink_cli.commands.deploy import (
     _destroy_client_vms,
     _poll_allocator_health,
     _prepare_working_dir,
+    _resolve_bucket_region,
     _run_tofu,
     _tofu_destroy,
+    _tofu_init,
     _warn_letsencrypt_rate_limit,
     run_deploy,
     run_destroy,
@@ -858,3 +860,61 @@ class TestRunDestroyYesFlag:
 
             mock_export.assert_called_once()
             mocks["tofu_destroy"].assert_called_once()
+
+
+# ------------------------------------------------------------------
+# _resolve_bucket_region / _tofu_init backend region
+# ------------------------------------------------------------------
+class TestResolveBucketRegion:
+    """The backend's `region` is the state bucket's region, not the
+    deployment's. OpenTofu's S3 backend does not follow S3 region
+    redirects, so getting this wrong fails init with PermanentRedirect."""
+
+    @patch("boto3.client")
+    def test_returns_bucket_location(self, mock_client):
+        mock_client.return_value.get_bucket_location.return_value = {
+            "LocationConstraint": "us-west-2"
+        }
+
+        assert _resolve_bucket_region("some-bucket", "eu-west-1") == "us-west-2"
+
+    @patch("boto3.client")
+    def test_null_location_constraint_means_us_east_1(self, mock_client):
+        # S3 reports a us-east-1 bucket with a null LocationConstraint.
+        mock_client.return_value.get_bucket_location.return_value = {
+            "LocationConstraint": None
+        }
+
+        assert _resolve_bucket_region("some-bucket", "eu-west-1") == "us-east-1"
+
+    @patch("boto3.client")
+    def test_falls_back_when_lookup_fails(self, mock_client):
+        from botocore.exceptions import ClientError
+
+        mock_client.return_value.get_bucket_location.side_effect = ClientError(
+            {"Error": {"Code": "AccessDenied"}}, "GetBucketLocation"
+        )
+
+        # No worse than assuming app.region, which is what it did before.
+        assert _resolve_bucket_region("some-bucket", "eu-west-1") == "eu-west-1"
+
+
+class TestTofuInitBackendRegion:
+    @patch("lablink_cli.commands.deploy._run_tofu")
+    @patch("lablink_cli.commands.deploy._resolve_bucket_region")
+    @patch("boto3.client")
+    def test_uses_bucket_region_not_app_region(
+        self, mock_client, mock_resolve, mock_run, mock_cfg, tmp_path
+    ):
+        mock_client.return_value.get_caller_identity.return_value = {
+            "Account": "123456789012"
+        }
+        mock_resolve.return_value = "us-west-2"
+        mock_cfg.app.region = "eu-west-1"
+
+        _tofu_init(tmp_path, mock_cfg)
+
+        args = mock_run.call_args[0][0]
+        assert "-backend-config=region=us-west-2" in args
+        assert "-backend-config=region=eu-west-1" not in args
+        assert "-backend-config=bucket=lablink-tf-state-123456789012" in args

@@ -9,6 +9,17 @@ this project uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- `deploy` and `destroy` now send the OpenTofu S3 backend the region the state
+  bucket actually lives in, instead of assuming it matches `app.region`. The
+  backend's `region` identifies the bucket; the region to provision into is
+  passed separately as `-var=region=`. Conflating them broke every deployment
+  whose `app.region` differed from the bucket's region with
+  `Failed to get existing workspaces: ... api error PermanentRedirect`, because
+  OpenTofu's S3 backend does not follow S3's region redirect (the AWS CLI does,
+  which makes this easy to misdiagnose). Reachable since 0.3.0 made `app.region`
+  actually drive the deployment: the bucket name is derived from the account ID
+  and S3 names are global, so a bucket an earlier deployment created in another
+  region gets reused by name.
 - Corrected three `--help` strings that described behavior the CLI does not
   have. `cleanup --dry-run` no longer claims the manual provider's cleanup
   waits for a confirmation (it runs `docker compose down --volumes` and

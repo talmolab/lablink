@@ -205,6 +205,30 @@ def _run_tofu(
     return proc.returncode
 
 
+def _resolve_bucket_region(bucket_name: str, fallback: str) -> str:
+    """Return the region *bucket_name* lives in, or *fallback* if unknown.
+
+    Args:
+        bucket_name: The OpenTofu state bucket.
+        fallback: Region to assume when the bucket cannot be located (it does
+            not exist yet, or the caller may not query its location).
+
+    Returns:
+        The bucket's region.
+    """
+    import boto3
+    from botocore.exceptions import BotoCoreError, ClientError
+
+    try:
+        resp = boto3.client("s3", region_name=fallback).get_bucket_location(
+            Bucket=bucket_name
+        )
+    except (BotoCoreError, ClientError):
+        return fallback
+    # A us-east-1 bucket reports a null LocationConstraint.
+    return resp.get("LocationConstraint") or "us-east-1"
+
+
 def _tofu_init(
     deploy_dir: Path,
     cfg: Config,
@@ -227,6 +251,17 @@ def _tofu_init(
     )
     bucket_name = f"lablink-tf-state-{account_id}"
 
+    # The backend's `region` is the region the STATE BUCKET lives in, not the
+    # region the deployment provisions into (that is passed separately as
+    # `-var=region=`). They are usually the same, because `lablink setup`
+    # creates the bucket in app.region — but a bucket created by an earlier
+    # deployment in another region is reused by name (it is derived from the
+    # account ID, and S3 names are global), and then they differ. Sending
+    # app.region for a bucket that lives elsewhere fails init with
+    # `PermanentRedirect`: unlike the AWS CLI, OpenTofu's S3 backend does not
+    # follow the region redirect. So ask S3 where the bucket actually is.
+    bucket_region = _resolve_bucket_region(bucket_name, cfg.app.region)
+
     # State key scoped by deployment_name and environment
     state_key = (
         f"{cfg.deployment_name}/{cfg.environment}"
@@ -237,7 +272,7 @@ def _tofu_init(
         "init",
         f"-backend-config=key={state_key}",
         f"-backend-config=bucket={bucket_name}",
-        f"-backend-config=region={cfg.app.region}",
+        f"-backend-config=region={bucket_region}",
         "-backend-config=dynamodb_table=lock-table",
         "-backend-config=encrypt=true",
     ]
