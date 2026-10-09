@@ -175,3 +175,53 @@ def test_early_break_when_all_seen(tmp_path, allowlist):
     _write_cmdline(tmp_path / "300", ["/opt/conda/bin/sleap-track"])
     seen = processes.sample(allowlist=allowlist, proc_root=str(tmp_path))
     assert seen == {"sleap-label", "sleap-train", "sleap-track"}
+
+
+def test_sleap_app_gui_counts_as_label(tmp_path, allowlist):
+    """sleap-app's GUI binary (`.deb` installs /usr/bin/sleap-app)."""
+    _write_cmdline(tmp_path / "100", ["/usr/bin/sleap-app"])
+    seen = processes.sample(allowlist=allowlist, proc_root=str(tmp_path))
+    assert seen == {"sleap-label"}
+
+
+def test_uv_launched_sleap_nn_train(tmp_path, allowlist):
+    """sleap-app training — `<uv-python> ~/.local/bin/sleap-nn train …`."""
+    _write_cmdline(
+        tmp_path / "200",
+        [
+            "/home/client/.local/share/uv/tools/sleap-nn/bin/python",
+            "/home/client/.local/bin/sleap-nn",
+            "train",
+            "--config-name",
+            "x.yaml",
+        ],
+    )
+    seen = processes.sample(allowlist=allowlist, proc_root=str(tmp_path))
+    assert seen == {"sleap-train"}
+
+
+@pytest.mark.parametrize("subcommand", ["predict", "track"])
+def test_sleap_nn_inference_counts_as_track(tmp_path, allowlist, subcommand):
+    """sleap-app inference — `sleap-nn predict` (or `track` on sleap-nn < 0.2)."""
+    _write_cmdline(
+        tmp_path / "300",
+        ["/home/client/.local/bin/sleap-nn", subcommand, "--data_path", "x.slp"],
+    )
+    seen = processes.sample(allowlist=allowlist, proc_root=str(tmp_path))
+    assert seen == {"sleap-track"}
+
+
+def test_sleap_nn_unknown_subcommand_does_not_match(tmp_path, allowlist):
+    """`sleap-nn export` (and bare `sleap-nn`) are not milestones."""
+    _write_cmdline(tmp_path / "100", ["/home/client/.local/bin/sleap-nn", "export"])
+    _write_cmdline(tmp_path / "200", ["/home/client/.local/bin/sleap-nn"])
+    seen = processes.sample(allowlist=allowlist, proc_root=str(tmp_path))
+    assert seen == set()
+
+
+def test_sleap_app_respects_allowlist(tmp_path):
+    """Dropping a canonical name from the allowlist also drops its sleap-app shape."""
+    _write_cmdline(tmp_path / "100", ["/usr/bin/sleap-app"])
+    _write_cmdline(tmp_path / "200", ["/home/client/.local/bin/sleap-nn", "train"])
+    seen = processes.sample(allowlist=["sleap-track"], proc_root=str(tmp_path))
+    assert seen == set()
