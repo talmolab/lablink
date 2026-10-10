@@ -18,6 +18,13 @@ canonical names in the allowlist:
      __main__.__spec__ set, which entry-point scripts don't provide;
      sleap/gui/learning/runners.py:1311). argv[0] is the python
      interpreter.
+
+sleap-app (the newer Tauri GUI) is mapped onto the same names, so the
+SecondsToFirstSleap* columns mean the same thing for either GUI:
+
+  4. `sleap-app` — the GUI binary itself, counted as `sleap-label`.
+  5. `sleap-nn <subcommand>` — sleap-app's training (`train`) and
+     inference (`predict`, or `track` on sleap-nn < 0.2) path.
 """
 
 import logging
@@ -25,6 +32,15 @@ import os
 from typing import Iterable, List, Set
 
 logger = logging.getLogger(__name__)
+
+# sleap-app's GUI binary and sleap-nn subcommands, normalised onto the
+# canonical SLEAP names.
+SLEAP_APP_GUI = "sleap-app"
+SLEAP_NN_SUBCOMMANDS = {
+    "train": "sleap-train",
+    "predict": "sleap-track",
+    "track": "sleap-track",
+}
 
 
 def _read_cmdline(path: str) -> List[str] | None:
@@ -83,6 +99,16 @@ def _classify(parts: List[str], allowlist: Set[str]) -> Set[str]:
     # `sleap <subcommand>` — the GUI's inference path.
     if argv0 == "sleap" and len(parts) > 1:
         candidate = f"sleap-{parts[1]}"
+        if candidate in allowlist:
+            matches.add(candidate)
+
+    # sleap-app GUI binary.
+    if argv0 == SLEAP_APP_GUI and "sleap-label" in allowlist:
+        matches.add("sleap-label")
+
+    # `sleap-nn <subcommand>` — sleap-app's training/inference path.
+    if argv0 == "sleap-nn" and len(parts) > 1:
+        candidate = SLEAP_NN_SUBCOMMANDS.get(parts[1])
         if candidate in allowlist:
             matches.add(candidate)
 
